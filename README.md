@@ -98,6 +98,7 @@ node run-tests.js --site=my-site --project="Mobile Chrome"
 
 Tests run on:
 - Desktop Chrome & Firefox
+- **Desktop Safari** (macOS only - uses real Safari browser)
 - Mobile Chrome (Pixel 5)
 - Mobile Safari (iPhone 12) 
 - Tablet (iPad Pro)

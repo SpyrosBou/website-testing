@@ -1,4 +1,8 @@
 const { defineConfig, devices } = require('@playwright/test');
+const os = require('os');
+
+// Detect if Safari is available (macOS only)
+const isMacOS = os.platform() === 'darwin';
 
 module.exports = defineConfig({
   testDir: './tests',
@@ -27,6 +31,16 @@ module.exports = defineConfig({
       name: 'Desktop Firefox',
       use: { ...devices['Desktop Firefox'] },
     },
+    // Add Safari project only on macOS
+    ...(isMacOS ? [{
+      name: 'Desktop Safari',
+      use: { 
+        ...devices['Desktop Safari'],
+        // Ensure we use the real Safari browser
+        browserName: 'webkit',
+        channel: undefined // Use system Safari, not Playwright's bundled webkit
+      },
+    }] : []),
     {
       name: 'Mobile Chrome',
       use: { ...devices['Pixel 5'] },

@@ -54,6 +54,7 @@ node run-tests.js --site=SITENAME               # Test specific site (all tests)
 node run-tests.js --site=SITENAME --functionality   # Test only functionality
 node run-tests.js --site=SITENAME --responsive      # Test only responsive + visual regression
 node run-tests.js --site=SITENAME --project="Desktop Chrome"  # Single browser
+node run-tests.js --site=SITENAME --project="Desktop Safari" # Real Safari (macOS only)
 ```
 
 ### Visual Regression Commands
@@ -236,6 +237,12 @@ Each WordPress site should have TWO configurations:
 - **Network conditions**: Local tests faster than remote
 
 ## Integration Notes
+
+### With macOS Safari
+- **Automatic Detection**: Safari project only appears on macOS systems
+- **Real Browser**: Uses actual Safari application, not WebKit simulation
+- **Same Engine**: Tests against the same WebKit engine that macOS Safari users see
+- **Not iOS Safari**: This is desktop Safari - mobile Safari still has iOS-specific differences
 
 ### With Local by Flywheel
 - Sites automatically use HTTPS (self-signed certificates)
