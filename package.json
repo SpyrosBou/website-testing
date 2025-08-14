@@ -1,0 +1,21 @@
+{
+  "name": "wordpress-testing-suite",
+  "version": "1.0.0",
+  "description": "Automated testing suite for WordPress websites",
+  "main": "index.js",
+  "scripts": {
+    "test": "node run-tests.js",
+    "test:site": "node run-tests.js --site=",
+    "install-browsers": "npx playwright install",
+    "setup": "npm install && npm run install-browsers"
+  },
+  "keywords": ["testing", "wordpress", "playwright", "automation"],
+  "author": "Web Dev Agency",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "dependencies": {
+    "minimist": "^1.2.8"
+  }
+}

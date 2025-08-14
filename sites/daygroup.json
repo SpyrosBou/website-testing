@@ -1,0 +1,43 @@
+{
+  "name": "Day Group Website",
+  "baseUrl": "https://daygroup.co.uk",
+  "testPages": [
+    "/",
+    "/about-us",
+    "/contact-us",
+    "/our-services",
+    "/portfolio"
+  ],
+  "forms": [
+    {
+      "name": "Contact Form",
+      "page": "/contact-us",
+      "selector": ".wpcf7-form, #contact-form",
+      "fields": {
+        "name": "input[name*='name']",
+        "email": "input[name*='email']", 
+        "message": "textarea[name*='message']"
+      },
+      "submitButton": "input[type='submit'], .wpcf7-submit"
+    }
+  ],
+  "criticalElements": [
+    {
+      "name": "Main Navigation",
+      "selector": ".main-navigation, #main-menu, nav"
+    },
+    {
+      "name": "Header",
+      "selector": "header, .site-header, .header"
+    },
+    {
+      "name": "Footer", 
+      "selector": "footer, .site-footer, .footer"
+    }
+  ],
+  "expectedElements": {
+    "homepage": [".hero-section, .banner, .intro"],
+    "contact-us": [".wpcf7-form, #contact-form"],
+    "about-us": [".about-content, .about"]
+  }
+}
