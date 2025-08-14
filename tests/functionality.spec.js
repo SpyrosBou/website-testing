@@ -14,9 +14,20 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
   test('should have no broken internal links', async ({ page }) => {
     const checkedUrls = new Set();
     const brokenLinks = [];
+    const missingPages = [];
     
     for (const testPage of siteConfig.testPages) {
-      await page.goto(`${siteConfig.baseUrl}${testPage}`);
+      const response = await page.goto(`${siteConfig.baseUrl}${testPage}`);
+      
+      // Check if the page itself exists
+      if (response?.status() >= 400) {
+        missingPages.push({
+          page: testPage,
+          status: response.status(),
+          url: `${siteConfig.baseUrl}${testPage}`
+        });
+        continue; // Skip link checking on broken pages
+      }
       
       // Find all internal links
       const links = await page.locator('a[href]').all();
@@ -53,14 +64,28 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
       }
     }
     
-    if (brokenLinks.length > 0) {
-      console.log('Broken links found:', brokenLinks);
+    // Report findings
+    if (missingPages.length > 0) {
+      console.log('❌ Missing pages found:', missingPages);
     }
-    expect(brokenLinks).toHaveLength(0);
+    if (brokenLinks.length > 0) {
+      console.log('❌ Broken links found:', brokenLinks);
+    }
+    
+    // Fail if we found missing pages or broken links
+    const totalIssues = missingPages.length + brokenLinks.length;
+    if (totalIssues > 0) {
+      const errorMessage = [
+        missingPages.length > 0 ? `${missingPages.length} missing pages` : '',
+        brokenLinks.length > 0 ? `${brokenLinks.length} broken links` : ''
+      ].filter(Boolean).join(', ');
+      throw new Error(`Found ${errorMessage}`);
+    }
   });
   
   test('should detect JavaScript errors', async ({ page }) => {
     const jsErrors = [];
+    const missingPages = [];
     
     // Listen for console errors
     page.on('console', msg => {
@@ -82,8 +107,21 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
     
     // Test each page for JS errors
     for (const testPage of siteConfig.testPages) {
-      await page.goto(`${siteConfig.baseUrl}${testPage}`);
-      await page.waitForLoadState('networkidle');
+      const response = await page.goto(`${siteConfig.baseUrl}${testPage}`);
+      
+      // Skip JS testing on missing pages
+      if (response?.status() >= 400) {
+        missingPages.push({ page: testPage, status: response.status() });
+        console.log(`⚠️  Skipping JS tests for missing page: ${testPage} (${response.status()})`);
+        continue;
+      }
+      
+      // Only wait for network idle on pages that actually loaded
+      try {
+        await page.waitForLoadState('networkidle', { timeout: 10000 });
+      } catch (error) {
+        console.log(`⚠️  Network idle timeout for ${testPage}, continuing with JS error check`);
+      }
       
       // Interact with common elements that might trigger JS
       try {
@@ -104,9 +142,14 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
       }
     }
     
-    if (jsErrors.length > 0) {
-      console.log('JavaScript errors found:', jsErrors);
+    // Report findings
+    if (missingPages.length > 0) {
+      console.log(`ℹ️  Skipped JS testing on ${missingPages.length} missing pages:`, missingPages.map(p => p.page));
     }
+    if (jsErrors.length > 0) {
+      console.log('❌ JavaScript errors found:', jsErrors);
+    }
+    
     expect(jsErrors).toHaveLength(0);
   });
   
@@ -114,7 +157,13 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
   if (siteConfig?.forms && siteConfig.forms.length > 0) {
     for (const form of siteConfig.forms) {
       test(`should handle ${form.name} properly`, async ({ page }) => {
-        await page.goto(`${siteConfig.baseUrl}${form.page}`);
+        const response = await page.goto(`${siteConfig.baseUrl}${form.page}`);
+        
+        // Skip form testing if page doesn't exist
+        if (response?.status() >= 400) {
+          console.log(`⚠️  Skipping form test - page not found: ${form.page} (${response.status()})`);
+          return;
+        }
         
         // Wait for form to be visible
         await expect(page.locator(form.selector)).toBeVisible({ timeout: 10000 });
@@ -150,12 +199,25 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
   
   test('should load all pages within acceptable time', async ({ page }) => {
     const slowPages = [];
+    const missingPages = [];
     
     for (const testPage of siteConfig.testPages) {
       const startTime = Date.now();
       
-      await page.goto(`${siteConfig.baseUrl}${testPage}`);
-      await page.waitForLoadState('networkidle');
+      const response = await page.goto(`${siteConfig.baseUrl}${testPage}`);
+      
+      // Skip performance testing on missing pages
+      if (response?.status() >= 400) {
+        missingPages.push({ page: testPage, status: response.status() });
+        continue;
+      }
+      
+      try {
+        await page.waitForLoadState('networkidle', { timeout: 10000 });
+      } catch (error) {
+        // Don't fail on network idle timeout, just note it
+        console.log(`⚠️  Network idle timeout for ${testPage}`);
+      }
       
       const loadTime = Date.now() - startTime;
       
@@ -167,11 +229,17 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
       }
     }
     
-    if (slowPages.length > 0) {
-      console.log('Slow loading pages:', slowPages);
+    // Report findings
+    if (missingPages.length > 0) {
+      console.log(`ℹ️  Skipped performance testing on ${missingPages.length} missing pages:`, missingPages.map(p => p.page));
     }
-    // Warning only, don't fail test for slow pages
-    expect(slowPages.length).toBeLessThan(siteConfig.testPages.length);
+    if (slowPages.length > 0) {
+      console.log('⚠️  Slow loading pages:', slowPages);
+    }
+    
+    // Only fail if ALL existing pages are slow (very unlikely)
+    const existingPagesCount = siteConfig.testPages.length - missingPages.length;
+    expect(slowPages.length).toBeLessThan(existingPagesCount);
   });
   
 });

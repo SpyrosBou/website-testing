@@ -1,6 +1,6 @@
 # WordPress Testing Suite
 
-Automated testing suite for WordPress websites focusing on responsive design and functionality testing.
+Automated testing suite for WordPress websites with responsive design, functionality testing, and visual regression detection.
 
 ## Quick Start
 
@@ -77,7 +77,8 @@ node run-tests.js --site=my-site --project="Mobile Chrome"
 - ✅ Pages load correctly on desktop, tablet, mobile
 - ✅ Critical elements are visible across devices
 - ✅ Mobile menu functionality
-- ✅ Screenshots for visual comparison
+- ✅ **Visual Regression Detection** - Automatic screenshot comparison
+- ✅ **Layout Change Alerts** - Pixel-level difference detection
 
 ### Functionality Testing
 - ✅ No broken internal links
@@ -89,7 +90,8 @@ node run-tests.js --site=my-site --project="Mobile Chrome"
 ## Test Results
 
 - **HTML Report**: Run `npx playwright show-report` after tests
-- **Screenshots**: Saved in `test-results/screenshots/`
+- **Visual Diff Reports**: Side-by-side comparison of layout changes
+- **Baseline Screenshots**: Stored in `test-results/` for comparison
 - **Console Output**: Real-time test progress
 
 ## Browser Coverage
@@ -109,3 +111,5 @@ Tests run on:
 **Form tests fail**: Update form selectors in your site configuration to match your WordPress theme
 
 **JavaScript errors**: Review console output for specific error details
+
+**Visual regression failures**: Run `npx playwright test --update-snapshots` to update baselines after intentional design changes
