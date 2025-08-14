@@ -1,0 +1,110 @@
+# Page snapshot
+
+```yaml
+- list:
+  - listitem:
+    - button "Open submenu": +
+    - link "About Us":
+      - /url: https://nfsmediation.local/about-us/
+    - list:
+      - listitem:
+        - link "Block Playground":
+          - /url: https://nfsmediation.local/block-playground/
+      - listitem:
+        - link "Flexi page":
+          - /url: https://nfsmediation.local/flexi-page/
+      - listitem:
+        - link "Notices":
+          - /url: https://nfsmediation.local/notices/
+  - listitem:
+    - button "Open submenu": +
+    - link "Our Services":
+      - /url: https://nfsmediation.local/our-services/
+    - list:
+      - listitem:
+        - link "Sample Page":
+          - /url: https://nfsmediation.local/sample-page/
+  - listitem:
+    - link "Contact Us":
+      - /url: https://nfsmediation.local/contact-us/
+- link "Skip to content":
+  - /url: "#skip-anchor"
+- banner:
+  - list:
+    - listitem:
+      - link "Back to home":
+        - /url: https://nfsmediation.local
+        - img "nfsmediation"
+  - menu:
+    - listitem:
+      - link "About Us":
+        - /url: https://nfsmediation.local/about-us/
+    - listitem:
+      - link "Our Services":
+        - /url: https://nfsmediation.local/our-services/
+    - listitem:
+      - link "Contact Us":
+        - /url: https://nfsmediation.local/contact-us/
+- main:
+  - article:
+    - heading "404 - Page Not Found" [level=1]
+    - paragraph: The article you were looking for was not found.
+    - paragraph:
+      - link "Back to homepage":
+        - /url: https://nfsmediation.local
+- img "404 page"
+- contentinfo:
+  - img
+  - text: Unit 11, Basepoint Business Centre, Andersons Road, Southampton, SO14 5FE
+  - img
+  - link "info@nfsmediation.co.uk":
+    - /url: mailto:info@nfsmediation.co.uk
+  - img
+  - link "023 8033 1456":
+    - /url: tel:023 8033 1456
+  - heading "Our Services" [level=4]
+  - list:
+    - listitem:
+      - link "ASB Assessment Service":
+        - /url: https://nfsmediation.local/services/asb-assessment-service/
+    - listitem:
+      - link "Coaching Services":
+        - /url: https://nfsmediation.local/services/coaching-services/
+    - listitem:
+      - link "Community Mediation":
+        - /url: https://nfsmediation.local/services/community-mediation/
+    - listitem:
+      - link "CPD AccreditedTraining Programmes":
+        - /url: https://nfsmediation.local/services/cpd-accreditedtraining-programmes/
+    - listitem:
+      - link "Hoarding Support Services":
+        - /url: https://nfsmediation.local/services/hoarding-support-services/
+    - listitem:
+      - link "Workplace Mediation Services":
+        - /url: https://nfsmediation.local/services/workplace-mediation-services/
+  - heading "Quick Links" [level=4]
+  - list:
+    - listitem:
+      - link "Get Involved":
+        - /url: https://nfsmediation.local/get-involved/
+    - listitem:
+      - link "Notices":
+        - /url: https://nfsmediation.local/notices/
+    - listitem:
+      - link "Contact Us":
+        - /url: https://nfsmediation.local/contact-us/
+    - listitem:
+      - link "About Us":
+        - /url: https://nfsmediation.local/about-us/
+  - paragraph: © 2025 nfsmediation. All Rights Reserved.
+  - list:
+    - listitem:
+      - link "Privacy Policy":
+        - /url: https://nfsmediation.local/privacy-policy-2/
+    - listitem:
+      - link "Terms of Use":
+        - /url: https://nfsmediation.local/terms-of-use/
+    - listitem:
+      - link "Cookie Settings":
+        - /url: https://nfsmediation.local/cookie-settings/
+```

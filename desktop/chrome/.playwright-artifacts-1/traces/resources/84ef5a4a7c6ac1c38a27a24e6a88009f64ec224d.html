@@ -1,0 +1,1245 @@
+
+<!doctype html>
+
+  <html class="no-js"  lang="en-US">
+
+	<head>
+		<meta charset="utf-8">
+		
+		<!-- Force IE to use the latest rendering engine available -->
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+		<!-- Mobile Meta -->
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta class="foundation-mq">
+		
+		<!-- If Site Icon isn't set in customizer -->
+					<!-- Icons & Favicons -->
+			<link rel="icon" href="https://nfsmediation.local/wp-content/themes/nfsmediation/favicon.png">
+			<link href="https://nfsmediation.local/wp-content/themes/nfsmediation/assets/images/apple-icon-touch.png" rel="apple-touch-icon" />	
+	    
+		<link rel="pingback" href="https://nfsmediation.local/xmlrpc.php">
+
+		<title>nfsmediation</title>
+<meta name='robots' content='noindex, nofollow' />
+	<style>img:is([sizes="auto" i], [sizes^="auto," i]) { contain-intrinsic-size: 3000px 1500px }</style>
+	<link rel="alternate" type="application/rss+xml" title="nfsmediation &raquo; Feed" href="https://nfsmediation.local/feed/" />
+<link rel="alternate" type="application/rss+xml" title="nfsmediation &raquo; Comments Feed" href="https://nfsmediation.local/comments/feed/" />
+<script type="text/javascript">
+/* <![CDATA[ */
+window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/16.0.1\/72x72\/","ext":".png","svgUrl":"https:\/\/s.w.org\/images\/core\/emoji\/16.0.1\/svg\/","svgExt":".svg","source":{"wpemoji":"https:\/\/nfsmediation.local\/wp-includes\/js\/wp-emoji.js?ver=6.8.2","twemoji":"https:\/\/nfsmediation.local\/wp-includes\/js\/twemoji.js?ver=6.8.2"}};
+/**
+ * @output wp-includes/js/wp-emoji-loader.js
+ */
+
+/**
+ * Emoji Settings as exported in PHP via _print_emoji_detection_script().
+ * @typedef WPEmojiSettings
+ * @type {object}
+ * @property {?object} source
+ * @property {?string} source.concatemoji
+ * @property {?string} source.twemoji
+ * @property {?string} source.wpemoji
+ * @property {?boolean} DOMReady
+ * @property {?Function} readyCallback
+ */
+
+/**
+ * Support tests.
+ * @typedef SupportTests
+ * @type {object}
+ * @property {?boolean} flag
+ * @property {?boolean} emoji
+ */
+
+/**
+ * IIFE to detect emoji support and load Twemoji if needed.
+ *
+ * @param {Window} window
+ * @param {Document} document
+ * @param {WPEmojiSettings} settings
+ */
+( function wpEmojiLoader( window, document, settings ) {
+	if ( typeof Promise === 'undefined' ) {
+		return;
+	}
+
+	var sessionStorageKey = 'wpEmojiSettingsSupports';
+	var tests = [ 'flag', 'emoji' ];
+
+	/**
+	 * Checks whether the browser supports offloading to a Worker.
+	 *
+	 * @since 6.3.0
+	 *
+	 * @private
+	 *
+	 * @returns {boolean}
+	 */
+	function supportsWorkerOffloading() {
+		return (
+			typeof Worker !== 'undefined' &&
+			typeof OffscreenCanvas !== 'undefined' &&
+			typeof URL !== 'undefined' &&
+			URL.createObjectURL &&
+			typeof Blob !== 'undefined'
+		);
+	}
+
+	/**
+	 * @typedef SessionSupportTests
+	 * @type {object}
+	 * @property {number} timestamp
+	 * @property {SupportTests} supportTests
+	 */
+
+	/**
+	 * Get support tests from session.
+	 *
+	 * @since 6.3.0
+	 *
+	 * @private
+	 *
+	 * @returns {?SupportTests} Support tests, or null if not set or older than 1 week.
+	 */
+	function getSessionSupportTests() {
+		try {
+			/** @type {SessionSupportTests} */
+			var item = JSON.parse(
+				sessionStorage.getItem( sessionStorageKey )
+			);
+			if (
+				typeof item === 'object' &&
+				typeof item.timestamp === 'number' &&
+				new Date().valueOf() < item.timestamp + 604800 && // Note: Number is a week in seconds.
+				typeof item.supportTests === 'object'
+			) {
+				return item.supportTests;
+			}
+		} catch ( e ) {}
+		return null;
+	}
+
+	/**
+	 * Persist the supports in session storage.
+	 *
+	 * @since 6.3.0
+	 *
+	 * @private
+	 *
+	 * @param {SupportTests} supportTests Support tests.
+	 */
+	function setSessionSupportTests( supportTests ) {
+		try {
+			/** @type {SessionSupportTests} */
+			var item = {
+				supportTests: supportTests,
+				timestamp: new Date().valueOf()
+			};
+
+			sessionStorage.setItem(
+				sessionStorageKey,
+				JSON.stringify( item )
+			);
+		} catch ( e ) {}
+	}
+
+	/**
+	 * Checks if two sets of Emoji characters render the same visually.
+	 *
+	 * This is used to determine if the browser is rendering an emoji with multiple data points
+	 * correctly. set1 is the emoji in the correct form, using a zero-width joiner. set2 is the emoji
+	 * in the incorrect form, using a zero-width space. If the two sets render the same, then the browser
+	 * does not support the emoji correctly.
+	 *
+	 * This function may be serialized to run in a Worker. Therefore, it cannot refer to variables from the containing
+	 * scope. Everything must be passed by parameters.
+	 *
+	 * @since 4.9.0
+	 *
+	 * @private
+	 *
+	 * @param {CanvasRenderingContext2D} context 2D Context.
+	 * @param {string} set1 Set of Emoji to test.
+	 * @param {string} set2 Set of Emoji to test.
+	 *
+	 * @return {boolean} True if the two sets render the same.
+	 */
+	function emojiSetsRenderIdentically( context, set1, set2 ) {
+		// Cleanup from previous test.
+		context.clearRect( 0, 0, context.canvas.width, context.canvas.height );
+		context.fillText( set1, 0, 0 );
+		var rendered1 = new Uint32Array(
+			context.getImageData(
+				0,
+				0,
+				context.canvas.width,
+				context.canvas.height
+			).data
+		);
+
+		// Cleanup from previous test.
+		context.clearRect( 0, 0, context.canvas.width, context.canvas.height );
+		context.fillText( set2, 0, 0 );
+		var rendered2 = new Uint32Array(
+			context.getImageData(
+				0,
+				0,
+				context.canvas.width,
+				context.canvas.height
+			).data
+		);
+
+		return rendered1.every( function ( rendered2Data, index ) {
+			return rendered2Data === rendered2[ index ];
+		} );
+	}
+
+	/**
+	 * Checks if the center point of a single emoji is empty.
+	 *
+	 * This is used to determine if the browser is rendering an emoji with a single data point
+	 * correctly. The center point of an incorrectly rendered emoji will be empty. A correctly
+	 * rendered emoji will have a non-zero value at the center point.
+	 *
+	 * This function may be serialized to run in a Worker. Therefore, it cannot refer to variables from the containing
+	 * scope. Everything must be passed by parameters.
+	 *
+	 * @since 6.8.2
+	 *
+	 * @private
+	 *
+	 * @param {CanvasRenderingContext2D} context 2D Context.
+	 * @param {string} emoji Emoji to test.
+	 *
+	 * @return {boolean} True if the center point is empty.
+	 */
+	function emojiRendersEmptyCenterPoint( context, emoji ) {
+		// Cleanup from previous test.
+		context.clearRect( 0, 0, context.canvas.width, context.canvas.height );
+		context.fillText( emoji, 0, 0 );
+
+		// Test if the center point (16, 16) is empty (0,0,0,0).
+		var centerPoint = context.getImageData(16, 16, 1, 1);
+		for ( var i = 0; i < centerPoint.data.length; i++ ) {
+			if ( centerPoint.data[ i ] !== 0 ) {
+				// Stop checking the moment it's known not to be empty.
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Determines if the browser properly renders Emoji that Twemoji can supplement.
+	 *
+	 * This function may be serialized to run in a Worker. Therefore, it cannot refer to variables from the containing
+	 * scope. Everything must be passed by parameters.
+	 *
+	 * @since 4.2.0
+	 *
+	 * @private
+	 *
+	 * @param {CanvasRenderingContext2D} context 2D Context.
+	 * @param {string} type Whether to test for support of "flag" or "emoji".
+	 * @param {Function} emojiSetsRenderIdentically Reference to emojiSetsRenderIdentically function, needed due to minification.
+	 * @param {Function} emojiRendersEmptyCenterPoint Reference to emojiRendersEmptyCenterPoint function, needed due to minification.
+	 *
+	 * @return {boolean} True if the browser can render emoji, false if it cannot.
+	 */
+	function browserSupportsEmoji( context, type, emojiSetsRenderIdentically, emojiRendersEmptyCenterPoint ) {
+		var isIdentical;
+
+		switch ( type ) {
+			case 'flag':
+				/*
+				 * Test for Transgender flag compatibility. Added in Unicode 13.
+				 *
+				 * To test for support, we try to render it, and compare the rendering to how it would look if
+				 * the browser doesn't render it correctly (white flag emoji + transgender symbol).
+				 */
+				isIdentical = emojiSetsRenderIdentically(
+					context,
+					'\uD83C\uDFF3\uFE0F\u200D\u26A7\uFE0F', // as a zero-width joiner sequence
+					'\uD83C\uDFF3\uFE0F\u200B\u26A7\uFE0F' // separated by a zero-width space
+				);
+
+				if ( isIdentical ) {
+					return false;
+				}
+
+				/*
+				 * Test for Sark flag compatibility. This is the least supported of the letter locale flags,
+				 * so gives us an easy test for full support.
+				 *
+				 * To test for support, we try to render it, and compare the rendering to how it would look if
+				 * the browser doesn't render it correctly ([C] + [Q]).
+				 */
+				isIdentical = emojiSetsRenderIdentically(
+					context,
+					'\uD83C\uDDE8\uD83C\uDDF6', // as the sequence of two code points
+					'\uD83C\uDDE8\u200B\uD83C\uDDF6' // as the two code points separated by a zero-width space
+				);
+
+				if ( isIdentical ) {
+					return false;
+				}
+
+				/*
+				 * Test for English flag compatibility. England is a country in the United Kingdom, it
+				 * does not have a two letter locale code but rather a five letter sub-division code.
+				 *
+				 * To test for support, we try to render it, and compare the rendering to how it would look if
+				 * the browser doesn't render it correctly (black flag emoji + [G] + [B] + [E] + [N] + [G]).
+				 */
+				isIdentical = emojiSetsRenderIdentically(
+					context,
+					// as the flag sequence
+					'\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62\uDB40\uDC65\uDB40\uDC6E\uDB40\uDC67\uDB40\uDC7F',
+					// with each code point separated by a zero-width space
+					'\uD83C\uDFF4\u200B\uDB40\uDC67\u200B\uDB40\uDC62\u200B\uDB40\uDC65\u200B\uDB40\uDC6E\u200B\uDB40\uDC67\u200B\uDB40\uDC7F'
+				);
+
+				return ! isIdentical;
+			case 'emoji':
+				/*
+				 * Does Emoji 16.0 cause the browser to go splat?
+				 *
+				 * To test for Emoji 16.0 support, try to render a new emoji: Splatter.
+				 *
+				 * The splatter emoji is a single code point emoji. Testing for browser support
+				 * required testing the center point of the emoji to see if it is empty.
+				 *
+				 * 0xD83E 0xDEDF (\uD83E\uDEDF) == 🫟 Splatter.
+				 *
+				 * When updating this test, please ensure that the emoji is either a single code point
+				 * or switch to using the emojiSetsRenderIdentically function and testing with a zero-width
+				 * joiner vs a zero-width space.
+				 */
+				var notSupported = emojiRendersEmptyCenterPoint( context, '\uD83E\uDEDF' );
+				return ! notSupported;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Checks emoji support tests.
+	 *
+	 * This function may be serialized to run in a Worker. Therefore, it cannot refer to variables from the containing
+	 * scope. Everything must be passed by parameters.
+	 *
+	 * @since 6.3.0
+	 *
+	 * @private
+	 *
+	 * @param {string[]} tests Tests.
+	 * @param {Function} browserSupportsEmoji Reference to browserSupportsEmoji function, needed due to minification.
+	 * @param {Function} emojiSetsRenderIdentically Reference to emojiSetsRenderIdentically function, needed due to minification.
+	 * @param {Function} emojiRendersEmptyCenterPoint Reference to emojiRendersEmptyCenterPoint function, needed due to minification.
+	 *
+	 * @return {SupportTests} Support tests.
+	 */
+	function testEmojiSupports( tests, browserSupportsEmoji, emojiSetsRenderIdentically, emojiRendersEmptyCenterPoint ) {
+		var canvas;
+		if (
+			typeof WorkerGlobalScope !== 'undefined' &&
+			self instanceof WorkerGlobalScope
+		) {
+			canvas = new OffscreenCanvas( 300, 150 ); // Dimensions are default for HTMLCanvasElement.
+		} else {
+			canvas = document.createElement( 'canvas' );
+		}
+
+		var context = canvas.getContext( '2d', { willReadFrequently: true } );
+
+		/*
+		 * Chrome on OS X added native emoji rendering in M41. Unfortunately,
+		 * it doesn't work when the font is bolder than 500 weight. So, we
+		 * check for bold rendering support to avoid invisible emoji in Chrome.
+		 */
+		context.textBaseline = 'top';
+		context.font = '600 32px Arial';
+
+		var supports = {};
+		tests.forEach( function ( test ) {
+			supports[ test ] = browserSupportsEmoji( context, test, emojiSetsRenderIdentically, emojiRendersEmptyCenterPoint );
+		} );
+		return supports;
+	}
+
+	/**
+	 * Adds a script to the head of the document.
+	 *
+	 * @ignore
+	 *
+	 * @since 4.2.0
+	 *
+	 * @param {string} src The url where the script is located.
+	 *
+	 * @return {void}
+	 */
+	function addScript( src ) {
+		var script = document.createElement( 'script' );
+		script.src = src;
+		script.defer = true;
+		document.head.appendChild( script );
+	}
+
+	settings.supports = {
+		everything: true,
+		everythingExceptFlag: true
+	};
+
+	// Create a promise for DOMContentLoaded since the worker logic may finish after the event has fired.
+	var domReadyPromise = new Promise( function ( resolve ) {
+		document.addEventListener( 'DOMContentLoaded', resolve, {
+			once: true
+		} );
+	} );
+
+	// Obtain the emoji support from the browser, asynchronously when possible.
+	new Promise( function ( resolve ) {
+		var supportTests = getSessionSupportTests();
+		if ( supportTests ) {
+			resolve( supportTests );
+			return;
+		}
+
+		if ( supportsWorkerOffloading() ) {
+			try {
+				// Note that the functions are being passed as arguments due to minification.
+				var workerScript =
+					'postMessage(' +
+					testEmojiSupports.toString() +
+					'(' +
+					[
+						JSON.stringify( tests ),
+						browserSupportsEmoji.toString(),
+						emojiSetsRenderIdentically.toString(),
+						emojiRendersEmptyCenterPoint.toString()
+					].join( ',' ) +
+					'));';
+				var blob = new Blob( [ workerScript ], {
+					type: 'text/javascript'
+				} );
+				var worker = new Worker( URL.createObjectURL( blob ), { name: 'wpTestEmojiSupports' } );
+				worker.onmessage = function ( event ) {
+					supportTests = event.data;
+					setSessionSupportTests( supportTests );
+					worker.terminate();
+					resolve( supportTests );
+				};
+				return;
+			} catch ( e ) {}
+		}
+
+		supportTests = testEmojiSupports( tests, browserSupportsEmoji, emojiSetsRenderIdentically, emojiRendersEmptyCenterPoint );
+		setSessionSupportTests( supportTests );
+		resolve( supportTests );
+	} )
+		// Once the browser emoji support has been obtained from the session, finalize the settings.
+		.then( function ( supportTests ) {
+			/*
+			 * Tests the browser support for flag emojis and other emojis, and adjusts the
+			 * support settings accordingly.
+			 */
+			for ( var test in supportTests ) {
+				settings.supports[ test ] = supportTests[ test ];
+
+				settings.supports.everything =
+					settings.supports.everything && settings.supports[ test ];
+
+				if ( 'flag' !== test ) {
+					settings.supports.everythingExceptFlag =
+						settings.supports.everythingExceptFlag &&
+						settings.supports[ test ];
+				}
+			}
+
+			settings.supports.everythingExceptFlag =
+				settings.supports.everythingExceptFlag &&
+				! settings.supports.flag;
+
+			// Sets DOMReady to false and assigns a ready function to settings.
+			settings.DOMReady = false;
+			settings.readyCallback = function () {
+				settings.DOMReady = true;
+			};
+		} )
+		.then( function () {
+			return domReadyPromise;
+		} )
+		.then( function () {
+			// When the browser can not render everything we need to load a polyfill.
+			if ( ! settings.supports.everything ) {
+				settings.readyCallback();
+
+				var src = settings.source || {};
+
+				if ( src.concatemoji ) {
+					addScript( src.concatemoji );
+				} else if ( src.wpemoji && src.twemoji ) {
+					addScript( src.twemoji );
+					addScript( src.wpemoji );
+				}
+			}
+		} );
+} )( window, document, window._wpemojiSettings );
+
+/* ]]> */
+</script>
+<style id='wp-emoji-styles-inline-css' type='text/css'>
+
+	img.wp-smiley, img.emoji {
+		display: inline !important;
+		border: none !important;
+		box-shadow: none !important;
+		height: 1em !important;
+		width: 1em !important;
+		margin: 0 0.07em !important;
+		vertical-align: -0.1em !important;
+		background: none !important;
+		padding: 0 !important;
+	}
+</style>
+<link rel='stylesheet' id='wp-block-library-css' href='https://nfsmediation.local/wp-includes/css/dist/block-library/style.css?ver=6.8.2' type='text/css' media='all' />
+<style id='global-styles-inline-css' type='text/css'>
+:root{--wp--preset--aspect-ratio--square: 1;--wp--preset--aspect-ratio--4-3: 4/3;--wp--preset--aspect-ratio--3-4: 3/4;--wp--preset--aspect-ratio--3-2: 3/2;--wp--preset--aspect-ratio--2-3: 2/3;--wp--preset--aspect-ratio--16-9: 16/9;--wp--preset--aspect-ratio--9-16: 9/16;--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #ffffff;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgba(6,147,227,1) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgba(252,185,0,1) 0%,rgba(255,105,0,1) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgba(255,105,0,1) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%,rgb(169,184,195) 100%);--wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg,rgb(74,234,220) 0%,rgb(151,120,209) 20%,rgb(207,42,186) 40%,rgb(238,44,130) 60%,rgb(251,105,98) 80%,rgb(254,248,76) 100%);--wp--preset--gradient--blush-light-purple: linear-gradient(135deg,rgb(255,206,236) 0%,rgb(152,150,240) 100%);--wp--preset--gradient--blush-bordeaux: linear-gradient(135deg,rgb(254,205,165) 0%,rgb(254,45,45) 50%,rgb(107,0,62) 100%);--wp--preset--gradient--luminous-dusk: linear-gradient(135deg,rgb(255,203,112) 0%,rgb(199,81,192) 50%,rgb(65,88,208) 100%);--wp--preset--gradient--pale-ocean: linear-gradient(135deg,rgb(255,245,203) 0%,rgb(182,227,212) 50%,rgb(51,167,181) 100%);--wp--preset--gradient--electric-grass: linear-gradient(135deg,rgb(202,248,128) 0%,rgb(113,206,126) 100%);--wp--preset--gradient--midnight: linear-gradient(135deg,rgb(2,3,129) 0%,rgb(40,116,252) 100%);--wp--preset--font-size--small: 13px;--wp--preset--font-size--medium: 20px;--wp--preset--font-size--large: 36px;--wp--preset--font-size--x-large: 42px;--wp--preset--spacing--20: 0.44rem;--wp--preset--spacing--30: 0.67rem;--wp--preset--spacing--40: 1rem;--wp--preset--spacing--50: 1.5rem;--wp--preset--spacing--60: 2.25rem;--wp--preset--spacing--70: 3.38rem;--wp--preset--spacing--80: 5.06rem;--wp--preset--shadow--natural: 6px 6px 9px rgba(0, 0, 0, 0.2);--wp--preset--shadow--deep: 12px 12px 50px rgba(0, 0, 0, 0.4);--wp--preset--shadow--sharp: 6px 6px 0px rgba(0, 0, 0, 0.2);--wp--preset--shadow--outlined: 6px 6px 0px -3px rgba(255, 255, 255, 1), 6px 6px rgba(0, 0, 0, 1);--wp--preset--shadow--crisp: 6px 6px 0px rgba(0, 0, 0, 1);}:where(body) { margin: 0; }.wp-site-blocks > .alignleft { float: left; margin-right: 2em; }.wp-site-blocks > .alignright { float: right; margin-left: 2em; }.wp-site-blocks > .aligncenter { justify-content: center; margin-left: auto; margin-right: auto; }:where(.is-layout-flex){gap: 0.5em;}:where(.is-layout-grid){gap: 0.5em;}.is-layout-flow > .alignleft{float: left;margin-inline-start: 0;margin-inline-end: 2em;}.is-layout-flow > .alignright{float: right;margin-inline-start: 2em;margin-inline-end: 0;}.is-layout-flow > .aligncenter{margin-left: auto !important;margin-right: auto !important;}.is-layout-constrained > .alignleft{float: left;margin-inline-start: 0;margin-inline-end: 2em;}.is-layout-constrained > .alignright{float: right;margin-inline-start: 2em;margin-inline-end: 0;}.is-layout-constrained > .aligncenter{margin-left: auto !important;margin-right: auto !important;}.is-layout-constrained > :where(:not(.alignleft):not(.alignright):not(.alignfull)){margin-left: auto !important;margin-right: auto !important;}body .is-layout-flex{display: flex;}.is-layout-flex{flex-wrap: wrap;align-items: center;}.is-layout-flex > :is(*, div){margin: 0;}body .is-layout-grid{display: grid;}.is-layout-grid > :is(*, div){margin: 0;}body{padding-top: 0px;padding-right: 0px;padding-bottom: 0px;padding-left: 0px;}a:where(:not(.wp-element-button)){text-decoration: underline;}:root :where(.wp-element-button, .wp-block-button__link){background-color: #32373c;border-width: 0;color: #fff;font-family: inherit;font-size: inherit;line-height: inherit;padding: calc(0.667em + 2px) calc(1.333em + 2px);text-decoration: none;}.has-black-color{color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-color{color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-color{color: var(--wp--preset--color--white) !important;}.has-pale-pink-color{color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-color{color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-color{color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-color{color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-color{color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-color{color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-color{color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-color{color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-color{color: var(--wp--preset--color--vivid-purple) !important;}.has-black-background-color{background-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-background-color{background-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-background-color{background-color: var(--wp--preset--color--white) !important;}.has-pale-pink-background-color{background-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-background-color{background-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-background-color{background-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-background-color{background-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-background-color{background-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-background-color{background-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-background-color{background-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-background-color{background-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-background-color{background-color: var(--wp--preset--color--vivid-purple) !important;}.has-black-border-color{border-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-border-color{border-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-border-color{border-color: var(--wp--preset--color--white) !important;}.has-pale-pink-border-color{border-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-border-color{border-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-border-color{border-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-border-color{border-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-border-color{border-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-border-color{border-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-border-color{border-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-border-color{border-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-border-color{border-color: var(--wp--preset--color--vivid-purple) !important;}.has-vivid-cyan-blue-to-vivid-purple-gradient-background{background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important;}.has-light-green-cyan-to-vivid-green-cyan-gradient-background{background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important;}.has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important;}.has-luminous-vivid-orange-to-vivid-red-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important;}.has-very-light-gray-to-cyan-bluish-gray-gradient-background{background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important;}.has-cool-to-warm-spectrum-gradient-background{background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important;}.has-blush-light-purple-gradient-background{background: var(--wp--preset--gradient--blush-light-purple) !important;}.has-blush-bordeaux-gradient-background{background: var(--wp--preset--gradient--blush-bordeaux) !important;}.has-luminous-dusk-gradient-background{background: var(--wp--preset--gradient--luminous-dusk) !important;}.has-pale-ocean-gradient-background{background: var(--wp--preset--gradient--pale-ocean) !important;}.has-electric-grass-gradient-background{background: var(--wp--preset--gradient--electric-grass) !important;}.has-midnight-gradient-background{background: var(--wp--preset--gradient--midnight) !important;}.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.has-x-large-font-size{font-size: var(--wp--preset--font-size--x-large) !important;}
+:where(.wp-block-post-template.is-layout-flex){gap: 1.25em;}:where(.wp-block-post-template.is-layout-grid){gap: 1.25em;}
+:where(.wp-block-columns.is-layout-flex){gap: 2em;}:where(.wp-block-columns.is-layout-grid){gap: 2em;}
+:root :where(.wp-block-pullquote){font-size: 1.5em;line-height: 1.6;}
+</style>
+<link rel='stylesheet' id='contact-form-7-css' href='https://nfsmediation.local/wp-content/plugins/contact-form-7/includes/css/styles.css?ver=6.1.1' type='text/css' media='all' />
+<link rel='stylesheet' id='site-css-css' href='https://nfsmediation.local/wp-content/themes/nfsmediation/dist/styles.css?ver=1755185812' type='text/css' media='all' />
+<link rel='stylesheet' id='home-banner-css' href='https://nfsmediation.local/wp-content/themes/nfsmediation/dist/home-banner.css?ver=1754985919' type='text/css' media='all' />
+<link rel='stylesheet' id='logo-slider-css' href='https://nfsmediation.local/wp-content/themes/nfsmediation/dist/logo-slider.css?ver=1754985919' type='text/css' media='all' />
+<link rel='stylesheet' id='our-services-css' href='https://nfsmediation.local/wp-content/themes/nfsmediation/dist/our-services.css?ver=1755097346' type='text/css' media='all' />
+<link rel='stylesheet' id='fifty-fifty-css' href='https://nfsmediation.local/wp-content/themes/nfsmediation/dist/fifty-fifty.css?ver=1755097179' type='text/css' media='all' />
+<link rel='stylesheet' id='feature-grid-css' href='https://nfsmediation.local/wp-content/themes/nfsmediation/dist/feature-grid.css?ver=1754985919' type='text/css' media='all' />
+<link rel='stylesheet' id='step-block-css' href='https://nfsmediation.local/wp-content/themes/nfsmediation/dist/step-block.css?ver=1755097224' type='text/css' media='all' />
+<link rel='stylesheet' id='testimonials-css' href='https://nfsmediation.local/wp-content/themes/nfsmediation/dist/testimonials.css?ver=1755006818' type='text/css' media='all' />
+<link rel='stylesheet' id='contact-us-css' href='https://nfsmediation.local/wp-content/themes/nfsmediation/dist/contact-us.css?ver=1755008677' type='text/css' media='all' />
+<script type="text/javascript" src="https://nfsmediation.local/wp-includes/js/jquery/jquery.js?ver=3.7.1" id="jquery-core-js"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-includes/js/jquery/jquery-migrate.js?ver=3.4.1" id="jquery-migrate-js"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/assets/scripts/slick.min.js?ver=1754406113" id="slick-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/acf/blocks/home-banner/home-banner.js?ver=1754406113" id="home-banner-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/acf/blocks/logo-slider/logo-slider.js?ver=1754406113" id="logo-slider-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/acf/blocks/our-services/our-services.js?ver=1754406113" id="our-services-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/acf/blocks/fifty-fifty/fifty-fifty.js?ver=1754406113" id="fifty-fifty-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/acf/blocks/feature-grid/feature-grid.js?ver=1754406113" id="feature-grid-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/acf/blocks/step-block/step-block.js?ver=1754406113" id="step-block-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/acf/blocks/testimonials/testimonials.js?ver=1754406113" id="testimonials-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/acf/blocks/contact-us/contact-us.js?ver=1754406113" id="contact-us-js" defer="defer" data-wp-strategy="defer"></script>
+<link rel="https://api.w.org/" href="https://nfsmediation.local/wp-json/" /><link rel="alternate" title="JSON" type="application/json" href="https://nfsmediation.local/wp-json/wp/v2/pages/376" /><link rel="canonical" href="https://nfsmediation.local/" />
+<link rel='shortlink' href='https://nfsmediation.local/' />
+<link rel="alternate" title="oEmbed (JSON)" type="application/json+oembed" href="https://nfsmediation.local/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fnfsmediation.local%2F" />
+<link rel="alternate" title="oEmbed (XML)" type="text/xml+oembed" href="https://nfsmediation.local/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fnfsmediation.local%2F&#038;format=xml" />
+
+	</head>
+
+				
+	<body class="home wp-singular page-template-default page page-id-376 wp-custom-logo wp-theme-nfsmediation palette-primary">
+
+		<div class="off-canvas-wrapper">
+			
+			<!-- Load off-canvas container. Feel free to remove if not using. -->			
+			<div class="mobile-menu " id="mobile-menu">
+			<ul id="offcanvas-nav" class="vertical menu accordion-menu" data-submenu-toggle="true" data-accordion-menu><li id="menu-item-372" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-372"><a href="https://nfsmediation.local/about-us/">About Us</a>
+<ul class="vertical menu">
+	<li id="menu-item-754" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-754"><a href="https://nfsmediation.local/block-playground/">Block Playground</a></li>
+	<li id="menu-item-755" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-755"><a href="https://nfsmediation.local/flexi-page/">Flexi page</a></li>
+	<li id="menu-item-756" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-756"><a href="https://nfsmediation.local/notices/">Notices</a></li>
+</ul>
+</li>
+<li id="menu-item-373" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-373"><a href="https://nfsmediation.local/our-services/">Our Services</a>
+<ul class="vertical menu">
+	<li id="menu-item-374" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-374"><a href="https://nfsmediation.local/sample-page/">Sample Page</a></li>
+</ul>
+</li>
+<li id="menu-item-375" class="menu-cta menu-item menu-item-type-post_type menu-item-object-page menu-item-375"><a href="https://nfsmediation.local/contact-us/">Contact Us</a></li>
+</ul>	</div>			
+			<div class="off-canvas-content" data-off-canvas-content>
+				<a href="#skip-anchor" class="skip-link">Skip to content</a>
+				
+				<header class="header shadow-sm large-container" role="banner">
+					 
+<div class="top-bar">
+	<div class="">
+		<div class="top-bar-row">
+			<div class="top-bar-left">
+				<ul class="menu">
+																<li><a href="https://nfsmediation.local" aria-label="Back to home"><img src="https://nfsmediation.local/wp-content/uploads/2025/07/nfs-mediation-logo-no-bg-dark-1.svg" alt="nfsmediation" title="nfsmediation" class="logo"></a></li>
+									</ul>
+			</div>
+
+			<div class="top-bar-right top-bar-menu show-for-large">
+									<ul id="main-nav" class="medium-horizontal menu" role="menu" data-responsive-menu="accordion medium-dropdown"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children"><a href="https://nfsmediation.local/about-us/" aria-haspopup="true" aria-expanded="false">About Us</a>
+<ul class="sub-menu">
+<li class="menu-item menu-item-type-post_type menu-item-object-page"><a href="https://nfsmediation.local/block-playground/">Block Playground</a></li>
+<li class="menu-item menu-item-type-post_type menu-item-object-page"><a href="https://nfsmediation.local/flexi-page/">Flexi page</a></li>
+<li class="menu-item menu-item-type-post_type menu-item-object-page"><a href="https://nfsmediation.local/notices/">Notices</a></li>
+</ul>
+</li>
+<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children"><a href="https://nfsmediation.local/our-services/" aria-haspopup="true" aria-expanded="false">Our Services</a>
+<ul class="sub-menu">
+<li class="menu-item menu-item-type-post_type menu-item-object-page"><a href="https://nfsmediation.local/sample-page/">Sample Page</a></li>
+</ul>
+</li>
+<li class="menu-cta menu-item menu-item-type-post_type menu-item-object-page"><a href="https://nfsmediation.local/contact-us/">Contact Us</a></li>
+</ul>							</div>
+
+			
+			<div class="top-bar-right hide-for-large">
+				<ul class="menu-end">
+					<li class="hide-for-large">
+						<div class="header-menu">
+							<div id="mobile-burger">
+								<span></span>
+								<span></span>
+								<span></span>
+								<span></span>
+							</div>
+						</div>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="dropdown-overlay"></div>				</header>
+
+								
+								
+																	
+				<div id="skip-anchor"></div>
+	<section id="home-banner-block_c287ba075c742d6d003b23761572067b" class="block home-banner  layout-default" role="region" aria-label="Homepage Hero Banner Section"><div class="section-inner large-container">
+			<div class="img-wrap">
+			<img loading='lazy' src='https://nfsmediation.local/wp-content/uploads/2025/07/image-scaled.jpg' alt='image'>
+		</div>
+				<div class="wysiwyg-wrap">
+			<h1><strong>Empowering Communities</strong> Through Restorative Solutions</h1>
+<p>At NFS, we specialise in restorative services that foster understanding and resolution within communities. Our dedicated team is here to help you navigate challenging situations and achieve mutually beneficial outcomes.</p>
+							<div class="links-wrap">
+																	<a class="btn primary" href="#">Our services</a>
+																		<a class="btn secondary" href="#">About us</a>
+										</div>
+						
+		</div>
+	</div></section>
+
+<section id="logo-slider-block_17fa1c357df81eacd683a4cd53fc6270" class="block logo-slider padding-bottom layout-default" role="region" aria-label="Carousel Of Partner Or Client Logos"><div class="section-inner">
+	<div class="large-container">
+					<div class="wysiwyg-wrap">
+				<h2 style="text-align: center;">Our Partners</h2>
+			</div>
+											<div class="logo-slider" role="group" aria-roledescription="carousel">
+													<div class="logo-slide">
+									<img decoding="async" src="https://nfsmediation.local/wp-content/uploads/2025/07/image-2.png" loading="lazy" alt="image 2">								</div>
+															<div class="logo-slide">
+									<img decoding="async" src="https://nfsmediation.local/wp-content/uploads/2025/07/image-2.png" loading="lazy" alt="image 2">								</div>
+															<div class="logo-slide">
+									<img decoding="async" src="https://nfsmediation.local/wp-content/uploads/2025/07/image-2.png" loading="lazy" alt="image 2">								</div>
+															<div class="logo-slide">
+									<img decoding="async" src="https://nfsmediation.local/wp-content/uploads/2025/07/image-2.png" loading="lazy" alt="image 2">								</div>
+															<div class="logo-slide">
+									<img decoding="async" src="https://nfsmediation.local/wp-content/uploads/2025/07/image-2.png" loading="lazy" alt="image 2">								</div>
+															<div class="logo-slide">
+									<img decoding="async" src="https://nfsmediation.local/wp-content/uploads/2025/07/image-2.png" loading="lazy" alt="image 2">								</div>
+											</div>
+						</div>
+</div></section>
+
+<section id="our-services-block_30ef313732235b0b255d77912517547f" class="block our-services padding-bottom-regular layout-default" role="region" aria-label="Section Outlining The Services Offered">
+<div class="section-inner grid-container">
+			<div class="wysiwyg-wrap">
+			<h2 style="text-align: center;">Explore Our Comprehensive Range of <strong>Restorative Services Tailored for You</strong></h2>
+		</div>
+		
+			<div class="services-wrap">
+							<a href="https://nfsmediation.local/services/asb-assessment-service/" class="services-item shadow-md">
+					<div class="card-head bg-blue-purple">
+						<h3>ASB Assessment Service</h3>
+					</div>
+					<div class="card-body">
+						<div>
+							<p>
+								Our services include ASB Assessment, Coaching, Hoarding Support, CPD Training, and Workplace Mediation.							</p>
+						</div>
+						<button>
+							<span>
+								Learn more
+							</span>
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<circle cx="12" cy="12" r="11.5" stroke="#2C3E50"/>
+								<path d="M8 11.5C7.72386 11.5 7.5 11.7239 7.5 12C7.5 12.2761 7.72386 12.5 8 12.5V11.5ZM16.3536 12.3536C16.5488 12.1583 16.5488 11.8417 16.3536 11.6464L13.1716 8.46447C12.9763 8.2692 12.6597 8.2692 12.4645 8.46447C12.2692 8.65973 12.2692 8.97631 12.4645 9.17157L15.2929 12L12.4645 14.8284C12.2692 15.0237 12.2692 15.3403 12.4645 15.5355C12.6597 15.7308 12.9763 15.7308 13.1716 15.5355L16.3536 12.3536ZM8 12V12.5H16V12V11.5H8V12Z" fill="#2C3E50"/>
+							</svg>
+						</button>
+					</div>
+				</a>
+							<a href="https://nfsmediation.local/services/coaching-services/" class="services-item shadow-md">
+					<div class="card-head bg-green">
+						<h3>Coaching Services</h3>
+					</div>
+					<div class="card-body">
+						<div>
+							<p>
+								Our coaching services are designed to empower individuals and teams to achieve their goals.							</p>
+						</div>
+						<button>
+							<span>
+								Learn more
+							</span>
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<circle cx="12" cy="12" r="11.5" stroke="#2C3E50"/>
+								<path d="M8 11.5C7.72386 11.5 7.5 11.7239 7.5 12C7.5 12.2761 7.72386 12.5 8 12.5V11.5ZM16.3536 12.3536C16.5488 12.1583 16.5488 11.8417 16.3536 11.6464L13.1716 8.46447C12.9763 8.2692 12.6597 8.2692 12.4645 8.46447C12.2692 8.65973 12.2692 8.97631 12.4645 9.17157L15.2929 12L12.4645 14.8284C12.2692 15.0237 12.2692 15.3403 12.4645 15.5355C12.6597 15.7308 12.9763 15.7308 13.1716 15.5355L16.3536 12.3536ZM8 12V12.5H16V12V11.5H8V12Z" fill="#2C3E50"/>
+							</svg>
+						</button>
+					</div>
+				</a>
+							<a href="https://nfsmediation.local/services/community-mediation/" class="services-item shadow-md">
+					<div class="card-head bg-orange">
+						<h3>Community Mediation</h3>
+					</div>
+					<div class="card-body">
+						<div>
+							<p>
+								We provide tailored support for individuals facing hoarding challenges, fostering understanding and recovery.							</p>
+						</div>
+						<button>
+							<span>
+								Learn more
+							</span>
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<circle cx="12" cy="12" r="11.5" stroke="#2C3E50"/>
+								<path d="M8 11.5C7.72386 11.5 7.5 11.7239 7.5 12C7.5 12.2761 7.72386 12.5 8 12.5V11.5ZM16.3536 12.3536C16.5488 12.1583 16.5488 11.8417 16.3536 11.6464L13.1716 8.46447C12.9763 8.2692 12.6597 8.2692 12.4645 8.46447C12.2692 8.65973 12.2692 8.97631 12.4645 9.17157L15.2929 12L12.4645 14.8284C12.2692 15.0237 12.2692 15.3403 12.4645 15.5355C12.6597 15.7308 12.9763 15.7308 13.1716 15.5355L16.3536 12.3536ZM8 12V12.5H16V12V11.5H8V12Z" fill="#2C3E50"/>
+							</svg>
+						</button>
+					</div>
+				</a>
+							<a href="https://nfsmediation.local/services/cpd-accreditedtraining-programmes/" class="services-item shadow-md">
+					<div class="card-head bg-yellow">
+						<h3>CPD AccreditedTraining Programmes</h3>
+					</div>
+					<div class="card-body">
+						<div>
+							<p>
+								Our coaching services are designed to empower individuals and teams to achieve their goals.							</p>
+						</div>
+						<button>
+							<span>
+								Learn more
+							</span>
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<circle cx="12" cy="12" r="11.5" stroke="#2C3E50"/>
+								<path d="M8 11.5C7.72386 11.5 7.5 11.7239 7.5 12C7.5 12.2761 7.72386 12.5 8 12.5V11.5ZM16.3536 12.3536C16.5488 12.1583 16.5488 11.8417 16.3536 11.6464L13.1716 8.46447C12.9763 8.2692 12.6597 8.2692 12.4645 8.46447C12.2692 8.65973 12.2692 8.97631 12.4645 9.17157L15.2929 12L12.4645 14.8284C12.2692 15.0237 12.2692 15.3403 12.4645 15.5355C12.6597 15.7308 12.9763 15.7308 13.1716 15.5355L16.3536 12.3536ZM8 12V12.5H16V12V11.5H8V12Z" fill="#2C3E50"/>
+							</svg>
+						</button>
+					</div>
+				</a>
+							<a href="https://nfsmediation.local/services/hoarding-support-services/" class="services-item shadow-md">
+					<div class="card-head bg-dark-blue">
+						<h3>Hoarding Support Services</h3>
+					</div>
+					<div class="card-body">
+						<div>
+							<p>
+								Our coaching services are designed to empower individuals and teams to achieve their goals.							</p>
+						</div>
+						<button>
+							<span>
+								Learn more
+							</span>
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<circle cx="12" cy="12" r="11.5" stroke="#2C3E50"/>
+								<path d="M8 11.5C7.72386 11.5 7.5 11.7239 7.5 12C7.5 12.2761 7.72386 12.5 8 12.5V11.5ZM16.3536 12.3536C16.5488 12.1583 16.5488 11.8417 16.3536 11.6464L13.1716 8.46447C12.9763 8.2692 12.6597 8.2692 12.4645 8.46447C12.2692 8.65973 12.2692 8.97631 12.4645 9.17157L15.2929 12L12.4645 14.8284C12.2692 15.0237 12.2692 15.3403 12.4645 15.5355C12.6597 15.7308 12.9763 15.7308 13.1716 15.5355L16.3536 12.3536ZM8 12V12.5H16V12V11.5H8V12Z" fill="#2C3E50"/>
+							</svg>
+						</button>
+					</div>
+				</a>
+							<a href="https://nfsmediation.local/services/workplace-mediation-services/" class="services-item shadow-md">
+					<div class="card-head bg-primary">
+						<h3>Workplace Mediation Services</h3>
+					</div>
+					<div class="card-body">
+						<div>
+							<p>
+								Our coaching services are designed to empower individuals and teams to achieve their goals.							</p>
+						</div>
+						<button>
+							<span>
+								Learn more
+							</span>
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<circle cx="12" cy="12" r="11.5" stroke="#2C3E50"/>
+								<path d="M8 11.5C7.72386 11.5 7.5 11.7239 7.5 12C7.5 12.2761 7.72386 12.5 8 12.5V11.5ZM16.3536 12.3536C16.5488 12.1583 16.5488 11.8417 16.3536 11.6464L13.1716 8.46447C12.9763 8.2692 12.6597 8.2692 12.4645 8.46447C12.2692 8.65973 12.2692 8.97631 12.4645 9.17157L15.2929 12L12.4645 14.8284C12.2692 15.0237 12.2692 15.3403 12.4645 15.5355C12.6597 15.7308 12.9763 15.7308 13.1716 15.5355L16.3536 12.3536ZM8 12V12.5H16V12V11.5H8V12Z" fill="#2C3E50"/>
+							</svg>
+						</button>
+					</div>
+				</a>
+					</div>
+	</div><div class="background-layer bg-primary bottom"></div></section>
+
+<section id="fifty-fifty-block_d9e7ffc4618bafe4a52f3e77225e38f1" class="block fifty-fifty padding-top-regular padding-bottom-regular layout-default" role="region" aria-label="Split Layout Section With Equal Content And Media Columns"><div class="section-inner media-image">
+	<div class="grid-container img-left">
+		<div class="left-col">
+			<div class="content-wrap bg-black">
+									<div class="wysiwyg-wrap">
+						<h2>Transforming Conflict<br />
+into Collaboration</h2>
+<p>At NFS, we empower individuals and organisations to resolve conflicts efficiently, saving both time and resources. Our services foster better relationships, enhancing community cohesion and workplace harmony.</p>
+					</div>
+				
+									<a href="#" class="btn primary" target="" rel="noopener" aria-label="Learn more">
+						Learn more					</a>
+							</div>
+		</div>
+
+		<div class="right-col ">
+																<div class="img-wrap shadow-md cropped-img">
+						<img decoding="async" loading="lazy" src="https://nfsmediation.local/wp-content/uploads/2025/07/image-2.jpg" alt="Decorative image">
+					</div>
+				
+					</div>
+	</div>
+</div><div class="background-layer bg-primary full"></div></section>
+
+<section id="feature-grid-block_e4158b5b2f8d6081d868bd1672eba17d" class="block feature-grid padding-bottom-regular padding-top-regular layout-default" role="region" aria-label="Section Displaying Features In A Grid Layout">
+<div class="section-inner large-container">
+			<div class="wysiwyg-wrap">
+			<h2 style="text-align: center;">Benefits of <strong>Working With Us</strong></h2>
+		</div>
+				<div class="features-wrap">
+											<div class="feature-item shadow-sm">
+					<div class="card-head">
+													<div class="img-wrap bg-primary">
+								<img decoding="async" loading='lazy' src="https://nfsmediation.local/wp-content/uploads/2025/07/Vector.svg" alt="">
+							</div>
+																			<h3>Benefit heading here</h3>
+											</div>
+					<div class="card-body">
+						<div class="wysiwyg-wrap">
+							<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique.</p>
+						</div>
+					</div>
+				</div>
+												<div class="feature-item shadow-sm">
+					<div class="card-head">
+													<div class="img-wrap bg-primary">
+								<img decoding="async" loading='lazy' src="https://nfsmediation.local/wp-content/uploads/2025/07/Vector.svg" alt="">
+							</div>
+																			<h3>Benefit heading here</h3>
+											</div>
+					<div class="card-body">
+						<div class="wysiwyg-wrap">
+							<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique.</p>
+						</div>
+					</div>
+				</div>
+												<div class="feature-item shadow-sm">
+					<div class="card-head">
+													<div class="img-wrap bg-primary">
+								<img decoding="async" loading='lazy' src="https://nfsmediation.local/wp-content/uploads/2025/07/Vector.svg" alt="">
+							</div>
+																			<h3>Benefit heading here</h3>
+											</div>
+					<div class="card-body">
+						<div class="wysiwyg-wrap">
+							<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique.</p>
+						</div>
+					</div>
+				</div>
+												<div class="feature-item shadow-sm">
+					<div class="card-head">
+													<div class="img-wrap bg-primary">
+								<img decoding="async" loading='lazy' src="https://nfsmediation.local/wp-content/uploads/2025/07/Vector.svg" alt="">
+							</div>
+																			<h3>Benefit heading here</h3>
+											</div>
+					<div class="card-body">
+						<div class="wysiwyg-wrap">
+							<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique.</p>
+						</div>
+					</div>
+				</div>
+						</div>
+	
+</div><div class="background-layer bg-primary top"></div></section>
+
+<section id="step-block-block_b65e362bfd2c1b65667a4d836c2e53f2" class="block step-block padding-top-regular padding-bottom-regular layout-row" role="region" aria-label="Step Block For Showcasing Process Or Workflow."><div class=section-inner>
+	<div class="medium-large-container">
+		<div class="content-col">
+			<div class="wysiwyg-wrap">
+				<h2 style="text-align: center;">Discover How Our Services <strong>Transform Lives</strong></h2>
+<p style="text-align: center;">
+At NFS, we provide tailored restorative services designed to meet your unique needs. Our expert team is dedicated to facilitating positive outcomes in challenging situations.</p>
+			</div>
+		</div>
+		<div class="steps-wrap">
+			
+					<div class="step-item shadow-sm">
+						<div class="card-head bg-orange">
+							<span class="step-number"> 01</span>
+							<h3 class="step-title"> Understanding your needs</h3>
+						</div>
+						<div class="card-body">
+							<p class="step-copy">
+								We begin by listening to your concerns and objectives.							</p>
+						</div>
+					</div>
+											<div class="step-divider">
+							<span style="border: 2px dashed #EC6622"></span>
+						</div>
+									
+					<div class="step-item shadow-sm">
+						<div class="card-head bg-orange">
+							<span class="step-number"> 02</span>
+							<h3 class="step-title"> Customised action plan</h3>
+						</div>
+						<div class="card-body">
+							<p class="step-copy">
+								Our team develops a tailored plan to address your situation.							</p>
+						</div>
+					</div>
+											<div class="step-divider">
+							<span style="border: 2px dashed #EC6622"></span>
+						</div>
+									
+					<div class="step-item shadow-sm">
+						<div class="card-head bg-orange">
+							<span class="step-number"> 03</span>
+							<h3 class="step-title"> Implementation and support</h3>
+						</div>
+						<div class="card-body">
+							<p class="step-copy">
+								We guide you through the process, ensuring support at every stage.							</p>
+						</div>
+					</div>
+											</div>
+					<div class="links-wrap">
+				<a href="#" class="btn primary" target="">Contact Us</a>
+			</div>
+			</div>
+</div></section>
+
+<section id="testimonials-block_baecb261a3fabb7b98f2ebf6379cf4f1" class="block testimonials padding-bottom layout-default" role="region" aria-label="Section Displaying Customer Testimonials In A Styled Layout"><div class="section-inner">
+				<div class="testimonial-slides-wrap medium-large-container testimonial-slider">
+							
+				<div class="testimonial-item shadow-md">
+					<div>
+						<div class="wysiwyg-wrap">
+							<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique. Duis cursus, mi quis viverra ornare, eros dolor interdum nulla, ut commodo diam libero vitae erat.</p>
+						</div>
+						<div class="testimonial-meta" style="border-color: #CA3517;">
+							<p class="title" role="heading">Jane Doe</p>
+															<p class="testimonial-role">
+																			<span class="testimonial-role-text">Manager</span>
+																										</p>
+													</div>
+					</div>
+					<svg width="39" height="31" viewBox="0 0 39 31" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M0.503906 30.3594V21.6289C0.503906 19.0898 0.992188 16.4727 1.96875 13.7773C2.94531 11.082 4.23438 8.54297 5.83594 6.16016C7.4375 3.73828 9.19531 1.6875 11.1094 0.0078125L18.9609 4.57812C17.5547 6.92188 16.3438 9.44141 15.3281 12.1367C14.3125 14.832 13.8047 17.9961 13.8047 21.6289V30.3594H0.503906ZM20.4258 30.3594V21.6289C20.4258 19.0898 20.9141 16.4727 21.8906 13.7773C22.8672 11.082 24.1562 8.54297 25.7578 6.16016C27.3594 3.73828 29.1172 1.6875 31.0312 0.0078125L38.8828 4.57812C37.4766 6.92188 36.2656 9.44141 35.25 12.1367C34.2344 14.832 33.7266 17.9961 33.7266 21.6289V30.3594H20.4258Z" fill="#CA3517" />
+					</svg>
+					<div class="border bg-primary"></div>
+				</div>
+
+							
+				<div class="testimonial-item shadow-md">
+					<div>
+						<div class="wysiwyg-wrap">
+							<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique. Duis cursus, mi quis viverra ornare, eros dolor interdum nulla, ut commodo diam libero vitae erat.</p>
+						</div>
+						<div class="testimonial-meta" style="border-color: #CA3517;">
+							<p class="title" role="heading">John Doe</p>
+															<p class="testimonial-role">
+																			<span class="testimonial-role-text">Manager, Local Council</span>
+																												<span class="testimonial-location-text">Local Council</span>
+																	</p>
+													</div>
+					</div>
+					<svg width="39" height="31" viewBox="0 0 39 31" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M0.503906 30.3594V21.6289C0.503906 19.0898 0.992188 16.4727 1.96875 13.7773C2.94531 11.082 4.23438 8.54297 5.83594 6.16016C7.4375 3.73828 9.19531 1.6875 11.1094 0.0078125L18.9609 4.57812C17.5547 6.92188 16.3438 9.44141 15.3281 12.1367C14.3125 14.832 13.8047 17.9961 13.8047 21.6289V30.3594H0.503906ZM20.4258 30.3594V21.6289C20.4258 19.0898 20.9141 16.4727 21.8906 13.7773C22.8672 11.082 24.1562 8.54297 25.7578 6.16016C27.3594 3.73828 29.1172 1.6875 31.0312 0.0078125L38.8828 4.57812C37.4766 6.92188 36.2656 9.44141 35.25 12.1367C34.2344 14.832 33.7266 17.9961 33.7266 21.6289V30.3594H20.4258Z" fill="#CA3517" />
+					</svg>
+					<div class="border bg-primary"></div>
+				</div>
+
+							
+				<div class="testimonial-item shadow-md">
+					<div>
+						<div class="wysiwyg-wrap">
+							<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique. Duis cursus, mi quis viverra ornare, eros dolor interdum nulla, ut commodo diam libero vitae erat.</p>
+						</div>
+						<div class="testimonial-meta" style="border-color: #CA3517;">
+							<p class="title" role="heading">Jane Doe</p>
+															<p class="testimonial-role">
+																			<span class="testimonial-role-text">CEO, Local Council</span>
+																												<span class="testimonial-location-text">Local Council</span>
+																	</p>
+													</div>
+					</div>
+					<svg width="39" height="31" viewBox="0 0 39 31" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M0.503906 30.3594V21.6289C0.503906 19.0898 0.992188 16.4727 1.96875 13.7773C2.94531 11.082 4.23438 8.54297 5.83594 6.16016C7.4375 3.73828 9.19531 1.6875 11.1094 0.0078125L18.9609 4.57812C17.5547 6.92188 16.3438 9.44141 15.3281 12.1367C14.3125 14.832 13.8047 17.9961 13.8047 21.6289V30.3594H0.503906ZM20.4258 30.3594V21.6289C20.4258 19.0898 20.9141 16.4727 21.8906 13.7773C22.8672 11.082 24.1562 8.54297 25.7578 6.16016C27.3594 3.73828 29.1172 1.6875 31.0312 0.0078125L38.8828 4.57812C37.4766 6.92188 36.2656 9.44141 35.25 12.1367C34.2344 14.832 33.7266 17.9961 33.7266 21.6289V30.3594H20.4258Z" fill="#CA3517" />
+					</svg>
+					<div class="border bg-primary"></div>
+				</div>
+
+							
+				<div class="testimonial-item shadow-md">
+					<div>
+						<div class="wysiwyg-wrap">
+							<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique. Duis cursus, mi quis viverra ornare, eros dolor interdum nulla, ut commodo diam libero vitae erat.</p>
+						</div>
+						<div class="testimonial-meta" style="border-color: #CA3517;">
+							<p class="title" role="heading">John Doe</p>
+															<p class="testimonial-role">
+																			<span class="testimonial-role-text">CEO, Local Council</span>
+																												<span class="testimonial-location-text">Local Council</span>
+																	</p>
+													</div>
+					</div>
+					<svg width="39" height="31" viewBox="0 0 39 31" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M0.503906 30.3594V21.6289C0.503906 19.0898 0.992188 16.4727 1.96875 13.7773C2.94531 11.082 4.23438 8.54297 5.83594 6.16016C7.4375 3.73828 9.19531 1.6875 11.1094 0.0078125L18.9609 4.57812C17.5547 6.92188 16.3438 9.44141 15.3281 12.1367C14.3125 14.832 13.8047 17.9961 13.8047 21.6289V30.3594H0.503906ZM20.4258 30.3594V21.6289C20.4258 19.0898 20.9141 16.4727 21.8906 13.7773C22.8672 11.082 24.1562 8.54297 25.7578 6.16016C27.3594 3.73828 29.1172 1.6875 31.0312 0.0078125L38.8828 4.57812C37.4766 6.92188 36.2656 9.44141 35.25 12.1367C34.2344 14.832 33.7266 17.9961 33.7266 21.6289V30.3594H20.4258Z" fill="#CA3517" />
+					</svg>
+					<div class="border bg-primary"></div>
+				</div>
+
+					</div>
+					<div class="custom-controls">
+				<button class="slide-arrow prev" aria-label="Previous slide">
+					<svg width="39" height="39" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<circle cx="19.5" cy="19.5" r="19" transform="rotate(-180 19.5 19.5)" stroke="#2C3E50" />
+						<path d="M26 20C26.2761 20 26.5 19.7761 26.5 19.5C26.5 19.2239 26.2761 19 26 19L26 20ZM12.6464 19.1464C12.4512 19.3417 12.4512 19.6583 12.6464 19.8536L15.8284 23.0355C16.0237 23.2308 16.3403 23.2308 16.5355 23.0355C16.7308 22.8403 16.7308 22.5237 16.5355 22.3284L13.7071 19.5L16.5355 16.6716C16.7308 16.4763 16.7308 16.1597 16.5355 15.9645C16.3403 15.7692 16.0237 15.7692 15.8284 15.9645L12.6464 19.1464ZM26 19.5L26 19L13 19L13 19.5L13 20L26 20L26 19.5Z" fill="#2C3E50" />
+					</svg>
+				</button>
+				<div class="dots-container">
+
+				</div>
+				<button class="slide-arrow next" aria-label="Next slide">
+					<svg width="39" height="39" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<circle cx="19.4999" cy="19.5" r="19" stroke="#2C3E50" />
+						<path d="M12.9999 19C12.7238 19 12.4999 19.2239 12.4999 19.5C12.4999 19.7761 12.7238 20 12.9999 20V19ZM26.3535 19.8536C26.5488 19.6583 26.5488 19.3417 26.3535 19.1464L23.1715 15.9645C22.9762 15.7692 22.6597 15.7692 22.4644 15.9645C22.2691 16.1597 22.2691 16.4763 22.4644 16.6716L25.2928 19.5L22.4644 22.3284C22.2691 22.5237 22.2691 22.8403 22.4644 23.0355C22.6597 23.2308 22.9762 23.2308 23.1715 23.0355L26.3535 19.8536ZM12.9999 19.5V20H25.9999V19.5V19H12.9999V19.5Z" fill="#2C3E50" />
+					</svg>
+				</button>
+			</div>
+			</div></section>
+
+<section id="contact-us-block_14edc19df9d11f759f0f7ac5c3e7ee2a" class="block contact-us padding-top-regular padding-bottom layout-default" role="region" aria-label="Contact Us">
+<div class="section-inner grid-container">
+			<div class="wysiwyg-wrap">
+			<h2 style="text-align: center;">Get In Touch</h2>
+		</div>
+		<div class="contact-details">
+					<a href="mailto:&#105;&#110;fo&#64;n&#102;s&#109;&#101;&#100;&#105;a&#116;&#105;&#111;n.c&#111;.uk" class="contact-item">
+				<div class="img-wrap bg-primary">
+					<svg width="32" height="26" viewBox="0 0 32 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M31 4.6V21.4C31 22.3548 30.6353 23.2705 29.9861 23.9456C29.337 24.6207 28.4565 25 27.5385 25H4.46154C3.54348 25 2.66303 24.6207 2.01386 23.9456C1.3647 23.2705 1 22.3548 1 21.4V4.6M31 4.6C31 3.64522 30.6353 2.72955 29.9861 2.05442C29.337 1.37928 28.4565 1 27.5385 1H4.46154C3.54348 1 2.66303 1.37928 2.01386 2.05442C1.3647 2.72955 1 3.64522 1 4.6M31 4.6V4.9888C31.0001 5.60343 30.8488 6.20785 30.5607 6.74447C30.2725 7.2811 29.857 7.73206 29.3538 8.0544L17.8154 15.4384C17.2695 15.7881 16.6411 15.9732 16 15.9732C15.3589 15.9732 14.7305 15.7881 14.1846 15.4384L2.64615 8.056C2.14296 7.73366 1.72749 7.2827 1.43934 6.74607C1.15118 6.20945 0.999934 5.60503 1 4.9904V4.6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</div>
+				<p>&#105;nfo&#64;&#110;f&#115;&#109;e&#100;&#105;at&#105;o&#110;.co&#46;&#117;&#107;</p>
+			</a>
+							<div class="contact-item address">
+				<div class="img-wrap bg-primary">
+					<svg width="26" height="32" viewBox="0 0 26 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M17.8 12.9997C17.8 14.2727 17.2942 15.4936 16.3941 16.3938C15.4939 17.294 14.273 17.7997 13 17.7997C11.7269 17.7997 10.506 17.294 9.60584 16.3938C8.70566 15.4936 8.19995 14.2727 8.19995 12.9997C8.19995 11.7267 8.70566 10.5058 9.60584 9.60559C10.506 8.70542 11.7269 8.19971 13 8.19971C14.273 8.19971 15.4939 8.70542 16.3941 9.60559C17.2942 10.5058 17.8 11.7267 17.8 12.9997Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+						<path d="M25 13C25 24.4272 13 31 13 31C13 31 1 24.4272 1 13C1 9.8174 2.26428 6.76516 4.51472 4.51472C6.76516 2.26428 9.8174 1 13 1C16.1826 1 19.2348 2.26428 21.4853 4.51472C23.7357 6.76516 25 9.8174 25 13Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</div>
+				<p>Unit 11, Basepoint Business Centre, Andersons Road, Southampton, SO14 5FE (not open to the public)</p>
+			</div>
+							<a href="tel:02380331456" class="contact-item">
+				<div class="img-wrap bg-primary">
+					<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M1 7.92308C1 20.6677 11.3323 31 24.0769 31H27.5385C28.4565 31 29.337 30.6353 29.9861 29.9861C30.6353 29.337 31 28.4565 31 27.5385V25.4277C31 24.6338 30.46 23.9415 29.6892 23.7492L22.8846 22.0477C22.2077 21.8785 21.4969 22.1323 21.08 22.6892L19.5877 24.6785C19.1538 25.2569 18.4046 25.5123 17.7262 25.2631C15.2075 24.3371 12.9202 22.8748 11.0227 20.9773C9.12525 19.0798 7.66288 16.7925 6.73692 14.2738C6.48769 13.5954 6.74308 12.8462 7.32154 12.4123L9.31077 10.92C9.86923 10.5031 10.1215 9.79077 9.95231 9.11538L8.25077 2.31077C8.15714 1.93645 7.94111 1.60416 7.637 1.36667C7.3329 1.12919 6.95816 1.00013 6.57231 1H4.46154C3.54348 1 2.66303 1.3647 2.01386 2.01386C1.3647 2.66303 1 3.54348 1 4.46154V7.92308Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</div>
+				<p>023 8033 1456</p>
+			</a>
+			</div>
+			<!-- Outputs page slug as id for targeted form styling -->
+		<div class="form-wrap" id="homepage" style="--page-palette-color: #CA3517">
+			
+<div class="wpcf7 no-js" id="wpcf7-f627-p376-o1" lang="en-US" dir="ltr" data-wpcf7-id="627">
+<div class="screen-reader-response"><p role="status" aria-live="polite" aria-atomic="true"></p> <ul></ul></div>
+<form action="/#wpcf7-f627-p376-o1" method="post" class="wpcf7-form init" aria-label="Contact form" novalidate="novalidate" data-status="init">
+<fieldset class="hidden-fields-container"><input type="hidden" name="_wpcf7" value="627" /><input type="hidden" name="_wpcf7_version" value="6.1.1" /><input type="hidden" name="_wpcf7_locale" value="en_US" /><input type="hidden" name="_wpcf7_unit_tag" value="wpcf7-f627-p376-o1" /><input type="hidden" name="_wpcf7_container_post" value="376" /><input type="hidden" name="_wpcf7_posted_data_hash" value="" />
+</fieldset>
+<div class="form-columns">
+	<div class="form-column">
+		<div class="form-row">
+			<p><label> First Name<br />
+<span class="wpcf7-form-control-wrap" data-name="first-name"><input size="40" maxlength="400" class="wpcf7-form-control wpcf7-text wpcf7-validates-as-required" aria-required="true" aria-invalid="false" value="" type="text" name="first-name" /></span><br />
+</label>
+			</p>
+			<p><label> Last Name<br />
+<span class="wpcf7-form-control-wrap" data-name="last-name"><input size="40" maxlength="400" class="wpcf7-form-control wpcf7-text wpcf7-validates-as-required" aria-required="true" aria-invalid="false" value="" type="text" name="last-name" /></span><br />
+</label>
+			</p>
+		</div>
+		<div class="form-row">
+			<p><label> Email<br />
+<span class="wpcf7-form-control-wrap" data-name="email"><input size="40" maxlength="400" class="wpcf7-form-control wpcf7-email wpcf7-validates-as-required wpcf7-text wpcf7-validates-as-email" aria-required="true" aria-invalid="false" value="" type="email" name="email" /></span><br />
+</label>
+			</p>
+			<p><label> Phone Number<br />
+<span class="wpcf7-form-control-wrap" data-name="phone"><input size="40" maxlength="400" class="wpcf7-form-control wpcf7-tel wpcf7-text wpcf7-validates-as-tel" aria-invalid="false" placeholder="" value="" type="tel" name="phone" /></span><br />
+</label>
+			</p>
+		</div>
+		<p>What describes you best?
+		</p>
+		<p><span class="wpcf7-form-control-wrap" data-name="user-type"><span class="wpcf7-form-control wpcf7-radio"><span class="wpcf7-list-item first"><input type="radio" name="user-type" value="Local Authority" /><span class="wpcf7-list-item-label">Local Authority</span></span><span class="wpcf7-list-item"><input type="radio" name="user-type" value="Housing Provider" /><span class="wpcf7-list-item-label">Housing Provider</span></span><span class="wpcf7-list-item"><input type="radio" name="user-type" value="Small Business" /><span class="wpcf7-list-item-label">Small Business</span></span><span class="wpcf7-list-item"><input type="radio" name="user-type" value="Community Group" /><span class="wpcf7-list-item-label">Community Group</span></span><span class="wpcf7-list-item"><input type="radio" name="user-type" value="Individual User" /><span class="wpcf7-list-item-label">Individual User</span></span><span class="wpcf7-list-item last"><input type="radio" name="user-type" value="Other" /><span class="wpcf7-list-item-label">Other</span></span></span></span>
+		</p>
+	</div>
+	<div class="form-column">
+		<p><label> Select a topic<span class="wpcf7-form-control-wrap" data-name="topic"><select class="wpcf7-form-control wpcf7-select wpcf7-validates-as-required" aria-required="true" aria-invalid="false" name="topic"><option value="Choose one...">Choose one&#8230;</option><option value="Topic 1">Topic 1</option><option value="Topic 2">Topic 2</option><option value="Topic 3">Topic 3</option></select></span><br />
+<svg class="select-arrow" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <path d="M16.293 8.29297L12 12.586L7.70697 8.29297L6.29297 9.70697L12 15.414L17.707 9.70697L16.293 8.29297Z" fill="#2C3E50" fill-opacity="0.6"/>
+</svg></label>
+		</p>
+		<p><label> Message<br />
+<span class="wpcf7-form-control-wrap" data-name="message"><textarea cols="40" rows="10" maxlength="2000" class="wpcf7-form-control wpcf7-textarea wpcf7-validates-as-required" aria-required="true" aria-invalid="false" placeholder="Type your message here..." name="message"></textarea></span><br />
+</label>
+		</p>
+		<p><span class="wpcf7-form-control-wrap" data-name="consent"><span class="wpcf7-form-control wpcf7-acceptance"><span class="wpcf7-list-item"><label><input type="checkbox" name="consent" value="1" aria-invalid="false" /><span class="wpcf7-list-item-label">When you submit this form, your contact data and enquiry will then be stored in our CRM system for the purposes of dealing with your
+
+      message. By submitting this form, you consent to us contacting you by email with regards to your enquiry. I agree to the privacy policy.</span></label></span></span></span>
+		</p>
+		<p><input class="wpcf7-form-control wpcf7-submit has-spinner" type="submit" value="Submit" />
+		</p>
+	</div>
+</div><div class="wpcf7-response-output" aria-hidden="true"></div>
+</form>
+</div>
+		</div>
+	</div><div class="background-layer bg-primary full"></div></section>
+
+<footer class="footer" role="contentinfo">
+
+	<div class="inner-footer grid-container">
+		<div class="left-col">
+			<div class="content-wrapper">
+				<div class="logo-wrapper">
+					<img src="https://nfsmediation.local/wp-content/uploads/2025/08/14371cb5016cc134f10c0df73307d236d9bb45f0.png" alt="" class="nfs-logo">
+				</div>
+				<div class="contact-info">
+											<div class="contact-item">
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="22" viewBox="0 0 18 22" fill="none">
+								<path d="M12.1998 8.9998C12.1998 9.8485 11.8627 10.6624 11.2625 11.2625C10.6624 11.8627 9.8485 12.1998 8.9998 12.1998C8.15111 12.1998 7.33718 11.8627 6.73706 11.2625C6.13695 10.6624 5.7998 9.8485 5.7998 8.9998C5.7998 8.15111 6.13695 7.33718 6.73706 6.73706C7.33718 6.13695 8.15111 5.7998 8.9998 5.7998C9.8485 5.7998 10.6624 6.13695 11.2625 6.73706C11.8627 7.33718 12.1998 8.15111 12.1998 8.9998Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+								<path d="M17 9C17 16.6181 9 21 9 21C9 21 1 16.6181 1 9C1 6.87827 1.84285 4.84344 3.34315 3.34315C4.84344 1.84285 6.87827 1 9 1C11.1217 1 13.1566 1.84285 14.6569 3.34315C16.1571 4.84344 17 6.87827 17 9Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+							</svg>
+							<span>
+								Unit 11, Basepoint Business Centre, Andersons Road, Southampton, SO14 5FE							</span>
+						</div>
+					
+											<div class="contact-item">
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="15" viewBox="0 0 18 15" fill="none">
+								<path d="M17 2.95V12.05C17 12.5672 16.8055 13.0632 16.4593 13.4289C16.1131 13.7946 15.6435 14 15.1538 14H2.84615C2.35652 14 1.88695 13.7946 1.54073 13.4289C1.1945 13.0632 1 12.5672 1 12.05V2.95M17 2.95C17 2.43283 16.8055 1.93684 16.4593 1.57114C16.1131 1.20545 15.6435 1 15.1538 1H2.84615C2.35652 1 1.88695 1.20545 1.54073 1.57114C1.1945 1.93684 1 2.43283 1 2.95M17 2.95V3.1606C17 3.49353 16.9194 3.82092 16.7657 4.11159C16.612 4.40226 16.3904 4.64653 16.1221 4.82113L9.96821 8.8208C9.67709 9.0102 9.3419 9.11048 9 9.11048C8.6581 9.11048 8.32291 9.0102 8.03179 8.8208L1.87795 4.822C1.60958 4.6474 1.388 4.40313 1.23431 4.11246C1.08063 3.82179 0.999965 3.49439 1 3.16147V2.95" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+							</svg>
+							<a href="mailto:info@nfsmediation.co.uk">info@nfsmediation.co.uk</a>
+						</div>
+					
+											<div class="contact-item">
+							<svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 21 21" fill="none">
+								<path d="M1 5.38462C1 13.4562 7.54379 20 15.6154 20H17.8077C18.3891 20 18.9468 19.769 19.3579 19.3579C19.769 18.9468 20 18.3891 20 17.8077V16.4709C20 15.9681 19.658 15.5296 19.1698 15.4078L14.8603 14.3302C14.4315 14.223 13.9814 14.3838 13.7173 14.7365L12.7722 15.9964C12.4974 16.3627 12.0229 16.5245 11.5932 16.3666C9.99809 15.7802 8.54948 14.854 7.34774 13.6523C6.14599 12.4505 5.21983 11.0019 4.63338 9.40677C4.47554 8.97708 4.63728 8.50256 5.00364 8.2278L6.26349 7.28267C6.61718 7.01862 6.77697 6.56749 6.6698 6.13974L5.59215 1.83015C5.53285 1.59309 5.39604 1.38263 5.20344 1.23223C5.01084 1.08182 4.7735 1.00008 4.52913 1H3.19231C2.61087 1 2.05325 1.23097 1.64211 1.64211C1.23097 2.05325 1 2.61087 1 3.19231V5.38462Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+							</svg>
+							<a href="tel:023 8033 1456">023 8033 1456</a>
+						</div>
+									</div>
+			</div>
+
+		</div>
+		<div class="right-col">
+			<div class="content-wrapper">
+				<div class="our-services">
+					<h4>Our Services</h4>
+											<ul>
+															<li><a href="https://nfsmediation.local/services/asb-assessment-service/">ASB Assessment Service</a></li>
+															<li><a href="https://nfsmediation.local/services/coaching-services/">Coaching Services</a></li>
+															<li><a href="https://nfsmediation.local/services/community-mediation/">Community Mediation</a></li>
+															<li><a href="https://nfsmediation.local/services/cpd-accreditedtraining-programmes/">CPD AccreditedTraining Programmes</a></li>
+															<li><a href="https://nfsmediation.local/services/hoarding-support-services/">Hoarding Support Services</a></li>
+															<li><a href="https://nfsmediation.local/services/workplace-mediation-services/">Workplace Mediation Services</a></li>
+													</ul>
+									</div>
+				<div class="quick-links">
+					<h4>Quick Links</h4>
+					<ul id="footer-links" class="menu"><li id="menu-item-686" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-686"><a href="https://nfsmediation.local/get-involved/">Get Involved</a></li>
+<li id="menu-item-687" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-687"><a href="https://nfsmediation.local/notices/">Notices</a></li>
+<li id="menu-item-742" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-742"><a href="https://nfsmediation.local/contact-us/">Contact Us</a></li>
+<li id="menu-item-743" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-743"><a href="https://nfsmediation.local/about-us/">About Us</a></li>
+</ul>				</div>
+			</div>
+
+		</div>
+
+	</div> <!-- end #inner-footer -->
+
+	<div class="lower-footer">
+		<div class="content-wrapper nfs-container">
+			<div class="col-12-sm col-6-md col-6">
+				<p class="source-org copyright">&copy; 2025 nfsmediation. All Rights Reserved.</p>
+			</div>
+			<div class="site-signature col-12-sm col-6-md col-6">
+				<ul id="atelier_policy_links" class="menu"><li id="menu-item-752" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-752"><a href="https://nfsmediation.local/privacy-policy-2/">Privacy Policy</a></li>
+<li id="menu-item-751" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-751"><a href="https://nfsmediation.local/terms-of-use/">Terms of Use</a></li>
+<li id="menu-item-750" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-750"><a href="https://nfsmediation.local/cookie-settings/">Cookie Settings</a></li>
+</ul>			</div>
+		</div>
+	</div>
+
+
+	
+
+</footer> <!-- end .footer -->
+
+</div> <!-- end .off-canvas-content -->
+
+</div> <!-- end .off-canvas-wrapper -->
+
+<script type="speculationrules">
+{"prefetch":[{"source":"document","where":{"and":[{"href_matches":"\/*"},{"not":{"href_matches":["\/wp-*.php","\/wp-admin\/*","\/wp-content\/uploads\/*","\/wp-content\/*","\/wp-content\/plugins\/*","\/wp-content\/themes\/nfsmediation\/*","\/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
+</script>
+<style id='core-block-supports-inline-css' type='text/css'>
+/**
+ * Core styles: block-supports
+ */
+
+</style>
+<script type="text/javascript" src="https://nfsmediation.local/wp-includes/js/dist/hooks.js?ver=be67dc331e61e06d52fa" id="wp-hooks-js"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-includes/js/dist/i18n.js?ver=5edc734adb78e0d7d00e" id="wp-i18n-js"></script>
+<script type="text/javascript" id="wp-i18n-js-after">
+/* <![CDATA[ */
+wp.i18n.setLocaleData( { 'text direction\u0004ltr': [ 'ltr' ] } );
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/plugins/contact-form-7/includes/swv/js/index.js?ver=6.1.1" id="swv-js"></script>
+<script type="text/javascript" id="contact-form-7-js-before">
+/* <![CDATA[ */
+var wpcf7 = {
+    "api": {
+        "root": "https:\/\/nfsmediation.local\/wp-json\/",
+        "namespace": "contact-form-7\/v1"
+    }
+};
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/plugins/contact-form-7/includes/js/index.js?ver=6.1.1" id="contact-form-7-js"></script>
+<script type="text/javascript" id="ajax-contact-js-extra">
+/* <![CDATA[ */
+var ajax_contact = {"ajax_url":"https:\/\/nfsmediation.local\/wp-admin\/admin-ajax.php"};
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/functions/contact-forms/assets/js/ajax-filter.js?ver=1.0" id="ajax-contact-js"></script>
+<script type="text/javascript" id="site-js-extra">
+/* <![CDATA[ */
+var modalAjax = {"url":"https:\/\/nfsmediation.local\/wp-admin\/admin-ajax.php","nonce":"e3fef7eb33"};
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/assets/scripts/scripts.js?ver=1754575774" id="site-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" src="https://nfsmediation.local/wp-content/themes/nfsmediation/assets/scripts/non-critical.js?ver=1754406113" id="non-critical-js" defer="defer" data-wp-strategy="defer"></script>
+
+</body>
+
+</html> <!-- end page -->

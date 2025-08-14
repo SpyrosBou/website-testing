@@ -7,7 +7,12 @@
     "test": "node run-tests.js",
     "test:site": "node run-tests.js --site=",
     "install-browsers": "npx playwright install",
-    "setup": "npm install && npm run install-browsers"
+    "setup": "npm install && npm run install-browsers",
+    "clean-old-results": "find test-results -mtime +15 -type f -delete 2>/dev/null && find test-results -type d -empty -delete 2>/dev/null || echo 'Cleaned test results older than 15 days'",
+    "clean-videos": "find test-results -name '*.webm' -delete 2>/dev/null || echo 'Cleaned all test videos'",
+    "clean-traces": "find test-results -name '*.zip' -delete 2>/dev/null || echo 'Cleaned all trace files'",
+    "clean-all-results": "rm -rf test-results/* 2>/dev/null || echo 'Cleaned all test results'",
+    "clean-site-results": "test \"$SITE\" && rm -rf test-results/$SITE 2>/dev/null || echo 'Usage: SITE=sitename npm run clean-site-results'"
   },
   "keywords": ["testing", "wordpress", "playwright", "automation"],
   "author": "Web Dev Agency",

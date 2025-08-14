@@ -139,15 +139,17 @@ async function runTests() {
     testPattern = './tests/functionality.spec.js';
   }
   
-  // Set environment variable for site name
+  // Set environment variables for site name and organized output
   process.env.SITE_NAME = siteName;
+  process.env.SITE_OUTPUT_DIR = `test-results/${siteName}`;
   
-  // Run Playwright tests
+  // Run Playwright tests with organized output
   const playwrightArgs = [
     'test',
     testPattern,
     '--reporter=html',
-    '--reporter=line'
+    '--reporter=line',
+    `--output-dir=test-results/${siteName}`
   ];
   
   // Add any additional playwright args
