@@ -11,7 +11,7 @@ test.beforeAll(async () => {
 
 test.describe(`Functionality Tests - ${siteName}`, () => {
   
-  test('should have no broken internal links', async ({ page }) => {
+  test('broken-links', async ({ page }) => {
     const checkedUrls = new Set();
     const brokenLinks = [];
     const missingPages = [];
@@ -83,7 +83,7 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
     }
   });
   
-  test('should detect JavaScript errors', async ({ page }) => {
+  test('javascript-errors', async ({ page }) => {
     const jsErrors = [];
     const missingPages = [];
     
@@ -197,7 +197,7 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
     }
   }
   
-  test('should load all pages within acceptable time', async ({ page }) => {
+  test('page-performance', async ({ page }) => {
     const slowPages = [];
     const missingPages = [];
     

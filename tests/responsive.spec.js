@@ -19,7 +19,7 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
   for (const testPage of siteConfig.testPages || []) {
     test.describe(`Page: ${testPage}`, () => {
       
-      test(`should load properly on desktop`, async ({ page, browserName }) => {
+      test(`desktop-layout`, async ({ page, browserName }) => {
         await page.setViewportSize({ width: 1920, height: 1080 });
         
         const response = await page.goto(`${siteConfig.baseUrl}${testPage}`);
@@ -52,7 +52,7 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
         });
       });
       
-      test(`should load properly on tablet`, async ({ page, browserName }) => {
+      test(`tablet-layout`, async ({ page, browserName }) => {
         await page.setViewportSize({ width: 768, height: 1024 });
         
         const response = await page.goto(`${siteConfig.baseUrl}${testPage}`);
@@ -85,7 +85,7 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
         });
       });
       
-      test(`should load properly on mobile`, async ({ page, browserName }) => {
+      test(`mobile-layout`, async ({ page, browserName }) => {
         await page.setViewportSize({ width: 375, height: 667 });
         
         const response = await page.goto(`${siteConfig.baseUrl}${testPage}`);

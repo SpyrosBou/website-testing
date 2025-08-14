@@ -89,10 +89,34 @@ node run-tests.js --site=my-site --project="Mobile Chrome"
 
 ## Test Results
 
-- **HTML Report**: Run `npx playwright show-report` after tests
-- **Visual Diff Reports**: Side-by-side comparison of layout changes
-- **Baseline Screenshots**: Stored in `test-results/` for comparison
-- **Console Output**: Real-time test progress
+- **HTML Report**: Each test run creates a timestamped report (e.g., `playwright-report-2025-01-14T10-30-15/index.html`)
+- **Visual Diff Reports**: Side-by-side comparison of layout changes with pixel-level detection
+- **Test Artifacts**: Screenshots, videos, and traces stored in `test-results/[site-name]/`
+- **Console Output**: Shows exact report path to open after each run
+
+### Viewing Reports
+After tests complete, the console will show exactly which report to open:
+```bash
+📊 View detailed report: open playwright-report-2025-01-14T10-30-15/index.html
+📸 Screenshots and videos: ./test-results/nfsmediation-local/
+```
+
+### Managing Reports
+```bash
+# Clean old HTML reports (older than 7 days)
+npm run clean-old-reports
+
+# Clean all HTML reports
+npm run clean-all-reports
+
+# Clean old test artifacts (older than 15 days) 
+npm run clean-old-results
+
+# Clean all test artifacts
+npm run clean-all-results
+```
+
+**Note**: HTML reports are timestamped and preserved permanently, while test artifacts (videos/screenshots) are overwritten each run per site.
 
 ## Browser Coverage
 

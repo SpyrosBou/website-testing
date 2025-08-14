@@ -66,7 +66,22 @@ node run-tests.js --site=SITENAME --responsive  # Run with visual regression com
 
 ### Report Viewing
 ```bash
-npx playwright show-report      # Open detailed HTML test report with visual diffs
+# Each test run creates a timestamped HTML report - console output shows exact path
+open playwright-report-2025-01-14T10-30-15/index.html  # Example timestamped report
+```
+
+### Cleanup Commands
+```bash
+# HTML Reports (timestamped, accumulate over time)
+npm run clean-old-reports       # Delete HTML reports older than 7 days
+npm run clean-all-reports       # Delete ALL HTML reports
+
+# Test Artifacts (overwritten per site each run)
+npm run clean-old-results       # Delete test results older than 15 days
+npm run clean-videos            # Delete all video files
+npm run clean-traces            # Delete all trace files
+npm run clean-all-results       # Delete ALL test results
+npm run clean-site-results      # Delete results for specific site: SITE=sitename npm run clean-site-results
 ```
 
 ## Site Configuration System
@@ -212,9 +227,16 @@ Each WordPress site should have TWO configurations:
 ## File Management
 
 ### Generated Files (Gitignored)
-- `test-results/` - Screenshots, videos, error logs
-- `playwright-report/` - HTML reports
+- `test-results/` - Screenshots, videos, traces (overwritten per site each run)
+- `playwright-report-*/` - Timestamped HTML reports (accumulate permanently)
 - `node_modules/` - Dependencies
+
+### File Organization
+- **HTML Reports**: `playwright-report-YYYY-MM-DDTHH-MM-SS/` - Each test run creates a new timestamped folder
+- **Test Artifacts**: `test-results/[site-name]/` - Latest run only, organized by site
+- **Screenshots**: Used for visual regression baselines and failure debugging
+- **Videos**: Recorded only on test failures for debugging
+- **Traces**: Compressed debugging data for failed tests
 
 ### Version Controlled Files
 - All configuration files (`sites/*.json`)
@@ -262,6 +284,8 @@ Each WordPress site should have TWO configurations:
 - **"How to add a new site?"** → Copy example-site.json and modify
 - **"What's wrong with my forms?"** → Inspect actual HTML for correct selectors
 - **"Visual tests are failing"** → Check if site layout actually changed, update baselines if intentional
+- **"Where's my report?"** → Each test run creates `playwright-report-YYYY-MM-DDTHH-MM-SS/index.html` - check console output for exact path
+- **"Reports are accumulating"** → Use `npm run clean-old-reports` to remove reports older than 7 days
 
 ### Common User Misconceptions
 - **"Tests should pass everything"** → Tests SHOULD find issues, failures are valuable

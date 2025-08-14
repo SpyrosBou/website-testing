@@ -139,17 +139,19 @@ async function runTests() {
     testPattern = './tests/functionality.spec.js';
   }
   
+  // Generate timestamp for this test run
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+  const reportFolder = `playwright-report-${timestamp}`;
+  
   // Set environment variables for site name and organized output
   process.env.SITE_NAME = siteName;
   process.env.SITE_OUTPUT_DIR = `test-results/${siteName}`;
+  process.env.PLAYWRIGHT_REPORT_FOLDER = reportFolder;
   
   // Run Playwright tests with organized output
   const playwrightArgs = [
     'test',
-    testPattern,
-    '--reporter=html',
-    '--reporter=line',
-    `--output-dir=test-results/${siteName}`
+    testPattern
   ];
   
   // Add any additional playwright args
@@ -170,11 +172,12 @@ async function runTests() {
     console.log('');
     if (code === 0) {
       console.log('✅ Tests completed successfully!');
-      console.log('📊 View detailed report: npx playwright show-report');
-      console.log(`📸 Screenshots saved in: ./test-results/screenshots/`);
+      console.log(`📊 View detailed report: open ${reportFolder}/index.html`);
+      console.log(`📸 Screenshots and videos: ./test-results/${siteName}/`);
     } else {
       console.log('❌ Some tests failed.');
-      console.log('📊 View detailed report: npx playwright show-report');
+      console.log(`📊 View detailed report: open ${reportFolder}/index.html`);
+      console.log(`📸 Screenshots and videos: ./test-results/${siteName}/`);
     }
     process.exit(code);
   });

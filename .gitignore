@@ -6,14 +6,15 @@ yarn-error.log*
 
 # Test Results
 test-results/
-playwright-report/
+playwright-report-*/
 playwright/.cache/
 
-# Screenshots (too large for repo, regenerated each test)
-test-results/screenshots/
+# Screenshots and media files (too large for repo, regenerated each test)
 *.png
 *.jpg
 *.jpeg
+*.webm
+*.zip
 
 # Environment files
 .env
@@ -50,7 +51,4 @@ Thumbs.db
 *.temp
 
 # Playwright browsers (auto-installed)
-/test-results/
-/playwright-report/
 /blob-report/
-/playwright/.cache/

@@ -10,7 +10,10 @@ module.exports = defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [
+    ['html', { outputFolder: process.env.PLAYWRIGHT_REPORT_FOLDER || 'playwright-report' }],
+    ['line']
+  ],
   timeout: 30000,
   expect: {
     timeout: 10000,
@@ -22,24 +25,21 @@ module.exports = defineConfig({
     ignoreHTTPSErrors: true,
   },
 
-  // Organize output by site/device/browser
+  // Organize output by site/device/browser - Note: this affects test artifacts, not the HTML report
   outputDir: process.env.SITE_OUTPUT_DIR || 'test-results',
 
   projects: [
     {
       name: 'Desktop Chrome',
-      outputDir: 'desktop/chrome',
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'Desktop Firefox',
-      outputDir: 'desktop/firefox',
       use: { ...devices['Desktop Firefox'] },
     },
     // Add Safari project only on macOS
     ...(isMacOS ? [{
       name: 'Desktop Safari',
-      outputDir: 'desktop/safari',
       use: { 
         ...devices['Desktop Safari'],
         // Ensure we use the real Safari browser
@@ -49,17 +49,14 @@ module.exports = defineConfig({
     }] : []),
     {
       name: 'Mobile Chrome',
-      outputDir: 'mobile/chrome',
       use: { ...devices['Pixel 5'] },
     },
     {
       name: 'Mobile Safari',
-      outputDir: 'mobile/safari',
       use: { ...devices['iPhone 12'] },
     },
     {
       name: 'Tablet',
-      outputDir: 'tablet/ipad',
       use: { ...devices['iPad Pro'] },
     }
   ],
