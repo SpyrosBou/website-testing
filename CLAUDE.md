@@ -66,8 +66,9 @@ node run-tests.js --list                        # Show all available sites
 node run-tests.js --site=SITENAME               # Test specific site (all tests)
 node run-tests.js --site=SITENAME --functionality   # Test only functionality
 node run-tests.js --site=SITENAME --responsive      # Test only responsive + visual regression
-node run-tests.js --site=SITENAME --project="Desktop Chrome"  # Single browser
-node run-tests.js --site=SITENAME --project="Desktop Safari" # Real Safari (macOS only)
+node run-tests.js --site=SITENAME --project="Chrome"    # Single browser (Chrome)
+node run-tests.js --site=SITENAME --project="Firefox"   # Single browser (Firefox)
+node run-tests.js --site=SITENAME --project="Safari"    # Single browser (Safari - macOS only)
 node run-tests.js --interactive                 # Start interactive mode (menu-driven interface)
 ```
 
@@ -169,6 +170,39 @@ Each WordPress site should have TWO configurations:
 - **Diff Reports**: HTML reports show exactly what changed visually
 
 **Typical runtime**: 6-10 minutes per site (slightly longer due to visual comparison)
+
+## Browser Strategy and Architecture
+
+### Industry-Standard Responsive Testing Approach
+This testing suite follows **industry best practices** for responsive web testing:
+
+**✅ Desktop Browsers Only**: 
+- All testing runs in desktop browsers (Chrome, Firefox, Safari)
+- Different viewport sizes are simulated within these browsers
+- This is the standard approach used by most professional teams
+
+**✅ Multi-Viewport Testing**:
+- Each desktop browser tests all viewport sizes (mobile, tablet, desktop)
+- `Chrome` tests: 375x667 (mobile), 768x1024 (tablet), 1920x1080 (desktop) 
+- `Firefox` tests: Same viewports for cross-browser compatibility
+- `Safari` tests: Same viewports for WebKit engine coverage (macOS only)
+
+**✅ Why This Approach Works**:
+- **Real-world usage**: Users resize desktop browsers to test responsiveness
+- **Developer workflow**: Matches how developers test responsive design
+- **Comprehensive coverage**: Tests layout AND browser engine differences
+- **Performance**: Faster than real device testing for layout validation
+
+**❌ Why We Don't Use "Mobile Browsers"**:
+- Playwright's "mobile browsers" are desktop browsers with mobile user agents
+- They don't provide meaningful additional coverage over viewport simulation
+- Real mobile testing requires actual devices or cloud device farms
+- Adds complexity without corresponding value
+
+### Available Browser Projects
+- **Chrome**: Chromium-based testing (most common browser engine)
+- **Firefox**: Gecko engine testing (different rendering approach)  
+- **Safari**: WebKit engine testing (macOS/iOS engine, macOS only)
 
 ### Functionality Tests (`functionality.spec.js`)  
 **Purpose**: Verify website functionality works properly

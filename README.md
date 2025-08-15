@@ -16,7 +16,9 @@ Automated testing suite for WordPress websites with responsive design, functiona
 
 3. **Run tests**
    ```bash
-   npm run test:site your-site-name
+   node run-tests.js --site=your-site-name
+   # OR use interactive mode
+   node run-tests.js --interactive
    ```
 
 ## Site Configuration
@@ -68,17 +70,25 @@ node run-tests.js --site=my-site --functionality
 node run-tests.js --site=my-site --headed
 
 # Test specific browser
-node run-tests.js --site=my-site --project="Mobile Chrome"
+node run-tests.js --site=my-site --project="Chrome"
+node run-tests.js --site=my-site --project="Firefox"
+node run-tests.js --site=my-site --project="Safari"  # macOS only
 ```
 
 ## What Gets Tested
 
-### Responsive Testing
-- ✅ Pages load correctly on desktop, tablet, mobile
+### Responsive Testing (Industry-Standard Approach)
+- ✅ **Multi-Viewport Testing**: Each desktop browser tests mobile (375x667), tablet (768x1024), and desktop (1920x1080) viewports
+- ✅ **Cross-Browser Coverage**: Chrome, Firefox, and Safari (macOS) for comprehensive engine testing
 - ✅ Critical elements are visible across devices
 - ✅ Mobile menu functionality
 - ✅ **Visual Regression Detection** - Automatic screenshot comparison
 - ✅ **Layout Change Alerts** - Pixel-level difference detection
+
+### Browser Strategy
+- **Desktop Browsers Only**: Uses Chrome, Firefox, Safari to simulate all viewport sizes
+- **Why This Works**: Matches real-world responsive development and testing workflows
+- **Real Mobile Testing**: For actual device testing, use cloud services (not covered by this suite)
 
 ### Functionality Testing
 - ✅ No broken internal links
@@ -89,7 +99,7 @@ node run-tests.js --site=my-site --project="Mobile Chrome"
 
 ## Test Results
 
-- **HTML Report**: Each test run creates a timestamped report (e.g., `playwright-report-2025-01-14T10-30-15/index.html`)
+- **HTML Report**: Each test run creates a site-specific report (e.g., `playwright-report-nfsmediation-local/index.html`)
 - **Visual Diff Reports**: Side-by-side comparison of layout changes with pixel-level detection
 - **Test Artifacts**: Screenshots, videos, and traces stored in `test-results/[site-name]/`
 - **Console Output**: Shows exact report path to open after each run

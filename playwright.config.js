@@ -33,16 +33,16 @@ module.exports = defineConfig({
 
   projects: [
     {
-      name: 'Desktop Chrome',
+      name: 'Chrome',
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      name: 'Desktop Firefox',
+      name: 'Firefox',
       use: { ...devices['Desktop Firefox'] },
     },
     // Add Safari project only on macOS
     ...(isMacOS ? [{
-      name: 'Desktop Safari',
+      name: 'Safari',
       use: { 
         ...devices['Desktop Safari'],
         // Ensure we use the real Safari browser
@@ -50,17 +50,5 @@ module.exports = defineConfig({
         channel: undefined // Use system Safari, not Playwright's bundled webkit
       },
     }] : []),
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    },
-    {
-      name: 'Tablet',
-      use: { ...devices['iPad Pro'] },
-    }
   ],
 });
