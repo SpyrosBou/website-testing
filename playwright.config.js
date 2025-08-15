@@ -45,6 +45,7 @@ module.exports = defineConfig({
   outputDir: 'test-results',
 
   projects: [
+    // Desktop browsers (existing)
     {
       name: 'Chrome',
       use: { ...devices['Desktop Chrome'] },
@@ -63,5 +64,32 @@ module.exports = defineConfig({
         channel: undefined // Use system Safari, not Playwright's bundled webkit
       },
     }] : []),
+
+    // Mobile viewport testing (Chrome only for performance)
+    {
+      name: 'Chrome Mobile',
+      use: { 
+        ...devices['iPhone 12'],
+        viewport: { width: 375, height: 667 }, // Standard mobile viewport
+      },
+    },
+
+    // Tablet viewport testing (Chrome only for performance)
+    {
+      name: 'Chrome Tablet',
+      use: { 
+        ...devices['iPad Pro'],
+        viewport: { width: 768, height: 1024 }, // Standard tablet viewport
+      },
+    },
+
+    // Large desktop testing (Chrome only)
+    {
+      name: 'Chrome Desktop Large',
+      use: { 
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 }, // Large desktop viewport
+      },
+    },
   ],
 });

@@ -84,6 +84,11 @@ node run-tests.js --site=SITENAME --project="Chrome"    # Single browser
 node run-tests.js --site=SITENAME --project="Firefox"   # Firefox only
 node run-tests.js --site=SITENAME --project="Safari"    # Safari (macOS only)
 
+# Viewport-specific testing (responsive tests)
+node run-tests.js --site=SITENAME --project="Chrome Mobile"    # Mobile viewport only
+node run-tests.js --site=SITENAME --project="Chrome Tablet"    # Tablet viewport only
+node run-tests.js --site=SITENAME --project="Chrome Desktop Large"  # Large desktop viewport
+
 # Visual regression
 npx playwright test --update-snapshots          # Update ALL visual baselines
 # ⚠️  Use after intentional layout changes only - overwrites version-controlled baselines
@@ -175,18 +180,22 @@ Tests include:
 **Runtime: 6-8 minutes** 
 
 Tests include:
-- **Multi-Viewport Testing**: Desktop (1920x1080), Tablet (768x1024), Mobile (375x667)
-- **Critical Elements**: Navigation, header, footer visibility
-- **Mobile Menu**: Functionality verification
-- **Visual Regression**: Automatic screenshot comparison against baselines
-- **Cross-Browser**: Separate baselines for Chrome, Firefox, Safari
+- **Multi-Viewport Testing**: Mobile (375x667), Tablet (768x1024), Desktop (1920x1080)
+- **Critical Elements**: Navigation, header, footer, content visibility per viewport
+- **Mobile Menu**: Functionality verification and interaction testing
+- **Form Responsiveness**: Touch interaction and field accessibility
+- **WordPress Patterns**: Gutenberg blocks, widgets, theme-specific responsive behavior
+- **Visual Regression**: Component-level screenshot comparison with intelligent thresholds
+- **Accessibility-Responsive**: WCAG 2.1 AA compliance across all viewports
+- **Performance Testing**: Viewport-specific performance thresholds
 
-**Visual Regression Features:**
-- **Automatic Baseline Generation**: First run creates baseline screenshots
-- **Pixel Difference Detection**: Highlights visual changes between runs
-- **Threshold Tolerance**: 30% difference allowed for dynamic content
-- **Site-Specific Organization**: Screenshots organized by site name
-- **Diff Reports**: HTML reports show exactly what changed visually
+**Enhanced Features:**
+- **Viewport-Specific Testing**: Mobile (touch interactions), Tablet (hybrid), Desktop (mouse)
+- **WordPress-Optimized**: Supports multiple theme patterns and mobile menu selectors
+- **Component Screenshots**: Header, navigation, footer tested separately for granular regression detection
+- **Intelligent Thresholds**: 10% for UI elements, 30% for content, 50% for dynamic content
+- **Cross-Browser Optimization**: Chrome tests all viewports, Firefox/Safari desktop only for performance
+- **Mobile-First Approach**: Progressive enhancement validation from mobile to desktop
 
 ## Interactive Mode
 
@@ -320,21 +329,24 @@ npx playwright test --update-snapshots  # Update ALL baselines after layout chan
 
 ### Performance Benchmarks
 **Expected Results by Site Size:**
-- **Small sites (1-5 pages)**: 3-5 minutes functionality, 5-7 minutes full suite
-- **Medium sites (6-15 pages)**: 6-10 minutes functionality, 10-15 minutes full suite  
-- **Large sites (16+ pages)**: 12+ minutes functionality, 20+ minutes full suite
+- **Small sites (1-5 pages)**: 3-5 minutes functionality, 5-7 minutes responsive, 8-12 minutes full suite
+- **Medium sites (6-15 pages)**: 6-10 minutes functionality, 8-12 minutes responsive, 14-22 minutes full suite  
+- **Large sites (16+ pages)**: 12+ minutes functionality, 15+ minutes responsive, 27+ minutes full suite
 
 **Signs of Healthy Tests:**
-- ✅ All pages load under 3 seconds
-- ✅ 0 critical accessibility violations
+- ✅ All pages load under viewport-specific thresholds (mobile: 3s, tablet: 2.5s, desktop: 2s)
+- ✅ 0 critical accessibility violations across all viewports
 - ✅ All internal links return 200 status
-- ✅ Forms submit without JavaScript errors
-- ✅ Visual regression differences under 30% threshold
+- ✅ Forms submit without JavaScript errors on touch and mouse devices
+- ✅ Mobile menu functional on mobile viewport
+- ✅ Critical elements visible across all viewports
+- ✅ Visual regression differences under intelligent thresholds (10%-50% based on content type)
 
 ### Browser Strategy (Industry Standard)
-**✅ Desktop Browsers Only**: Chrome, Firefox, Safari test all viewport sizes
-**✅ Multi-Viewport Testing**: Each browser tests mobile, tablet, desktop viewports
-**✅ Real Engine Coverage**: Tests actual browser rendering differences
+**✅ Optimized Cross-Browser Testing**: Chrome tests all viewports (mobile, tablet, desktop), Firefox/Safari test desktop only
+**✅ Multi-Viewport Coverage**: Mobile (375x667), Tablet (768x1024), Desktop (1920x1080)
+**✅ Real Engine Coverage**: Tests actual browser rendering differences across viewport sizes
+**✅ Performance Optimized**: Reduced redundancy while maintaining comprehensive coverage
 
 **Why This Works:**
 - Matches real-world developer workflow
