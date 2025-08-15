@@ -4,6 +4,7 @@
   "description": "Automated testing suite for WordPress websites",
   "main": "index.js",
   "scripts": {
+    "tester": "node run-tests.js",
     "test": "node run-tests.js",
     "test:site": "node run-tests.js --site=",
     "install-browsers": "npx playwright install",

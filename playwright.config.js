@@ -12,7 +12,7 @@ module.exports = defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ['html', { outputFolder: process.env.PLAYWRIGHT_REPORT_FOLDER || 'playwright-report' }],
-    ['line']
+    ['list']
   ],
   timeout: 30000,
   expect: {

@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 
-const { spawn } = require('child_process');
 const minimist = require('minimist');
-const SiteLoader = require('./utils/site-loader');
-const path = require('path');
-const fs = require('fs');
+const TestRunner = require('./utils/test-runner');
+const InteractiveMode = require('./utils/interactive');
 
 // Parse command line arguments
 const argv = minimist(process.argv.slice(2));
@@ -13,6 +11,7 @@ function showUsage() {
   console.log(`
 WordPress Testing Suite Usage:
 
+  node run-tests.js                 # Interactive mode (recommended)
   npm test                          # Run tests for example-site
   npm run test:site example-site    # Test specific site
   node run-tests.js --site=my-site  # Alternative syntax
@@ -20,6 +19,7 @@ WordPress Testing Suite Usage:
   node run-tests.js --help          # Show this help
 
 Available options:
+  --interactive       Start interactive mode
   --site=SITE_NAME    Test specific site configuration
   --responsive        Run only responsive tests
   --functionality     Run only functionality tests  
@@ -27,6 +27,7 @@ Available options:
   --help              Show this help message
 
 Examples:
+  node run-tests.js                              # Interactive mode
   node run-tests.js --site=daygroup-local        # Test local development site
   node run-tests.js --site=daygroup-live         # Test live production site
   node run-tests.js --site=nfsmediation-local --responsive
@@ -34,66 +35,6 @@ Examples:
 `);
 }
 
-function listSites() {
-  const sites = SiteLoader.listAvailableSites();
-  
-  if (sites.length === 0) {
-    console.log('No site configurations found in ./sites/ directory');
-    console.log('Create a .json file in ./sites/ directory with your site configuration');
-    return;
-  }
-  
-  console.log('Available site configurations:');
-  
-  // Group by site type (local vs live)
-  const localSites = [];
-  const liveSites = [];
-  const otherSites = [];
-  
-  sites.forEach(site => {
-    try {
-      const config = SiteLoader.loadSite(site);
-      if (site.includes('-local')) {
-        localSites.push({ name: site, config });
-      } else if (site.includes('-live')) {
-        liveSites.push({ name: site, config });
-      } else {
-        otherSites.push({ name: site, config });
-      }
-    } catch (error) {
-      otherSites.push({ name: site, config: null });
-    }
-  });
-  
-  if (localSites.length > 0) {
-    console.log('\n  🏠 Local Development Sites:');
-    localSites.forEach(site => {
-      console.log(`    ${site.name}: ${site.config.name} (${site.config.baseUrl})`);
-    });
-  }
-  
-  if (liveSites.length > 0) {
-    console.log('\n  🌐 Live Production Sites:');
-    liveSites.forEach(site => {
-      console.log(`    ${site.name}: ${site.config.name} (${site.config.baseUrl})`);
-    });
-  }
-  
-  if (otherSites.length > 0) {
-    console.log('\n  📝 Other Sites:');
-    otherSites.forEach(site => {
-      if (site.config) {
-        console.log(`    ${site.name}: ${site.config.name} (${site.config.baseUrl})`);
-      } else {
-        console.log(`    ${site.name}: [Error loading config]`);
-      }
-    });
-  }
-  
-  console.log('\nTesting examples:');
-  console.log('  node run-tests.js --site=daygroup-local      # Test local development');
-  console.log('  node run-tests.js --site=daygroup-live       # Test live production');
-}
 
 async function runTests() {
   // Handle help and list commands
@@ -103,89 +44,42 @@ async function runTests() {
   }
   
   if (argv.list || argv.l) {
-    listSites();
+    TestRunner.displaySites();
     return;
   }
   
   // Determine site to test
   const siteName = argv.site || argv.s || 'example-site';
   
-  // Validate site exists
+  // Build options from CLI arguments
+  const options = {
+    responsive: argv.responsive,
+    functionality: argv.functionality,
+    headed: argv.headed,
+    debug: argv.debug,
+    project: argv.project
+  };
+  
   try {
-    const siteConfig = SiteLoader.loadSite(siteName);
-    SiteLoader.validateSiteConfig(siteConfig);
-    console.log(`Running tests for: ${siteConfig.name}`);
-    console.log(`Base URL: ${siteConfig.baseUrl}`);
-    console.log(`Pages to test: ${siteConfig.testPages.join(', ')}`);
-    console.log('');
+    const result = await TestRunner.runTestsForSite(siteName, options);
+    process.exit(result.code);
   } catch (error) {
-    console.error(`Error: ${error.message}`);
-    console.log('');
-    listSites();
     process.exit(1);
   }
-  
-  // Create test-results directory
-  const resultsDir = path.join(__dirname, 'test-results', 'screenshots');
-  if (!fs.existsSync(resultsDir)) {
-    fs.mkdirSync(resultsDir, { recursive: true });
-  }
-  
-  // Determine which tests to run
-  let testPattern = './tests/*.spec.js';
-  if (argv.responsive) {
-    testPattern = './tests/responsive.spec.js';
-  } else if (argv.functionality) {
-    testPattern = './tests/functionality.spec.js';
-  }
-  
-  // Generate timestamp for this test run
-  const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-  const reportFolder = `playwright-report-${timestamp}`;
-  
-  // Set environment variables for site name and organized output
-  process.env.SITE_NAME = siteName;
-  process.env.SITE_OUTPUT_DIR = `test-results/${siteName}`;
-  process.env.PLAYWRIGHT_REPORT_FOLDER = reportFolder;
-  
-  // Run Playwright tests with organized output
-  const playwrightArgs = [
-    'test',
-    testPattern
-  ];
-  
-  // Add any additional playwright args
-  if (argv.headed) playwrightArgs.push('--headed');
-  if (argv.debug) playwrightArgs.push('--debug');
-  if (argv.project) playwrightArgs.push(`--project=${argv.project}`);
-  
-  console.log(`Starting tests...`);
-  console.log(`Command: npx playwright ${playwrightArgs.join(' ')}`);
-  console.log('');
-  
-  const playwright = spawn('npx', ['playwright', ...playwrightArgs], {
-    stdio: 'inherit',
-    env: { ...process.env, SITE_NAME: siteName }
-  });
-  
-  playwright.on('close', (code) => {
-    console.log('');
-    if (code === 0) {
-      console.log('✅ Tests completed successfully!');
-      console.log(`📊 View detailed report: open ${reportFolder}/index.html`);
-      console.log(`📸 Screenshots and videos: ./test-results/${siteName}/`);
-    } else {
-      console.log('❌ Some tests failed.');
-      console.log(`📊 View detailed report: open ${reportFolder}/index.html`);
-      console.log(`📸 Screenshots and videos: ./test-results/${siteName}/`);
-    }
-    process.exit(code);
-  });
-  
-  playwright.on('error', (error) => {
-    console.error('Error running tests:', error.message);
-    process.exit(1);
-  });
 }
 
-runTests();
+async function main() {
+  // Check if no arguments provided or interactive flag
+  const hasArguments = Object.keys(argv).length > 1 || (Object.keys(argv).length === 1 && argv._?.length > 0);
+  
+  if (!hasArguments || argv.interactive) {
+    // Start interactive mode
+    const interactive = new InteractiveMode();
+    await interactive.start();
+  } else {
+    // Run CLI mode
+    await runTests();
+  }
+}
+
+main().catch(console.error);
