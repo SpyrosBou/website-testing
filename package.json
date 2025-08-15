@@ -7,6 +7,8 @@
     "tester": "node run-tests.js",
     "test": "node run-tests.js",
     "test:site": "node run-tests.js --site=",
+    "test:clean": "npm run clean-allure && node run-tests.js",
+    "test:site:clean": "npm run clean-allure && node run-tests.js --site=",
     "install-browsers": "npx playwright install",
     "setup": "npm install && npm run install-browsers",
     "clean-old-results": "find test-results -mtime +15 -type f -delete 2>/dev/null && find test-results -type d -empty -delete 2>/dev/null || echo 'Cleaned test results older than 15 days'",

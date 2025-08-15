@@ -73,6 +73,9 @@ class TestRunner {
   }
 
   static async runTestsForSite(siteName, options = {}) {
+    // Clean previous Allure results for fresh run
+    this.cleanAllureResults();
+    
     // Validate site exists
     try {
       const siteConfig = SiteLoader.loadSite(siteName);
@@ -144,6 +147,16 @@ class TestRunner {
         reject(error);
       });
     });
+  }
+
+  static cleanAllureResults() {
+    const { execSync } = require('child_process');
+    try {
+      execSync('rm -rf allure-results allure-report', { stdio: 'ignore' });
+      console.log('🧹 Cleaned previous test results for fresh run');
+    } catch (error) {
+      // Ignore if directories don't exist
+    }
   }
 
   static killOrphanedReportServers() {
