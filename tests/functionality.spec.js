@@ -1,6 +1,158 @@
 const { test, expect } = require('@playwright/test');
 const SiteLoader = require('../utils/site-loader');
 
+// Comprehensive interactive testing function for JS error detection
+async function performInteractiveJSTests(page, currentPage) {
+  console.log(`🔄 Running interactive JS tests on: ${currentPage}`);
+  
+  try {
+    // Test 1: Click all clickable elements
+    const clickableSelectors = [
+      'button:not([disabled])',
+      'a[href]:not([href^="mailto:"]):not([href^="tel:"]):not([href^="#"])',
+      '[onclick]',
+      '.btn, .button',
+      '[role="button"]',
+      'input[type="submit"]:not([disabled])',
+      'input[type="button"]:not([disabled])'
+    ];
+    
+    for (const selector of clickableSelectors) {
+      try {
+        const elements = await page.locator(selector).all();
+        for (let i = 0; i < Math.min(elements.length, 10); i++) { // Limit to 10 per selector
+          const element = elements[i];
+          if (await element.isVisible() && await element.isEnabled()) {
+            await element.click({ timeout: 2000 });
+            await page.waitForTimeout(500); // Allow time for JS to execute
+          }
+        }
+      } catch (error) {
+        // Continue testing other elements if one fails
+      }
+    }
+    
+    // Test 2: Navigation menu interactions
+    try {
+      // Desktop menu hovers
+      const navItems = await page.locator('nav a, .menu a, .main-menu a').all();
+      for (let i = 0; i < Math.min(navItems.length, 8); i++) {
+        try {
+          await navItems[i].hover({ timeout: 1000 });
+          await page.waitForTimeout(300);
+        } catch (error) {
+          // Continue with next item
+        }
+      }
+      
+      // Mobile menu toggle
+      const mobileToggles = ['.menu-toggle', '.hamburger', '.mobile-menu-toggle', '[aria-label*="menu"]'];
+      for (const toggleSelector of mobileToggles) {
+        try {
+          const toggle = page.locator(toggleSelector).first();
+          if (await toggle.isVisible()) {
+            await toggle.click({ timeout: 2000 });
+            await page.waitForTimeout(800); // Wait for menu animation
+            // Try to close it too
+            await toggle.click({ timeout: 2000 });
+            await page.waitForTimeout(500);
+            break; // Only test one toggle per page
+          }
+        } catch (error) {
+          // Continue with next toggle type
+        }
+      }
+    } catch (error) {
+      // Navigation testing errors don't fail the test
+    }
+    
+    // Test 3: Dropdown and accordion interactions
+    try {
+      const dropdownSelectors = [
+        '.dropdown-toggle, .dropdown-trigger',
+        '[aria-haspopup="true"]',
+        '.accordion-header, .accordion-toggle',
+        '.tab-nav a, .tab-header'
+      ];
+      
+      for (const selector of dropdownSelectors) {
+        const elements = await page.locator(selector).all();
+        for (let i = 0; i < Math.min(elements.length, 5); i++) {
+          try {
+            if (await elements[i].isVisible()) {
+              await elements[i].click({ timeout: 2000 });
+              await page.waitForTimeout(500);
+            }
+          } catch (error) {
+            // Continue with next element
+          }
+        }
+      }
+    } catch (error) {
+      // Dropdown testing errors don't fail the test
+    }
+    
+    // Test 4: Form interactions (beyond just submission)
+    try {
+      // Focus and blur events on form fields
+      const formFields = await page.locator('input[type="text"], input[type="email"], textarea, select').all();
+      for (let i = 0; i < Math.min(formFields.length, 8); i++) {
+        try {
+          const field = formFields[i];
+          if (await field.isVisible() && await field.isEnabled()) {
+            await field.focus();
+            await field.fill('test');
+            await field.blur();
+            await page.waitForTimeout(200);
+          }
+        } catch (error) {
+          // Continue with next field
+        }
+      }
+    } catch (error) {
+      // Form testing errors don't fail the test
+    }
+    
+    // Test 5: Interactive media elements
+    try {
+      const mediaSelectors = [
+        '.slider-nav, .carousel-control',
+        '.lightbox-trigger, .gallery-item',
+        '.video-play-button',
+        '.modal-trigger, [data-modal]'
+      ];
+      
+      for (const selector of mediaSelectors) {
+        const elements = await page.locator(selector).all();
+        for (let i = 0; i < Math.min(elements.length, 3); i++) {
+          try {
+            if (await elements[i].isVisible()) {
+              await elements[i].click({ timeout: 2000 });
+              await page.waitForTimeout(800);
+              
+              // Try to close modal/lightbox if opened
+              const closeButtons = page.locator('.close, .modal-close, [aria-label="Close"]');
+              if (await closeButtons.first().isVisible()) {
+                await closeButtons.first().click({ timeout: 1000 });
+                await page.waitForTimeout(300);
+              }
+            }
+          } catch (error) {
+            // Continue with next element
+          }
+        }
+      }
+    } catch (error) {
+      // Media testing errors don't fail the test
+    }
+    
+    console.log(`✅ Completed interactive JS tests on: ${currentPage}`);
+    
+  } catch (error) {
+    console.log(`⚠️  Interactive JS testing encountered issues on ${currentPage}: ${error.message}`);
+  }
+}
+
 const siteName = process.env.SITE_NAME || 'example-site';
 let siteConfig;
 
@@ -123,23 +275,8 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
         console.log(`⚠️  Network idle timeout for ${testPage}, continuing with JS error check`);
       }
       
-      // Interact with common elements that might trigger JS
-      try {
-        // Try clicking navigation items
-        const navLinks = page.locator('nav a, .menu a').first();
-        if (await navLinks.isVisible()) {
-          await navLinks.hover();
-        }
-        
-        // Try mobile menu if present
-        const mobileToggle = page.locator('.menu-toggle, .hamburger').first();
-        if (await mobileToggle.isVisible()) {
-          await mobileToggle.click();
-          await page.waitForTimeout(500);
-        }
-      } catch (error) {
-        // Ignore interaction errors, we're just testing for JS errors
-      }
+      // Comprehensive interactive testing for JS errors
+      await performInteractiveJSTests(page, testPage);
     }
     
     // Report findings

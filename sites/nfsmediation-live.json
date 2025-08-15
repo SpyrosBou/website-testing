@@ -23,7 +23,7 @@
   "forms": [
     {
       "name": "Contact Form",
-      "page": "/contact",
+      "page": "/contact-us/",
       "selector": ".wpcf7-form, #contact-form, .contact-form",
       "fields": {
         "name": "input[name*='name'], input[name*='your-name']",
