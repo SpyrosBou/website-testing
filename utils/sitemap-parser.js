@@ -5,9 +5,9 @@ class SitemapParser {
   
   static async discoverPages(baseUrl, options = {}) {
     const maxPages = options.maxPages || 50;
-    const excludePatterns = options.excludePatterns || [
-      '/wp-admin', '/wp-login', '/feed', '?', '#', '.xml', '.pdf', '.jpg', '.png', '.gif'
-    ];
+    
+    // Build exclusion patterns based on options
+    const excludePatterns = this.buildExclusionPatterns(options);
     
     console.log(`🔍 Discovering pages from sitemap: ${baseUrl}`);
     
@@ -208,6 +208,43 @@ class SitemapParser {
     });
     
     return validPages;
+  }
+  
+  static buildExclusionPatterns(options = {}) {
+    // System/Security exclusions - always applied for safety
+    const systemExclusions = [
+      '/wp-admin', '/wp-login', '/wp-json', '/feed', 
+      '?', '#',  // URL fragments/query parameters
+      '.xml', '.pdf', '.jpg', '.png', '.gif', '.svg', '.ico', '.zip' // File types
+    ];
+    
+    // Content exclusions - configurable based on options
+    const contentExclusions = [];
+    
+    if (options.excludeDemo !== false) { // Default to excluding demo content
+      contentExclusions.push('/hello-world/', '/sample-page/');
+    }
+    
+    if (options.excludeTestimonials) {
+      contentExclusions.push('/testimonials/');
+    }
+    
+    if (options.excludeArchives) {
+      contentExclusions.push('/category/', '/tag/', '/author/', '/date/');
+    }
+    
+    // Allow custom exclusions
+    const customExclusions = options.customExclusions || [];
+    
+    // Combine all exclusions
+    const allExclusions = [...systemExclusions, ...contentExclusions, ...customExclusions];
+    
+    // Log exclusion strategy
+    if (options.verbose) {
+      console.log('📋 Exclusion patterns:', allExclusions);
+    }
+    
+    return allExclusions;
   }
 }
 

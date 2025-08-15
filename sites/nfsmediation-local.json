@@ -2,12 +2,28 @@
   "name": "NFS Mediation (Local)",
   "baseUrl": "https://nfsmediation.local",
   "testPages": [
-    "/"
+    "/",
+    "/about-us/",
+    "/award-recognition-for-excellence-in-conflict-resolution/",
+    "/block-playground/",
+    "/contact-us/",
+    "/cookie-settings/",
+    "/flexi-page/",
+    "/get-involved/",
+    "/new-mediation-services-available/",
+    "/new-mediation-services-launching-soon/",
+    "/notice-2/",
+    "/notices/",
+    "/our-services/",
+    "/privacy-policy/",
+    "/services/",
+    "/terms-of-use/",
+    "/working-with-us/"
   ],
   "forms": [
     {
       "name": "Contact Form",
-      "page": "/contact",
+      "page": "/contact-us/",
       "selector": ".wpcf7-form, #contact-form, .contact-form",
       "fields": {
         "name": "input[name*='name'], input[name*='your-name']",

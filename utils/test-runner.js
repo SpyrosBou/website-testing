@@ -137,6 +137,10 @@ class TestRunner {
         }
         console.log(`📊 View detailed report: open ${reportFolder}/index.html`);
         console.log(`📸 Screenshots and videos: ./test-results/${siteName}/`);
+        
+        // Clean up any orphaned report server processes
+        this.killOrphanedReportServers();
+        
         resolve({ code, reportFolder, siteName });
       });
       
@@ -144,6 +148,18 @@ class TestRunner {
         console.error('Error running tests:', error.message);
         reject(error);
       });
+    });
+  }
+
+  static killOrphanedReportServers() {
+    const { exec } = require('child_process');
+    
+    // Kill any node processes running playwright report servers
+    exec('pkill -f "playwright.*report"', (error, stdout, stderr) => {
+      // Ignore errors - it's normal if no processes are found
+      if (stdout || stderr) {
+        console.log('🧹 Cleaned up report server processes');
+      }
     });
   }
 

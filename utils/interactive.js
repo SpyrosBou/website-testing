@@ -567,7 +567,10 @@ class InteractiveMode {
     
     try {
       console.log('\n📡 Discovering pages from sitemap...');
-      const discoveredPages = await SitemapParser.discoverPages(config.baseUrl, { maxPages: 30 });
+      const discoveredPages = await SitemapParser.discoverPages(config.baseUrl, { 
+        maxPages: 30,
+        verbose: true
+      });
       
       if (discoveredPages.length > 0) {
         const oldCount = config.testPages.length;
@@ -621,7 +624,10 @@ class InteractiveMode {
     if (discoverPages.toLowerCase() === 'y' || discoverPages.toLowerCase() === 'yes') {
       try {
         console.log('\n📡 Discovering pages from sitemap...');
-        const discoveredPages = await SitemapParser.discoverPages(baseUrl.trim(), { maxPages: 20 });
+        const discoveredPages = await SitemapParser.discoverPages(baseUrl.trim(), { 
+          maxPages: 20,
+          verbose: true
+        });
         
         if (discoveredPages.length > 1) {
           testPages = discoveredPages;

@@ -221,7 +221,7 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
       
       const loadTime = Date.now() - startTime;
       
-      if (loadTime > 5000) { // 5 second threshold
+      if (loadTime > 3000) { // 3 second threshold
         slowPages.push({
           page: testPage,
           loadTime: `${loadTime}ms`

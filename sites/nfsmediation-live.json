@@ -3,11 +3,22 @@
   "baseUrl": "https://nfs.atelierdev.uk",
   "testPages": [
     "/",
-    "/about",
-    "/contact",
-    "/services",
-    "/mediation",
-    "/blog"
+    "/about-us/",
+    "/award-recognition-for-excellence-in-conflict-resolution/",
+    "/block-playground/",
+    "/contact-us/",
+    "/cookie-settings/",
+    "/flexi-page/",
+    "/get-involved/",
+    "/new-mediation-services-available/",
+    "/new-mediation-services-launching-soon/",
+    "/notice-2/",
+    "/notices/",
+    "/our-services/",
+    "/privacy-policy-2/",
+    "/services/",
+    "/terms-of-use/",
+    "/working-with-us/"
   ],
   "forms": [
     {
@@ -16,7 +27,7 @@
       "selector": ".wpcf7-form, #contact-form, .contact-form",
       "fields": {
         "name": "input[name*='name'], input[name*='your-name']",
-        "email": "input[name*='email'], input[name*='your-email']", 
+        "email": "input[name*='email'], input[name*='your-email']",
         "message": "textarea[name*='message'], textarea[name*='your-message']"
       },
       "submitButton": "input[type='submit'], .wpcf7-submit, button[type='submit']"
@@ -32,13 +43,19 @@
       "selector": "header, .site-header, .header"
     },
     {
-      "name": "Footer", 
+      "name": "Footer",
       "selector": "footer, .site-footer, .footer"
     }
   ],
   "expectedElements": {
-    "homepage": [".hero-section, .banner, .intro, .home-content"],
-    "contact": [".wpcf7-form, #contact-form, .contact-form"],
-    "about": [".about-content, .about"]
+    "homepage": [
+      ".hero-section, .banner, .intro, .home-content"
+    ],
+    "contact": [
+      ".wpcf7-form, #contact-form, .contact-form"
+    ],
+    "about": [
+      ".about-content, .about"
+    ]
   }
 }

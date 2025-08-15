@@ -72,6 +72,12 @@ node run-tests.js --site=SITENAME --project="Safari"    # Single browser (Safari
 node run-tests.js --interactive                 # Start interactive mode (menu-driven interface)
 ```
 
+### Configuration Commands
+```bash
+node run-tests.js --interactive                 # Use interactive mode for all site configuration
+# Select "Edit site configuration" → "Pages to test" → "Auto-discover pages from sitemap"
+```
+
 ### Visual Regression Commands
 ```bash
 npx playwright test --update-snapshots          # Update ALL visual baselines (after intentional changes)
@@ -211,7 +217,7 @@ This testing suite follows **industry best practices** for responsive web testin
 - **Broken Links**: Finds internal links that lead to 404s
 - **JavaScript Errors**: Detects console errors and page exceptions
 - **Form Testing**: Validates contact forms work and have proper validation
-- **Performance**: Measures page load times (5-second threshold)
+- **Performance**: Measures page load times (3-second threshold)
 
 **Typical runtime**: 2-4 minutes per site
 
@@ -240,13 +246,20 @@ This testing suite follows **industry best practices** for responsive web testin
 2. **Start with minimal pages**: Only test pages you KNOW exist (`/` is always safe)
 3. **Use broad CSS selectors**: WordPress themes vary, so use multiple selector options
 4. **Test incrementally**: Add pages gradually after confirming they exist
-5. **Auto-discover pages**: Use interactive mode or sitemap parser to automatically find pages
+5. **Auto-discover pages**: Use interactive mode to automatically find pages from sitemaps
 
 ### Site Configuration Tips
-- **testPages**: Start with `["/"]` and add pages after confirming they exist
+- **testPages**: Use interactive mode auto-discovery to find pages from sitemap
 - **forms**: Contact forms are usually on `/contact` or `/contact-us`
 - **criticalElements**: Use multiple selector options: `".main-nav, #main-menu, nav"`
 - **baseUrl**: Use HTTPS for local sites if they redirect, HTTP for older setups
+
+### Sitemap Discovery Best Practices
+- **Default behavior**: Excludes WordPress demo content (`/hello-world/`, `/sample-page/`) but includes dev pages
+- **Development pages**: Pages like `/block-playground/`, `/flexi-page/` are included by default (useful for testing)
+- **Security exclusions**: System pages (`/wp-admin`, `/wp-login`) and file types are always excluded
+- **Custom exclusions**: Use `--exclude-testimonials` or `--exclude-archives` for sites with many auto-generated pages
+- **Minimal mode**: Use `--minimal` to only exclude security/system pages and include everything else
 
 ## Troubleshooting Guide
 
@@ -338,7 +351,7 @@ This testing suite follows **industry best practices** for responsive web testin
 The testing suite now includes an interactive command-line interface accessible via `node run-tests.js --interactive`:
 
 **Main Features:**
-- **Site Testing**: Choose from all available sites with guided options
+- **Site Testing**: Choose from all available sites with guided options (auto-cleans orphaned processes)
 - **Configuration Management**: Create and edit site configurations directly
 - **Auto-Discovery**: Automatically find pages from sitemaps  
 - **Cleanup Tools**: Manage old reports and test artifacts
@@ -362,6 +375,11 @@ The testing suite now includes an interactive command-line interface accessible 
 - Press 'q' to quit at any time
 - All changes are saved automatically when exiting configuration editing
 
+### Interactive Mode Process Management
+- **Test Execution**: Interactive mode runs tests directly and automatically cleans up orphaned processes
+- **Benefits**: Full automation with proper cleanup, no manual intervention needed
+- **Process**: Select test → tests run → automatic cleanup → report ready
+
 ## Claude-Specific Guidance
 
 ### When the User Asks About...
@@ -372,7 +390,7 @@ The testing suite now includes an interactive command-line interface accessible 
 - **"Visual tests are failing"** → Check if site layout actually changed, update baselines if intentional
 - **"Where's my report?"** → Each site creates `playwright-report-SITENAME/index.html` - one report per site, overwrites previous
 - **"Reports are accumulating"** → Reports now overwrite per site - use `rm -rf playwright-report-*` to clean all if needed
-- **"How to find pages automatically?"** → Use interactive mode auto-discovery or sitemap parser utility
+- **"How to find pages automatically?"** → Use interactive mode auto-discovery feature
 
 ### Common User Misconceptions
 - **"Tests should pass everything"** → Tests SHOULD find issues, failures are valuable
@@ -386,6 +404,43 @@ The testing suite now includes an interactive command-line interface accessible 
 4. **Read the error messages**: The improved 404 handling gives clear feedback
 5. **Visual regression failures**: Use `npx playwright test --update-snapshots` to update baselines after intentional changes
 6. **Always use test runner**: Use `node run-tests.js --site=SITENAME` instead of direct `npx playwright test` for proper organization
+
+## Command Reference for Claude
+
+### Claude Command Guidelines
+When providing commands to users, ALWAYS provide both:
+1. **Our custom system command** (preferred)
+2. **Default Playwright equivalent** (for understanding)
+
+**Examples:**
+
+Run responsive tests:
+```bash
+# Our system (preferred):
+node run-tests.js --site=SITENAME --responsive
+# Default Playwright equivalent:
+SITE_NAME=SITENAME npx playwright test tests/responsive.spec.js
+```
+
+Update visual baselines:
+```bash
+# Our system (site-specific):
+node run-tests.js --site=SITENAME --responsive  # First run to generate
+# Default Playwright (all sites):
+npx playwright test --update-snapshots
+# Default Playwright (site-specific):
+SITE_NAME=SITENAME npx playwright test tests/responsive.spec.js --update-snapshots
+```
+
+Test functionality only:
+```bash
+# Our system (preferred):
+node run-tests.js --site=SITENAME --functionality
+# Default Playwright equivalent:
+SITE_NAME=SITENAME npx playwright test tests/functionality.spec.js
+```
+
+This helps users understand the relationship between our custom runner and standard Playwright commands.
 
 ## Security Considerations
 
