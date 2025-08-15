@@ -36,7 +36,10 @@ website-testing/
 │   ├── responsive.spec.js   # Layout and device testing
 │   └── functionality.spec.js # Links, forms, JS errors, performance
 ├── utils/                   # Helper functions
-│   └── site-loader.js       # Site configuration loading
+│   ├── site-loader.js       # Site configuration loading
+│   ├── test-runner.js       # Test execution orchestration
+│   ├── interactive.js       # Interactive command-line interface
+│   └── sitemap-parser.js    # Automatic page discovery from sitemaps
 └── test-results/            # Generated screenshots, videos, reports
 ```
 
@@ -55,6 +58,7 @@ node run-tests.js --site=SITENAME --functionality   # Test only functionality
 node run-tests.js --site=SITENAME --responsive      # Test only responsive + visual regression
 node run-tests.js --site=SITENAME --project="Desktop Chrome"  # Single browser
 node run-tests.js --site=SITENAME --project="Desktop Safari" # Real Safari (macOS only)
+node run-tests.js --interactive                 # Start interactive mode (menu-driven interface)
 ```
 
 ### Visual Regression Commands
@@ -147,6 +151,7 @@ Each WordPress site should have TWO configurations:
 - **Pixel Difference Detection**: Highlights visual changes between test runs  
 - **Threshold Tolerance**: Allows 30% difference for dynamic content
 - **Cross-Browser Comparison**: Separate baselines for Chrome, Firefox, Safari
+- **Site-Specific Organization**: Screenshots organized by site name for better management
 - **Diff Reports**: HTML reports show exactly what changed visually
 
 **Typical runtime**: 6-10 minutes per site (slightly longer due to visual comparison)
@@ -187,6 +192,7 @@ Each WordPress site should have TWO configurations:
 2. **Start with minimal pages**: Only test pages you KNOW exist (`/` is always safe)
 3. **Use broad CSS selectors**: WordPress themes vary, so use multiple selector options
 4. **Test incrementally**: Add pages gradually after confirming they exist
+5. **Auto-discover pages**: Use interactive mode or sitemap parser to automatically find pages
 
 ### Site Configuration Tips
 - **testPages**: Start with `["/"]` and add pages after confirming they exist
@@ -276,16 +282,47 @@ Each WordPress site should have TWO configurations:
 - May have caching that affects test consistency
 - Performance testing more meaningful on live sites
 
+## Interactive Mode Features
+
+### Menu-Driven Interface
+The testing suite now includes an interactive command-line interface accessible via `node run-tests.js --interactive`:
+
+**Main Features:**
+- **Site Testing**: Choose from all available sites with guided options
+- **Configuration Management**: Create and edit site configurations directly
+- **Auto-Discovery**: Automatically find pages from sitemaps  
+- **Cleanup Tools**: Manage old reports and test artifacts
+- **Visual Baseline Updates**: Update screenshot baselines for specific sites
+
+**Configuration Editing:**
+- Edit existing site configurations through menu interface
+- Add/remove test pages interactively
+- Auto-discover pages from site sitemaps (up to 30 pages)
+- Create new site configurations with guided prompts
+
+**Page Auto-Discovery:**
+- Automatically parse XML sitemaps (`/sitemap.xml`, `/sitemap_index.xml`)
+- Filter out unwanted pages (admin, feeds, archives)
+- Configurable page limits to prevent excessive test times
+- Fallback to manual page entry if sitemap unavailable
+
+### Navigation Tips
+- Use number keys for menu choices
+- Press 'b' or 'back' to return to previous menu
+- Press 'q' to quit at any time
+- All changes are saved automatically when exiting configuration editing
+
 ## Claude-Specific Guidance
 
 ### When the User Asks About...
 - **"Why is it slow?"** → Check if testing too many pages or browsers
 - **"Tests are failing"** → Check for 404s first, then SSL issues, then visual regression changes
-- **"How to add a new site?"** → Copy example-site.json and modify
+- **"How to add a new site?"** → Use interactive mode: `node run-tests.js --interactive` → "Create new site configuration"
 - **"What's wrong with my forms?"** → Inspect actual HTML for correct selectors
 - **"Visual tests are failing"** → Check if site layout actually changed, update baselines if intentional
 - **"Where's my report?"** → Each test run creates `playwright-report-YYYY-MM-DDTHH-MM-SS/index.html` - check console output for exact path
 - **"Reports are accumulating"** → Use `npm run clean-old-reports` to remove reports older than 7 days
+- **"How to find pages automatically?"** → Use interactive mode auto-discovery or sitemap parser utility
 
 ### Common User Misconceptions
 - **"Tests should pass everything"** → Tests SHOULD find issues, failures are valuable

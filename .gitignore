@@ -6,7 +6,7 @@ yarn-error.log*
 
 # Test Results
 test-results/
-playwright-report-*/
+playwright-report*/
 playwright/.cache/
 
 # Screenshots and media files (too large for repo, regenerated each test)
