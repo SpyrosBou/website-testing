@@ -18,6 +18,9 @@ module.exports = defineConfig({
   expect: {
     timeout: 10000,
   },
+  
+  // Custom snapshot directory and path template
+  snapshotPathTemplate: '{testDir}/baseline-snapshots/{arg}{ext}',
   use: {
     trace: 'retain-on-failure', // Changed: Create traces for failed tests (better debugging)
     screenshot: 'only-on-failure',

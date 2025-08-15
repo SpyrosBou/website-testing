@@ -102,9 +102,8 @@ class TestRunner {
       testPattern = './tests/functionality.spec.js';
     }
     
-    // Generate timestamp for this test run
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-    const reportFolder = `playwright-report-${timestamp}`;
+    // Generate report folder name based on site name
+    const reportFolder = `playwright-report-${siteName}`;
     
     // Set environment variables
     process.env.SITE_NAME = siteName;

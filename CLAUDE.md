@@ -40,7 +40,17 @@ website-testing/
 │   ├── test-runner.js       # Test execution orchestration
 │   ├── interactive.js       # Interactive command-line interface
 │   └── sitemap-parser.js    # Automatic page discovery from sitemaps
-└── test-results/            # Generated screenshots, videos, reports
+├── test-results/            # Site-specific test artifacts (organized by site)
+│   ├── [site-name]/         # Per-site test execution artifacts
+│   │   ├── *.png           # Failure screenshots
+│   │   ├── *.webm          # Test videos (on failure)
+│   │   └── *.zip           # Debug traces (on failure)
+├── tests/baseline-snapshots/ # Visual regression baselines (version controlled)
+│   ├── [site-name]/         # Per-site baseline screenshots
+│   │   ├── home-desktop-chromium.png
+│   │   ├── home-tablet-chromium.png
+│   │   └── home-mobile-chromium.png
+└── playwright-report-[site-name]/ # Site-specific HTML reports (overwritten per run)
 ```
 
 ## Common Commands and Usage
@@ -70,22 +80,26 @@ node run-tests.js --site=SITENAME --responsive  # Run with visual regression com
 
 ### Report Viewing
 ```bash
-# Each test run creates a timestamped HTML report - console output shows exact path
-open playwright-report-2025-01-14T10-30-15/index.html  # Example timestamped report
+# Each test run creates a site-specific HTML report that overwrites previous runs
+open playwright-report-nfsmediation-local/index.html   # Example site-specific report
+open playwright-report-daygroup-live/index.html        # Each site gets its own report
 ```
 
 ### Cleanup Commands
 ```bash
-# HTML Reports (timestamped, accumulate over time)
-npm run clean-old-reports       # Delete HTML reports older than 7 days
-npm run clean-all-reports       # Delete ALL HTML reports
+# HTML Reports (site-specific, overwritten per run)
+rm -rf playwright-report-*      # Delete ALL site-specific HTML reports
+rm -rf playwright-report-SITENAME/  # Delete report for specific site
 
-# Test Artifacts (overwritten per site each run)
+# Test Artifacts (site-specific, overwritten per run)
 npm run clean-old-results       # Delete test results older than 15 days
 npm run clean-videos            # Delete all video files
 npm run clean-traces            # Delete all trace files
 npm run clean-all-results       # Delete ALL test results
 npm run clean-site-results      # Delete results for specific site: SITE=sitename npm run clean-site-results
+
+# Visual Baselines (version controlled, update intentionally)
+npx playwright test --update-snapshots  # Update ALL visual baselines after layout changes
 ```
 
 ## Site Configuration System
@@ -233,13 +247,14 @@ Each WordPress site should have TWO configurations:
 ## File Management
 
 ### Generated Files (Gitignored)
-- `test-results/` - Screenshots, videos, traces (overwritten per site each run)
-- `playwright-report-*/` - Timestamped HTML reports (accumulate permanently)
+- `test-results/` - Site-specific test artifacts (overwritten per site each run)
+- `playwright-report-*/` - Site-specific HTML reports (overwritten per site each run)
 - `node_modules/` - Dependencies
 
 ### File Organization
-- **HTML Reports**: `playwright-report-YYYY-MM-DDTHH-MM-SS/` - Each test run creates a new timestamped folder
+- **HTML Reports**: `playwright-report-[site-name]/` - Each site gets its own report, overwritten per run
 - **Test Artifacts**: `test-results/[site-name]/` - Latest run only, organized by site
+- **Visual Baselines**: `tests/baseline-snapshots/[site-name]/` - Version controlled screenshot baselines
 - **Screenshots**: Used for visual regression baselines and failure debugging
 - **Videos**: Recorded only on test failures for debugging
 - **Traces**: Compressed debugging data for failed tests
@@ -247,6 +262,7 @@ Each WordPress site should have TWO configurations:
 ### Version Controlled Files
 - All configuration files (`sites/*.json`)
 - Test implementations (`tests/*.spec.js`)
+- **Visual baselines** (`tests/baseline-snapshots/*/` - essential for visual regression testing)
 - Project configuration (`package.json`, `playwright.config.js`)
 - Documentation (`README.md`, `CLAUDE.md`)
 
@@ -320,8 +336,8 @@ The testing suite now includes an interactive command-line interface accessible 
 - **"How to add a new site?"** → Use interactive mode: `node run-tests.js --interactive` → "Create new site configuration"
 - **"What's wrong with my forms?"** → Inspect actual HTML for correct selectors
 - **"Visual tests are failing"** → Check if site layout actually changed, update baselines if intentional
-- **"Where's my report?"** → Each test run creates `playwright-report-YYYY-MM-DDTHH-MM-SS/index.html` - check console output for exact path
-- **"Reports are accumulating"** → Use `npm run clean-old-reports` to remove reports older than 7 days
+- **"Where's my report?"** → Each site creates `playwright-report-SITENAME/index.html` - one report per site, overwrites previous
+- **"Reports are accumulating"** → Reports now overwrite per site - use `rm -rf playwright-report-*` to clean all if needed
 - **"How to find pages automatically?"** → Use interactive mode auto-discovery or sitemap parser utility
 
 ### Common User Misconceptions
@@ -335,6 +351,7 @@ The testing suite now includes an interactive command-line interface accessible 
 3. **Verify manually**: Can you browse the site in a regular browser?
 4. **Read the error messages**: The improved 404 handling gives clear feedback
 5. **Visual regression failures**: Use `npx playwright test --update-snapshots` to update baselines after intentional changes
+6. **Always use test runner**: Use `node run-tests.js --site=SITENAME` instead of direct `npx playwright test` for proper organization
 
 ## Security Considerations
 

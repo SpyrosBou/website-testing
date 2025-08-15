@@ -48,8 +48,8 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
         await page.waitForTimeout(2000); // Wait for lazy loading to complete
         
         // Visual regression testing - automatic baseline comparison  
-        const screenshotName = `${siteName}/${testPage.replace('/', 'home')}-desktop-${browserName}.png`;
-        await expect(page).toHaveScreenshot(screenshotName, {
+        const screenshotPath = [siteName, `${testPage.replace('/', 'home')}-desktop-${browserName}.png`];
+        await expect(page).toHaveScreenshot(screenshotPath, {
           fullPage: true,
           threshold: 0.3, // Allow 30% difference to account for dynamic content
           maxDiffPixels: 1000 // Allow up to 1000 pixels to be different
@@ -85,8 +85,8 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
         await page.waitForTimeout(2000); // Wait for lazy loading to complete
         
         // Visual regression testing - automatic baseline comparison
-        const screenshotName = `${siteName}/${testPage.replace('/', 'home')}-tablet-${browserName}.png`;
-        await expect(page).toHaveScreenshot(screenshotName, {
+        const screenshotPath = [siteName, `${testPage.replace('/', 'home')}-tablet-${browserName}.png`];
+        await expect(page).toHaveScreenshot(screenshotPath, {
           fullPage: true,
           threshold: 0.3,
           maxDiffPixels: 1000
@@ -122,8 +122,8 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
         await page.waitForTimeout(2000); // Wait for lazy loading to complete
         
         // Visual regression testing - automatic baseline comparison
-        const screenshotName = `${siteName}/${testPage.replace('/', 'home')}-mobile-${browserName}.png`;
-        await expect(page).toHaveScreenshot(screenshotName, {
+        const screenshotPath = [siteName, `${testPage.replace('/', 'home')}-mobile-${browserName}.png`];
+        await expect(page).toHaveScreenshot(screenshotPath, {
           fullPage: true,
           threshold: 0.3,
           maxDiffPixels: 1000
