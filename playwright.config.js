@@ -22,7 +22,8 @@ module.exports = defineConfig({
         project_type: 'wordpress_testing'
       }
     }],
-    ['list']  // Console output only
+    ['html', { open: 'never' }],  // Lightweight backup HTML report
+    ['list']  // Console output
   ],
   // Test timeout increased for better stability
   timeout: 60000,
@@ -39,8 +40,8 @@ module.exports = defineConfig({
     ignoreHTTPSErrors: true,
   },
 
-  // Organize output by site/device/browser - Note: this affects test artifacts, not the HTML report
-  outputDir: process.env.SITE_OUTPUT_DIR || 'test-results',
+  // Organize test artifacts by site/device/browser
+  outputDir: 'test-results',
 
   projects: [
     {

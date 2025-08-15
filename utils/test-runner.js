@@ -102,13 +102,8 @@ class TestRunner {
       testPattern = './tests/functionality.spec.js';
     }
     
-    // Generate report folder name based on site name
-    const reportFolder = `playwright-report-${siteName}`;
-    
-    // Set environment variables
+    // Set environment variables for test execution
     process.env.SITE_NAME = siteName;
-    process.env.SITE_OUTPUT_DIR = `test-results/${siteName}`;
-    process.env.PLAYWRIGHT_REPORT_FOLDER = reportFolder;
     
     // Run Playwright tests
     const playwrightArgs = ['test', testPattern];
@@ -135,13 +130,13 @@ class TestRunner {
         } else {
           console.log('❌ Some tests failed.');
         }
-        console.log(`📊 View detailed report: open ${reportFolder}/index.html`);
-        console.log(`📸 Screenshots and videos: ./test-results/${siteName}/`);
+        console.log('📊 Generate Allure report: npm run allure-report');
+        console.log(`📸 Test artifacts: ./test-results/${siteName}/`);
         
         // Clean up any orphaned report server processes
         this.killOrphanedReportServers();
         
-        resolve({ code, reportFolder, siteName });
+        resolve({ code, siteName });
       });
       
       playwright.on('error', (error) => {

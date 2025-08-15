@@ -14,15 +14,18 @@
     "clean-traces": "find test-results -name '*.zip' -delete 2>/dev/null || echo 'Cleaned all trace files'",
     "clean-all-results": "rm -rf test-results/* 2>/dev/null || echo 'Cleaned all test results'",
     "clean-site-results": "test \"$SITE\" && rm -rf test-results/$SITE 2>/dev/null || echo 'Usage: SITE=sitename npm run clean-site-results'",
-    "allure-report": "npx allure generate allure-results --clean -o allure-report && npx allure open allure-report",
+    "allure-report": "npx allure generate allure-results -o allure-report && npx allure open allure-report",
     "allure-serve": "npx allure serve allure-results",
-    "clean-allure": "rm -rf allure-results allure-report 2>/dev/null || echo 'Cleaned Allure results and reports'"
+    "clean-allure": "rm -rf allure-results allure-report 2>/dev/null || echo 'Cleaned Allure results and reports'",
+    "clean-backup-html": "rm -rf playwright-report 2>/dev/null || echo 'Cleaned backup HTML report'"
   },
   "keywords": [
     "testing",
     "wordpress",
     "playwright",
-    "automation"
+    "automation",
+    "allure",
+    "accessibility"
   ],
   "author": "Web Dev Agency",
   "license": "MIT",
