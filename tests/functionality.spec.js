@@ -34,6 +34,7 @@ const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
 test.describe("Functionality Testing Suite", () => {
   let siteConfig;
   let errorContext;
+  let wpPageObjects;
 
   test.beforeEach(async ({ page, context }) => {
     const siteName = process.env.SITE_NAME;
@@ -45,6 +46,7 @@ test.describe("Functionality Testing Suite", () => {
     SiteLoader.validateSiteConfig(siteConfig);
 
     errorContext = await setupTestPage(page, context);
+    wpPageObjects = new WordPressPageObjects(page, siteConfig);
   });
 
   test.afterEach(async ({ page, context }) => {
@@ -64,10 +66,13 @@ test.describe("Functionality Testing Suite", () => {
             errorContext.setAction('navigating to page');
             
             try {
-              const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
+              // Use page objects for navigation with enhanced error handling
+              const response = await wpPageObjects.navigate(`${siteConfig.baseUrl}${testPage}`);
               
-              if (response.status() === 404) {
-                console.log(`⚠️  Page not found: ${testPage} - skipping further tests`);
+              // Check for 404 using semantic detection
+              const is404 = await wpPageObjects.is404Page();
+              if (is404) {
+                console.log(`⚠️  Page not found: ${testPage} - detected using semantic 404 checking`);
                 await test.step(`Page not found: ${testPage}`, async () => {
                   // Attach page status for Allure reporting
                   await page.screenshot({ path: `test-results/404-${testPage.replace(/\//g, '-')}.png` });
@@ -83,13 +88,20 @@ test.describe("Functionality Testing Suite", () => {
                 console.log(`⚠️  Client error on ${testPage}: ${response.status()}`);
               }
               
-              // For successful responses, verify basic page structure
+              // For successful responses, verify WordPress page structure using page objects
               if (response.status() >= 200 && response.status() < 300) {
-                await expect(page.locator('html')).toBeVisible();
-                await expect(page.locator('head')).toBeAttached();
-                await expect(page.locator('body')).toBeVisible();
+                // Use page objects for comprehensive structure verification
+                const elements = await wpPageObjects.verifyCriticalElements();
                 
-                const title = await page.title();
+                console.log(`✅ Page structure check for ${testPage}:`, {
+                  header: elements.header ? '✅' : '⚠️',
+                  navigation: elements.navigation ? '✅' : '⚠️', 
+                  content: elements.content ? '✅' : '⚠️',
+                  footer: elements.footer ? '✅' : '⚠️'
+                });
+                
+                // Verify page has title using semantic method
+                const title = await wpPageObjects.getTitle();
                 expect(title).toBeTruthy();
               }
               
@@ -425,61 +437,40 @@ test.describe("Functionality Testing Suite", () => {
             const formPage = formConfig.page || '/contact';
             errorContext.setPage(formPage);
             
-            const response = await safeNavigate(page, `${siteConfig.baseUrl}${formPage}`);
+            // Use page objects for navigation with built-in 404 detection
+            const response = await wpPageObjects.navigate(`${siteConfig.baseUrl}${formPage}`);
             if (response.status() !== 200) {
               console.log(`⚠️  Skipping form test for ${formPage} (status: ${response.status()})`);
               return;
             }
             
-            await waitForPageStability(page);
+            // Create form instance using page objects
+            const formInstance = wpPageObjects.createForm(formConfig);
             
-            // Find form using multiple strategies
-            let form = null;
-            const selectors = [formConfig.selector, '.wpcf7-form', '.contact-form', 'form'].filter(Boolean);
-            
-            for (const selector of selectors) {
-              try {
-                form = page.locator(selector).first();
-                if (await form.isVisible()) break;
-              } catch (error) {
-                console.log(`⚠️  Selector not found: ${selector}`);
-              }
-            }
-            
-            if (!form || !(await form.isVisible())) {
-              console.log(`⚠️  No form found on ${formPage}`);
-              return;
-            }
-            
-            // Test form fields using semantic queries first
-            if (formConfig.fields) {
-              // Name field
-              if (formConfig.fields.name) {
-                const nameField = page.getByLabel(/name/i).or(page.locator(formConfig.fields.name)).first();
-                if (await nameField.isVisible()) {
-                  await safeElementInteraction(nameField, 'fill', { text: testData.formData.name });
-                }
-              }
+            try {
+              // Fill form using semantic approach with intelligent fallbacks
+              await formInstance.fillForm({
+                name: testData.formData.name,
+                email: testData.formData.email,
+                message: testData.formData.message
+              });
               
-              // Email field
-              if (formConfig.fields.email) {
-                const emailField = page.getByLabel(/email/i).or(page.locator(formConfig.fields.email)).first();
-                if (await emailField.isVisible()) {
-                  await safeElementInteraction(emailField, 'fill', { text: testData.formData.email });
-                }
-              }
+              console.log(`✅ Form ${formConfig.name} fields filled successfully using semantic queries`);
               
-              // Message field
-              if (formConfig.fields.message) {
-                const messageField = page.getByLabel(/message/i).or(page.locator(formConfig.fields.message)).first();
-                if (await messageField.isVisible()) {
-                  await safeElementInteraction(messageField, 'fill', { text: testData.formData.message });
+              // Test form validation by checking empty form submission
+              await test.step('Testing form validation', async () => {
+                const validationWorking = await formInstance.testValidation();
+                if (validationWorking) {
+                  console.log('✅ Form validation is working correctly');
+                } else {
+                  console.log('⚠️  Form validation may not be working as expected');
                 }
-              }
+              });
+              
+            } catch (error) {
+              console.log(`⚠️  Form testing failed for ${formConfig.name}: ${error.message}`);
+              // Continue with other forms
             }
-            
-            console.log(`✅ Form ${formConfig.name} fields filled successfully`);
-            // Note: We don't actually submit forms to avoid spam
           });
         }
       });

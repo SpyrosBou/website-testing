@@ -4,6 +4,28 @@
  * Industry-standard page objects for common WordPress elements using semantic testing patterns.
  * Follows @testing-library principles for accessible and maintainable tests.
  * 
+ * USAGE EXAMPLES:
+ * 
+ * // Basic usage in test files:
+ * const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
+ * 
+ * test.beforeEach(async ({ page }) => {
+ *   wpPageObjects = new WordPressPageObjects(page, siteConfig);
+ * });
+ * 
+ * // Navigation with built-in WordPress error handling:
+ * const response = await wpPageObjects.navigate('https://site.com/page');
+ * const is404 = await wpPageObjects.is404Page();
+ * 
+ * // Form testing with semantic queries and automatic fallbacks:
+ * const form = wpPageObjects.createForm(siteConfig.forms[0]);
+ * await form.fillForm({ name: 'Test User', email: 'test@example.com' });
+ * const validationWorks = await form.testValidation();
+ * 
+ * // WordPress page structure verification:
+ * const elements = await wpPageObjects.verifyCriticalElements();
+ * // Returns: { header: true, navigation: true, content: true, footer: true }
+ * 
  * @author Website Testing Suite
  */
 
@@ -679,8 +701,74 @@ class WordPressPage extends WordPressBasePage {
   }
 }
 
+/**
+ * WordPress Page Objects Facade
+ * Factory class that provides access to all WordPress page object components
+ * This class exists for backward compatibility with existing test imports
+ */
+class WordPressPageObjects {
+  constructor(page, siteConfig = {}) {
+    this.page = page;
+    this.config = siteConfig;
+    
+    // Create all page object instances
+    this.basePage = new WordPressBasePage(page);
+    this.navigation = new WordPressNavigation(page);
+    this.header = new WordPressHeader(page);
+    this.footer = new WordPressFooter(page);
+    this.content = new WordPressContent(page);
+    this.wordPressPage = new WordPressPage(page, siteConfig);
+  }
+
+  /**
+   * Create form instance with configuration
+   * @param {Object} formConfig - Form configuration from site config
+   */
+  createForm(formConfig) {
+    return new WordPressForm(this.page, formConfig);
+  }
+
+  /**
+   * Navigate to a page with WordPress-specific handling
+   * @param {string} url - URL to navigate to
+   * @param {Object} options - Navigation options
+   */
+  async navigate(url, options = {}) {
+    return await this.basePage.navigate(url, options);
+  }
+
+  /**
+   * Check if current page is a 404 error page
+   */
+  async is404Page() {
+    return await this.basePage.is404Page();
+  }
+
+  /**
+   * Get page title
+   */
+  async getTitle() {
+    return await this.basePage.getTitle();
+  }
+
+  /**
+   * Verify all critical page elements are present
+   */
+  async verifyCriticalElements() {
+    return await this.wordPressPage.verifyCriticalElements();
+  }
+
+  /**
+   * Perform comprehensive accessibility check
+   */
+  async checkAccessibility() {
+    return await this.wordPressPage.checkAccessibility();
+  }
+}
+
 module.exports = {
   WordPressPage,
+  WordPressPageObjects,
   WordPressNavigation,
   WordPressForm,
   WordPressHeader,

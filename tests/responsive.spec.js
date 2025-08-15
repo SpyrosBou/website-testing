@@ -66,7 +66,7 @@ test.describe("Responsive Design and Visual Regression Testing", () => {
     SiteLoader.validateSiteConfig(siteConfig);
 
     errorContext = await setupTestPage(page, context);
-    wpPageObjects = new WordPressPageObjects(page);
+    wpPageObjects = new WordPressPageObjects(page, siteConfig);
   });
 
   test.afterEach(async ({ page, context }) => {
