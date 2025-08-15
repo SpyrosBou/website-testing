@@ -8,6 +8,7 @@ yarn-error.log*
 test-results/
 playwright/.cache/
 example-site/  # Generated when using example-site fallback
+playwright-report/
 
 # Allure Reports
 allure-results/
@@ -21,7 +22,7 @@ allure-report/
 *.zip
 
 # Exception: Include baseline screenshots for visual regression testing
-!tests/baseline-snapshots/**/*.png
+tests/baseline-snapshots/**/*.png
 
 # Environment files
 .env
