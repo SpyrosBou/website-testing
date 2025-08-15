@@ -1,6 +1,7 @@
 const readline = require('readline');
 const TestRunner = require('./test-runner');
-const { spawn } = require('child_process');
+const SitemapParser = require('./sitemap-parser');
+const { spawn, exec } = require('child_process');
 
 class InteractiveMode {
   constructor() {
@@ -16,8 +17,13 @@ class InteractiveMode {
     });
   }
 
+  clearScreen() {
+    // Use ANSI escape codes for better cross-platform compatibility
+    process.stdout.write('\x1b[2J\x1b[0f');
+  }
+
   async start() {
-    console.clear();
+    this.clearScreen();
     console.log('🎯 WordPress Testing Suite - Interactive Mode\n');
     
     await this.showMainMenu();
@@ -61,6 +67,16 @@ class InteractiveMode {
       });
     }
 
+    // Configuration options
+    console.log('\nConfiguration:');
+    console.log(`  ${optionNumber}. Edit site configuration`);
+    options.push({ type: 'edit-config' });
+    optionNumber++;
+
+    console.log(`  ${optionNumber}. Create new site configuration`);
+    options.push({ type: 'new-config' });
+    optionNumber++;
+
     // Utility options
     console.log('\nUtilities:');
     console.log(`  ${optionNumber}. Clean old reports/artifacts`);
@@ -78,7 +94,13 @@ class InteractiveMode {
     console.log(`  ${optionNumber}. Exit`);
     options.push({ type: 'exit' });
 
-    const choice = await this.getUserChoice(`\nEnter your choice (1-${optionNumber}): `);
+    const choice = await this.getUserChoice(`\nEnter your choice (1-${optionNumber}, 'b' for back, 'q' to quit): `);
+    
+    // Handle back navigation (shouldn't happen at main menu, but just in case)
+    if (choice === 'back') {
+      return this.showMainMenu();
+    }
+    
     const selectedOption = options[choice - 1];
 
     if (!selectedOption) {
@@ -99,6 +121,12 @@ class InteractiveMode {
         }
         await this.showSiteMenu(option.site, option.config);
         break;
+      case 'edit-config':
+        await this.showEditConfigMenu();
+        break;
+      case 'new-config':
+        await this.showNewConfigMenu();
+        break;
       case 'clean':
         await this.showCleanMenu();
         break;
@@ -116,7 +144,7 @@ class InteractiveMode {
   }
 
   async showSiteMenu(siteName, siteConfig) {
-    console.clear();
+    this.clearScreen();
     console.log(`🎯 Testing Options for: ${siteConfig.name}`);
     console.log(`🔗 URL: ${siteConfig.baseUrl}`);
     console.log(`📄 Pages: ${siteConfig.testPages.join(', ')}\n`);
@@ -128,7 +156,11 @@ class InteractiveMode {
     console.log('  4. Update visual baselines for this site');
     console.log('  5. Back to main menu');
 
-    const choice = await this.getUserChoice('\nEnter your choice (1-5): ');
+    const choice = await this.getUserChoice('\nEnter your choice (1-5, \'b\' for back, \'q\' to quit): ');
+
+    if (choice === 'back') {
+      return this.showMainMenu();
+    }
 
     switch (choice) {
       case 1:
@@ -152,7 +184,7 @@ class InteractiveMode {
   }
 
   async runTests(siteName, options) {
-    console.clear();
+    this.clearScreen();
     console.log(`🚀 Running tests for: ${siteName}\n`);
     
     try {
@@ -170,7 +202,7 @@ class InteractiveMode {
   }
 
   async updateBaselines(siteName) {
-    console.clear();
+    this.clearScreen();
     console.log(`📸 Updating visual baselines for: ${siteName}\n`);
     console.log('⚠️  This will replace existing baseline screenshots.');
     
@@ -192,7 +224,7 @@ class InteractiveMode {
   }
 
   async showCleanMenu() {
-    console.clear();
+    this.clearScreen();
     console.log('🧹 Cleanup Options:\n');
     
     console.log('  1. Clean old HTML reports (older than 7 days)');
@@ -201,7 +233,11 @@ class InteractiveMode {
     console.log('  4. Clean ALL test artifacts');
     console.log('  5. Back to main menu');
 
-    const choice = await this.getUserChoice('\nEnter your choice (1-5): ');
+    const choice = await this.getUserChoice('\nEnter your choice (1-5, \'b\' for back, \'q\' to quit): ');
+
+    if (choice === 'back' || choice === 5) {
+      return this.showMainMenu();
+    }
 
     let command;
     switch (choice) {
@@ -242,7 +278,7 @@ class InteractiveMode {
   }
 
   async showReports() {
-    console.clear();
+    this.clearScreen();
     console.log('📊 Recent Test Reports:\n');
     
     await this.runCommand('find . -name "playwright-report-*" -type d | head -10 | sort -r');
@@ -254,7 +290,7 @@ class InteractiveMode {
   }
 
   async showHelp() {
-    console.clear();
+    this.clearScreen();
     console.log('📖 WordPress Testing Suite Help\n');
     
     console.log('This interactive tool helps you test WordPress sites with:');
@@ -281,23 +317,44 @@ class InteractiveMode {
 
   async runCommand(command) {
     return new Promise((resolve) => {
-      const [cmd, ...args] = command.split(' ');
-      const process = spawn(cmd, args, { stdio: 'inherit', shell: true });
-      
-      process.on('close', (code) => {
-        resolve(code);
+      // Use exec for simple commands to avoid stdio conflicts
+      exec(command, (error, stdout, stderr) => {
+        if (stdout) console.log(stdout);
+        if (stderr) console.error(stderr);
+        resolve(error ? error.code || 1 : 0);
       });
     });
   }
 
   async getUserChoice(prompt) {
     return new Promise((resolve) => {
+      // Check if stdin is still open and is a TTY
+      if (this.rl.closed || !process.stdin.isTTY) {
+        console.log(prompt);
+        resolve('q'); // Auto-exit when not interactive
+        return;
+      }
+      
       this.rl.question(prompt, (answer) => {
-        const num = parseInt(answer.trim());
+        const input = answer.trim();
+        
+        // Handle special keys
+        if (input === 'q' || input === 'Q') {
+          console.log('\nExiting without saving...');
+          process.exit(0);
+        }
+        
+        if (input === 'b' || input === 'B' || input === 'back' || input === 'BACK') {
+          this.clearScreen();
+          resolve('back');
+          return;
+        }
+        
+        const num = parseInt(input);
         if (!isNaN(num)) {
           resolve(num);
         } else {
-          resolve(answer.trim());
+          resolve(input);
         }
       });
     });
@@ -305,10 +362,312 @@ class InteractiveMode {
 
   async waitForEnter() {
     return new Promise((resolve) => {
+      // Check if stdin is still open and is a TTY
+      if (this.rl.closed || !process.stdin.isTTY) {
+        console.log('\nPress Enter to continue...');
+        resolve();
+        return;
+      }
+      
       this.rl.question('\nPress Enter to continue...', () => {
         resolve();
       });
     });
+  }
+
+  async showEditConfigMenu() {
+    this.clearScreen();
+    console.log('📝 Edit Site Configuration\n');
+    
+    const { localSites, liveSites, otherSites } = TestRunner.listSites();
+    const allSites = [...localSites, ...liveSites, ...otherSites];
+    
+    if (allSites.length === 0) {
+      console.log('No site configurations found to edit.');
+      await this.waitForEnter();
+      return this.showMainMenu();
+    }
+    
+    console.log('Select a site to edit:');
+    allSites.forEach((site, index) => {
+      const displayName = site.config ? `${site.name} (${site.config.name})` : `${site.name} [Config Error]`;
+      console.log(`  ${index + 1}. ${displayName}`);
+    });
+    
+    console.log(`  ${allSites.length + 1}. Back to main menu`);
+    
+    const choice = await this.getUserChoice(`\nEnter your choice (1-${allSites.length + 1}, 'b' for back, 'q' to quit): `);
+    
+    if (choice === 'back' || choice === allSites.length + 1) {
+      return this.showMainMenu();
+    }
+    
+    const selectedSite = allSites[choice - 1];
+    if (!selectedSite || !selectedSite.config) {
+      console.log('Invalid choice or site configuration error.');
+      await this.waitForEnter();
+      return this.showEditConfigMenu();
+    }
+    
+    await this.editSiteConfig(selectedSite.name, selectedSite.config);
+  }
+
+  async editSiteConfig(siteName, config) {
+    const fs = require('fs');
+    const path = require('path');
+    
+    this.clearScreen();
+    console.log(`✏️  Editing: ${config.name} (${siteName})\n`);
+    
+    console.log('What would you like to edit?');
+    console.log('  1. Site name');
+    console.log('  2. Base URL');
+    console.log('  3. Pages to test');
+    console.log('  4. View current configuration');
+    console.log('  5. Save and back to menu');
+    
+    const choice = await this.getUserChoice('\nEnter your choice (1-5, \'b\' for back, \'q\' to quit): ');
+    
+    if (choice === 'back') {
+      return this.showMainMenu();
+    }
+    
+    switch (choice) {
+      case 1:
+        const newName = await this.getUserChoice(`Current name: "${config.name}"\nEnter new name: `);
+        if (newName.trim()) {
+          config.name = newName.trim();
+          console.log('✅ Site name updated.');
+        }
+        break;
+        
+      case 2:
+        const newUrl = await this.getUserChoice(`Current URL: "${config.baseUrl}"\nEnter new URL: `);
+        if (newUrl.trim()) {
+          config.baseUrl = newUrl.trim();
+          console.log('✅ Base URL updated.');
+        }
+        break;
+        
+      case 3:
+        await this.editTestPages(config);
+        break;
+        
+      case 4:
+        console.log('\nCurrent Configuration:');
+        console.log(JSON.stringify(config, null, 2));
+        await this.waitForEnter();
+        break;
+        
+      case 5:
+        // Save configuration
+        try {
+          const configPath = path.join(process.cwd(), 'sites', `${siteName}.json`);
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+          console.log('✅ Configuration saved successfully!');
+          await this.waitForEnter();
+          return this.showMainMenu();
+        } catch (error) {
+          console.log(`❌ Error saving configuration: ${error.message}`);
+          await this.waitForEnter();
+        }
+        break;
+        
+      default:
+        console.log('Invalid choice.');
+        await this.waitForEnter();
+    }
+    
+    return this.editSiteConfig(siteName, config);
+  }
+
+  async editTestPages(config) {
+    this.clearScreen();
+    console.log('📄 Edit Test Pages\n');
+    
+    console.log('Current pages to test:');
+    config.testPages.forEach((page, index) => {
+      console.log(`  ${index + 1}. ${page}`);
+    });
+    
+    console.log('\nOptions:');
+    console.log('  1. Add new page');
+    console.log('  2. Remove page');
+    console.log('  3. Auto-discover pages from sitemap');
+    console.log('  4. Back to site config');
+    
+    const choice = await this.getUserChoice('\nEnter your choice (1-4, \'b\' for back, \'q\' to quit): ');
+    
+    if (choice === 'back') {
+      return;
+    }
+    
+    switch (choice) {
+      case 1:
+        const newPage = await this.getUserChoice('Enter new page path (e.g., /about-us): ');
+        if (newPage.trim()) {
+          const pagePath = newPage.trim().startsWith('/') ? newPage.trim() : `/${newPage.trim()}`;
+          if (!config.testPages.includes(pagePath)) {
+            config.testPages.push(pagePath);
+            console.log(`✅ Added page: ${pagePath}`);
+          } else {
+            console.log('Page already exists in the list.');
+          }
+          await this.waitForEnter();
+        }
+        break;
+        
+      case 2:
+        if (config.testPages.length === 0) {
+          console.log('No pages to remove.');
+          await this.waitForEnter();
+          break;
+        }
+        
+        console.log('\nSelect page to remove:');
+        config.testPages.forEach((page, index) => {
+          console.log(`  ${index + 1}. ${page}`);
+        });
+        
+        const removeChoice = await this.getUserChoice(`\nEnter page number to remove (1-${config.testPages.length}): `);
+        if (removeChoice >= 1 && removeChoice <= config.testPages.length) {
+          const removedPage = config.testPages.splice(removeChoice - 1, 1)[0];
+          console.log(`✅ Removed page: ${removedPage}`);
+        } else {
+          console.log('Invalid page number.');
+        }
+        await this.waitForEnter();
+        break;
+        
+      case 3:
+        await this.autoDiscoverPages(config);
+        break;
+        
+      case 4:
+        return;
+        
+      default:
+        console.log('Invalid choice.');
+        await this.waitForEnter();
+    }
+    
+    return this.editTestPages(config);
+  }
+
+  async autoDiscoverPages(config) {
+    console.log('\n🔍 Auto-discovering pages from sitemap...');
+    console.log('This will replace your current test pages list.');
+    
+    const confirm = await this.getUserChoice('Continue? (y/N): ');
+    if (confirm.toLowerCase() !== 'y' && confirm.toLowerCase() !== 'yes') {
+      console.log('Cancelled.');
+      await this.waitForEnter();
+      return;
+    }
+    
+    try {
+      console.log('\n📡 Discovering pages from sitemap...');
+      const discoveredPages = await SitemapParser.discoverPages(config.baseUrl, { maxPages: 30 });
+      
+      if (discoveredPages.length > 0) {
+        const oldCount = config.testPages.length;
+        config.testPages = discoveredPages;
+        
+        console.log(`\n✅ Auto-discovery complete!`);
+        console.log(`   Old pages: ${oldCount}`);
+        console.log(`   New pages: ${discoveredPages.length}`);
+        console.log('\nDiscovered pages:');
+        discoveredPages.forEach(page => console.log(`   ${page}`));
+      } else {
+        console.log('⚠️  No pages found, keeping existing configuration');
+      }
+    } catch (error) {
+      console.log(`❌ Auto-discovery failed: ${error.message}`);
+    }
+    
+    await this.waitForEnter();
+  }
+
+  async showNewConfigMenu() {
+    this.clearScreen();
+    console.log('🆕 Create New Site Configuration\n');
+    
+    const siteName = await this.getUserChoice('Enter site configuration name (e.g., mysite-local): ');
+    if (!siteName.trim()) {
+      console.log('Site name cannot be empty.');
+      await this.waitForEnter();
+      return this.showMainMenu();
+    }
+    
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.join(process.cwd(), 'sites', `${siteName.trim()}.json`);
+    
+    if (fs.existsSync(configPath)) {
+      console.log('❌ A configuration with this name already exists.');
+      await this.waitForEnter();
+      return this.showNewConfigMenu();
+    }
+    
+    const displayName = await this.getUserChoice('Enter site display name: ');
+    const baseUrl = await this.getUserChoice('Enter base URL (e.g., https://mysite.com): ');
+    
+    // Ask about sitemap auto-discovery
+    console.log('\n🔍 Would you like to automatically discover pages from the sitemap?');
+    const discoverPages = await this.getUserChoice('Auto-discover pages? (y/N): ');
+    
+    let testPages = ['/'];
+    
+    if (discoverPages.toLowerCase() === 'y' || discoverPages.toLowerCase() === 'yes') {
+      try {
+        console.log('\n📡 Discovering pages from sitemap...');
+        const discoveredPages = await SitemapParser.discoverPages(baseUrl.trim(), { maxPages: 20 });
+        
+        if (discoveredPages.length > 1) {
+          testPages = discoveredPages;
+          console.log(`✅ Auto-discovered ${discoveredPages.length} pages:`);
+          discoveredPages.forEach(page => console.log(`   ${page}`));
+        } else {
+          console.log('⚠️  No additional pages found, using homepage only');
+        }
+      } catch (error) {
+        console.log(`❌ Auto-discovery failed: ${error.message}`);
+        console.log('Using default pages: ["/"]');
+      }
+      
+      await this.waitForEnter();
+    }
+    
+    const newConfig = {
+      name: displayName.trim() || siteName.trim(),
+      baseUrl: baseUrl.trim(),
+      testPages: testPages,
+      criticalElements: [
+        {
+          name: "Main Navigation",
+          selector: ".main-navigation, #main-menu, nav"
+        },
+        {
+          name: "Header",
+          selector: "header, .site-header"
+        },
+        {
+          name: "Footer", 
+          selector: "footer, .site-footer"
+        }
+      ]
+    };
+    
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
+      console.log(`✅ Created new site configuration: ${siteName.trim()}.json`);
+      console.log('You can now edit this configuration to add more test pages.');
+    } catch (error) {
+      console.log(`❌ Error creating configuration: ${error.message}`);
+    }
+    
+    await this.waitForEnter();
+    return this.showMainMenu();
   }
 
   close() {

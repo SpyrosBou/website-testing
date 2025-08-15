@@ -47,8 +47,8 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         await page.waitForTimeout(2000); // Wait for lazy loading to complete
         
-        // Visual regression testing - automatic baseline comparison
-        const screenshotName = `${testPage.replace('/', 'home')}-desktop-${browserName}.png`;
+        // Visual regression testing - automatic baseline comparison  
+        const screenshotName = `${siteName}/${testPage.replace('/', 'home')}-desktop-${browserName}.png`;
         await expect(page).toHaveScreenshot(screenshotName, {
           fullPage: true,
           threshold: 0.3, // Allow 30% difference to account for dynamic content
@@ -85,7 +85,7 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
         await page.waitForTimeout(2000); // Wait for lazy loading to complete
         
         // Visual regression testing - automatic baseline comparison
-        const screenshotName = `${testPage.replace('/', 'home')}-tablet-${browserName}.png`;
+        const screenshotName = `${siteName}/${testPage.replace('/', 'home')}-tablet-${browserName}.png`;
         await expect(page).toHaveScreenshot(screenshotName, {
           fullPage: true,
           threshold: 0.3,
@@ -122,7 +122,7 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
         await page.waitForTimeout(2000); // Wait for lazy loading to complete
         
         // Visual regression testing - automatic baseline comparison
-        const screenshotName = `${testPage.replace('/', 'home')}-mobile-${browserName}.png`;
+        const screenshotName = `${siteName}/${testPage.replace('/', 'home')}-mobile-${browserName}.png`;
         await expect(page).toHaveScreenshot(screenshotName, {
           fullPage: true,
           threshold: 0.3,

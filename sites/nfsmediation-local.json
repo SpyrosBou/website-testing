@@ -2,12 +2,7 @@
   "name": "NFS Mediation (Local)",
   "baseUrl": "https://nfsmediation.local",
   "testPages": [
-    "/",
-    "/about",
-    "/contact",
-    "/services",
-    "/mediation",
-    "/blog"
+    "/"
   ],
   "forms": [
     {
@@ -16,7 +11,7 @@
       "selector": ".wpcf7-form, #contact-form, .contact-form",
       "fields": {
         "name": "input[name*='name'], input[name*='your-name']",
-        "email": "input[name*='email'], input[name*='your-email']", 
+        "email": "input[name*='email'], input[name*='your-email']",
         "message": "textarea[name*='message'], textarea[name*='your-message']"
       },
       "submitButton": "input[type='submit'], .wpcf7-submit, button[type='submit']"
@@ -24,8 +19,14 @@
   ],
   "criticalElements": [],
   "expectedElements": {
-    "homepage": [".hero-section, .banner, .intro, .home-content"],
-    "contact": [".wpcf7-form, #contact-form, .contact-form"],
-    "about": [".about-content, .about"]
+    "homepage": [
+      ".hero-section, .banner, .intro, .home-content"
+    ],
+    "contact": [
+      ".wpcf7-form, #contact-form, .contact-form"
+    ],
+    "about": [
+      ".about-content, .about"
+    ]
   }
 }
