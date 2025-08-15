@@ -35,11 +35,14 @@ website-testing/
 ├── tests/                   # Test implementation
 │   ├── responsive.spec.js   # Layout and device testing
 │   └── functionality.spec.js # Links, forms, JS errors, performance
-├── utils/                   # Helper functions
+├── utils/                   # Core utilities
 │   ├── site-loader.js       # Site configuration loading
-│   ├── test-runner.js       # Test execution orchestration
-│   ├── interactive.js       # Interactive command-line interface
-│   └── sitemap-parser.js    # Automatic page discovery from sitemaps
+│   └── test-runner.js       # Test execution orchestration
+├── interactive-mode/        # Interactive command-line interface
+│   ├── README.md           # Interactive mode documentation
+│   ├── interactive.js      # Main interactive interface
+│   └── core/               # Interactive mode core functionality
+│       └── sitemap-parser.js # Automatic page discovery from sitemaps
 ├── test-results/            # Site-specific test artifacts (organized by site)
 │   ├── [site-name]/         # Per-site test execution artifacts
 │   │   ├── *.png           # Failure screenshots

@@ -1,6 +1,6 @@
 const readline = require('readline');
-const TestRunner = require('./test-runner');
-const SitemapParser = require('./sitemap-parser');
+const TestRunner = require('../utils/test-runner');
+const SitemapParser = require('./core/sitemap-parser');
 const { spawn, exec } = require('child_process');
 
 class InteractiveMode {

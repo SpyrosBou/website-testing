@@ -2,7 +2,7 @@
 
 const minimist = require('minimist');
 const TestRunner = require('./utils/test-runner');
-const InteractiveMode = require('./utils/interactive');
+const InteractiveMode = require('./interactive-mode/interactive');
 
 // Parse command line arguments
 const argv = minimist(process.argv.slice(2));
