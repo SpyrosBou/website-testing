@@ -43,6 +43,10 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
         // Wait for page to be fully loaded
         await page.waitForLoadState('networkidle', { timeout: 10000 });
         
+        // Scroll to bottom to trigger lazy loading
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(2000); // Wait for lazy loading to complete
+        
         // Visual regression testing - automatic baseline comparison
         const screenshotName = `${testPage.replace('/', 'home')}-desktop-${browserName}.png`;
         await expect(page).toHaveScreenshot(screenshotName, {
@@ -76,6 +80,10 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
           await mobileMenuToggle.click(); // Close it
         }
         
+        // Scroll to bottom to trigger lazy loading
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(2000); // Wait for lazy loading to complete
+        
         // Visual regression testing - automatic baseline comparison
         const screenshotName = `${testPage.replace('/', 'home')}-tablet-${browserName}.png`;
         await expect(page).toHaveScreenshot(screenshotName, {
@@ -108,6 +116,10 @@ test.describe(`Responsive Layout Tests - ${siteName}`, () => {
           await mobileMenuToggle.click();
           await page.waitForTimeout(500);
         }
+        
+        // Scroll to bottom to trigger lazy loading
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(2000); // Wait for lazy loading to complete
         
         // Visual regression testing - automatic baseline comparison
         const screenshotName = `${testPage.replace('/', 'home')}-mobile-${browserName}.png`;
