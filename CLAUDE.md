@@ -2,6 +2,24 @@
 
 This file provides guidance to Claude Code when working with this automated WordPress testing project.
 
+## ⚠️ IMPORTANT: Testing Development Guidelines
+
+**ALWAYS consider standard industry practices for Playwright testing before implementing custom solutions:**
+
+1. **Use Existing Libraries First**: Check for established npm packages (@axe-core/playwright, playwright-testing-library, @testing-library/dom) before writing custom test code
+2. **Follow Semantic Testing**: Use `getByRole()`, `getByLabel()`, and other semantic queries instead of CSS selectors when possible  
+3. **ARIA Compliance**: Test using accessibility patterns that match how users and screen readers interact with sites
+4. **Industry Standards**: Reference Playwright documentation and Testing Library patterns for common functionality
+5. **Don't Reinvent**: If testing functionality exists in the ecosystem, integrate it rather than building from scratch
+6. **Follow Official Best Practices**: Always reference https://playwright.dev/docs/best-practices for current recommendations
+
+**Agent Behavior Requirements:**
+- **All subagents must be verbose and transparent** - Show analysis process, explain decision-making, narrate what you're examining and why
+- **Think out loud** - Explain your thought process step-by-step rather than just providing conclusions
+- **Show your work** - Detail what files you're reading, what patterns you're looking for, what you discover
+
+**The goal is maintainable, standards-compliant testing that follows established patterns used across the industry.**
+
 ## Project Purpose
 
 This is an **automated website testing suite** specifically designed for WordPress sites. It performs comprehensive testing across different devices and browsers to verify functionality and responsive design.
@@ -18,6 +36,10 @@ This is an **automated website testing suite** specifically designed for WordPre
 ### Technologies Used
 - **Node.js**: JavaScript runtime for running the test automation
 - **Playwright**: Browser automation tool that controls Chrome, Firefox, Safari
+- **@axe-core/playwright**: Industry-standard accessibility testing (WCAG compliance)
+- **playwright-testing-library**: Semantic element queries following Testing Library patterns
+- **@testing-library/dom**: DOM testing utilities for better element interaction
+- **allure-playwright**: Industry-standard test reporting with visual charts and historical tracking
 - **JSON Configurations**: Site-specific test instructions stored as files
 - **Git**: Version control for the testing suite itself
 
@@ -89,17 +111,26 @@ node run-tests.js --site=SITENAME --responsive  # Run with visual regression com
 ```
 
 ### Report Viewing
+
+#### Allure Reports (Industry Standard)
 ```bash
-# Each test run creates a site-specific HTML report that overwrites previous runs
-open playwright-report-nfsmediation-local/index.html   # Example site-specific report
-open playwright-report-daygroup-live/index.html        # Each site gets its own report
+npm run allure-serve                    # Generate and serve Allure report (auto-opens browser)
+npm run allure-report                   # Generate Allure report and open in browser
+npm run clean-allure                    # Clean up Allure files
 ```
+
+**Allure Features:**
+- **Visual charts and trends** - See test pass/fail rates over time
+- **Step-by-step execution** - Detailed test flow with screenshots/videos
+- **Interactive filtering** - Search and filter by status, duration, tags
+- **Historical tracking** - Compare test runs and track improvements
+- **Professional presentation** - Industry-standard format used by major companies
+- **Clear error context** - No more confusing stack traces
 
 ### Cleanup Commands
 ```bash
-# HTML Reports (site-specific, overwritten per run)
-rm -rf playwright-report-*      # Delete ALL site-specific HTML reports
-rm -rf playwright-report-SITENAME/  # Delete report for specific site
+# Allure Reports
+npm run clean-allure            # Delete Allure results and reports
 
 # Test Artifacts (site-specific, overwritten per run)
 npm run clean-old-results       # Delete test results older than 15 days
@@ -214,15 +245,24 @@ This testing suite follows **industry best practices** for responsive web testin
 - **Safari**: WebKit engine testing (macOS/iOS engine, macOS only)
 
 ### Functionality Tests (`functionality.spec.js`)  
-**Purpose**: Verify website functionality works properly
+**Purpose**: Verify website functionality works properly using industry-standard testing libraries
 **What it tests**:
 - **Missing Pages**: Reports 404 errors clearly and skips further testing
-- **Broken Links**: Finds internal links that lead to 404s
-- **JavaScript Errors**: Detects console errors and page exceptions
-- **Form Testing**: Validates contact forms work and have proper validation
+- **Broken Links**: Industry-standard link validation with soft assertions and rate limiting
+- **JavaScript Errors**: Enhanced interactive testing using semantic queries to detect JS issues during user interactions
+- **Form Testing**: Semantic form field detection with enhanced validation testing (invalid → valid email patterns)
 - **Performance**: Measures page load times (3-second threshold)
+- **Accessibility**: WCAG 2.1 AA compliance testing using @axe-core/playwright (NEW)
 
-**Typical runtime**: 2-4 minutes per site
+**Enhanced Features**:
+- **Semantic Element Detection**: Uses `getByRole()`, `getByLabel()` instead of CSS selectors
+- **ARIA-Compliant Testing**: Tests accessibility patterns matching screen readers
+- **Interactive JS Testing**: Comprehensive user interaction simulation (navigation, forms, modals, tabs)
+- **Standards-Based Validation**: Email validation patterns, form blur events, empty form submission testing
+- **Accessibility Reporting**: Detailed WCAG violation reports with help URLs and impact levels
+- **Soft Assertions**: Collects ALL broken links before failing (industry standard)
+
+**Typical runtime**: 4-6 minutes per site (increased due to accessibility scanning and enhanced interactions)
 
 ## Common Issues and Solutions
 
@@ -278,9 +318,15 @@ This testing suite follows **industry best practices** for responsive web testin
 4. **Local vs Live**: Are you testing the right environment?
 
 ### Form Tests Failing
-- **Check form selectors**: Inspect the actual form HTML
+- **Semantic queries not working**: Form may lack proper labels - falls back to CSS selectors automatically
 - **WordPress forms**: Contact Form 7, Gravity Forms, custom themes vary
 - **JavaScript dependency**: Some forms need JS to load properly
+
+### Accessibility Tests Failing
+- **Critical/Serious violations**: Only these fail the test - review detailed console output
+- **WCAG compliance**: Check violation help URLs for specific remediation steps
+- **Common issues**: Missing alt text, insufficient color contrast, missing form labels
+- **False positives**: Very rare with axe-core, usually indicates real accessibility problems
 
 ## Development Workflow
 
@@ -318,11 +364,19 @@ This testing suite follows **industry best practices** for responsive web testin
 
 ## Performance and Timing Expectations
 
-### Expected Test Duration
-- **Functionality only**: 2-4 minutes
-- **Responsive only**: 6-8 minutes  
-- **Full test suite**: 8-12 minutes
+### Expected Test Duration (Updated for Standardized Testing)
+- **Functionality only**: 4-6 minutes (increased due to accessibility scanning and enhanced interactions)
+- **Responsive only**: 6-8 minutes (unchanged)  
+- **Full test suite**: 10-14 minutes (increased due to new accessibility testing)
 - **Single browser**: 25-40% faster
+
+### New Test Results Structure
+**Functionality Tests now include 4-5 test categories:**
+- ✅ `broken-links` - Internal link validation
+- ✅ `javascript-errors` - Enhanced interactive JS error detection  
+- ✅ `page-performance` - Page load time validation
+- 🆕 `accessibility` - WCAG 2.1 AA compliance testing
+- ✅ `Contact Form` (or configured form name) - Enhanced semantic form testing
 
 ### Factors Affecting Speed
 - **Number of pages**: More pages = longer runtime
@@ -386,11 +440,12 @@ The testing suite now includes an interactive command-line interface accessible 
 ## Claude-Specific Guidance
 
 ### When the User Asks About...
-- **"Why is it slow?"** → Check if testing too many pages or browsers
-- **"Tests are failing"** → Check for 404s first, then SSL issues, then visual regression changes
+- **"Why is it slow?"** → New accessibility testing adds 1-2 minutes, check if testing too many pages or browsers
+- **"Tests are failing"** → Check for 404s first, then accessibility violations, then SSL issues, then visual regression changes
 - **"How to add a new site?"** → Use interactive mode: `node run-tests.js --interactive` → "Create new site configuration"
-- **"What's wrong with my forms?"** → Inspect actual HTML for correct selectors
+- **"What's wrong with my forms?"** → Enhanced semantic testing tries labels first, falls back to selectors automatically
 - **"Visual tests are failing"** → Check if site layout actually changed, update baselines if intentional
+- **"Accessibility tests are failing"** → Review detailed violation reports, focus on critical/serious issues only
 - **"Where's my report?"** → Each site creates `playwright-report-SITENAME/index.html` - one report per site, overwrites previous
 - **"Reports are accumulating"** → Reports now overwrite per site - use `rm -rf playwright-report-*` to clean all if needed
 - **"How to find pages automatically?"** → Use interactive mode auto-discovery feature

@@ -1,149 +1,205 @@
 const { test, expect } = require('@playwright/test');
 const SiteLoader = require('../utils/site-loader');
+const AxeBuilder = require('@axe-core/playwright').default;
+const {
+  debugBrowserState,
+  retryOperation,
+  safeNavigate,
+  waitForPageStability,
+  safeElementInteraction,
+  ErrorContext,
+  setupTestPage,
+  teardownTestPage
+} = require('../utils/test-helpers');
+// Removed unused playwright-testing-library import
 
-// Comprehensive interactive testing function for JS error detection
+// Standardized interactive testing function using Testing Library patterns
 async function performInteractiveJSTests(page, currentPage) {
   console.log(`🔄 Running interactive JS tests on: ${currentPage}`);
   
+  // Early exit if page is closed
+  if (page.isClosed()) {
+    throw new Error(`Cannot perform interactive tests: page is closed for ${currentPage}`);
+  }
+  
+  const testContext = {
+    page: currentPage,
+    startTime: Date.now(),
+    currentAction: 'starting interactive tests'
+  };
+  
   try {
-    // Test 1: Click all clickable elements
-    const clickableSelectors = [
-      'button:not([disabled])',
-      'a[href]:not([href^="mailto:"]):not([href^="tel:"]):not([href^="#"])',
-      '[onclick]',
-      '.btn, .button',
-      '[role="button"]',
-      'input[type="submit"]:not([disabled])',
-      'input[type="button"]:not([disabled])'
-    ];
+    // Test 1: Click interactive elements using semantic queries
+    testContext.currentAction = 'testing interactive elements';
+    const interactiveRoles = ['button', 'link', 'tab', 'menuitem'];
     
-    for (const selector of clickableSelectors) {
+    for (const role of interactiveRoles) {
+      // Check page state before each role test
+      if (page.isClosed()) {
+        throw new Error(`Page closed during ${role} testing on ${currentPage}`);
+      }
+      
       try {
-        const elements = await page.locator(selector).all();
-        for (let i = 0; i < Math.min(elements.length, 10); i++) { // Limit to 10 per selector
+        const elements = await page.getByRole(role).all();
+        console.log(`  Found ${elements.length} ${role} elements, testing up to 8`);
+        
+        for (let i = 0; i < Math.min(elements.length, 8); i++) { // Limit to prevent excessive testing
           const element = elements[i];
-          if (await element.isVisible() && await element.isEnabled()) {
-            await element.click({ timeout: 2000 });
-            await page.waitForTimeout(500); // Allow time for JS to execute
+          
+          try {
+            // Skip external links and anchor links  
+            const href = await element.getAttribute('href');
+            if (href && (href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:'))) {
+              continue;
+            }
+            
+            // Ensure element is still attached to DOM
+            if (!(await element.isVisible())) {
+              continue;
+            }
+            
+            // Playwright auto-waits for element to be actionable
+            await element.click({ timeout: 3000 }); // Increased timeout
+            // Wait for any animations or state changes to complete
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+            
+          } catch (clickError) {
+            // Element might not be clickable, log and continue with next
+            console.log(`    Skipping ${role} element ${i}: ${clickError.message.substring(0, 50)}...`);
+            continue;
           }
         }
       } catch (error) {
+        console.log(`  Warning: Could not test ${role} elements: ${error.message.substring(0, 100)}...`);
         // Continue testing other elements if one fails
       }
     }
     
-    // Test 2: Navigation menu interactions
+    // Test 2: Test form controls using semantic queries
     try {
-      // Desktop menu hovers
-      const navItems = await page.locator('nav a, .menu a, .main-menu a').all();
-      for (let i = 0; i < Math.min(navItems.length, 8); i++) {
+      const formElements = await page.getByRole('textbox').or(page.getByRole('combobox')).or(page.getByRole('checkbox')).or(page.getByRole('radio')).all();
+      for (let i = 0; i < Math.min(formElements.length, 6); i++) {
         try {
-          await navItems[i].hover({ timeout: 1000 });
-          await page.waitForTimeout(300);
-        } catch (error) {
-          // Continue with next item
-        }
-      }
-      
-      // Mobile menu toggle
-      const mobileToggles = ['.menu-toggle', '.hamburger', '.mobile-menu-toggle', '[aria-label*="menu"]'];
-      for (const toggleSelector of mobileToggles) {
-        try {
-          const toggle = page.locator(toggleSelector).first();
-          if (await toggle.isVisible()) {
-            await toggle.click({ timeout: 2000 });
-            await page.waitForTimeout(800); // Wait for menu animation
-            // Try to close it too
-            await toggle.click({ timeout: 2000 });
-            await page.waitForTimeout(500);
-            break; // Only test one toggle per page
-          }
-        } catch (error) {
-          // Continue with next toggle type
-        }
-      }
-    } catch (error) {
-      // Navigation testing errors don't fail the test
-    }
-    
-    // Test 3: Dropdown and accordion interactions
-    try {
-      const dropdownSelectors = [
-        '.dropdown-toggle, .dropdown-trigger',
-        '[aria-haspopup="true"]',
-        '.accordion-header, .accordion-toggle',
-        '.tab-nav a, .tab-header'
-      ];
-      
-      for (const selector of dropdownSelectors) {
-        const elements = await page.locator(selector).all();
-        for (let i = 0; i < Math.min(elements.length, 5); i++) {
-          try {
-            if (await elements[i].isVisible()) {
-              await elements[i].click({ timeout: 2000 });
-              await page.waitForTimeout(500);
+          const element = formElements[i];
+          if (await element.isVisible() && await element.isEnabled()) {
+            await element.focus();
+            if (await element.getAttribute('type') !== 'checkbox' && await element.getAttribute('type') !== 'radio') {
+              await element.fill('test');
+              await element.blur();
             }
-          } catch (error) {
-            // Continue with next element
-          }
-        }
-      }
-    } catch (error) {
-      // Dropdown testing errors don't fail the test
-    }
-    
-    // Test 4: Form interactions (beyond just submission)
-    try {
-      // Focus and blur events on form fields
-      const formFields = await page.locator('input[type="text"], input[type="email"], textarea, select').all();
-      for (let i = 0; i < Math.min(formFields.length, 8); i++) {
-        try {
-          const field = formFields[i];
-          if (await field.isVisible() && await field.isEnabled()) {
-            await field.focus();
-            await field.fill('test');
-            await field.blur();
-            await page.waitForTimeout(200);
+            await page.waitForLoadState('domcontentloaded');
           }
         } catch (error) {
-          // Continue with next field
+          // Continue with next element
         }
       }
     } catch (error) {
       // Form testing errors don't fail the test
     }
     
-    // Test 5: Interactive media elements
+    // Test 3: Navigation interactions using semantic queries
     try {
-      const mediaSelectors = [
-        '.slider-nav, .carousel-control',
-        '.lightbox-trigger, .gallery-item',
-        '.video-play-button',
-        '.modal-trigger, [data-modal]'
-      ];
-      
-      for (const selector of mediaSelectors) {
-        const elements = await page.locator(selector).all();
-        for (let i = 0; i < Math.min(elements.length, 3); i++) {
-          try {
-            if (await elements[i].isVisible()) {
-              await elements[i].click({ timeout: 2000 });
-              await page.waitForTimeout(800);
-              
-              // Try to close modal/lightbox if opened
-              const closeButtons = page.locator('.close, .modal-close, [aria-label="Close"]');
-              if (await closeButtons.first().isVisible()) {
-                await closeButtons.first().click({ timeout: 1000 });
-                await page.waitForTimeout(300);
-              }
-            }
+      // Test navigation landmarks
+      const navElements = await page.getByRole('navigation').all();
+      for (let i = 0; i < Math.min(navElements.length, 3); i++) {
+        try {
+          const navLinks = await navElements[i].getByRole('link').all();
+          for (let j = 0; j < Math.min(navLinks.length, 5); j++) {
+            try {
+            await navLinks[j].hover({ timeout: 1000 });
+            await page.waitForLoadState('domcontentloaded');
           } catch (error) {
-            // Continue with next element
+            // Element might not be hoverable, continue
+            continue;
           }
+          }
+        } catch (error) {
+          // Continue with next navigation
+        }
+      }
+      
+      // Test mobile menu toggle using ARIA label
+      const menuButtons = await page.getByRole('button', { name: /menu|toggle|hamburger/i }).all();
+      for (const menuButton of menuButtons) {
+        try {
+          try {
+            await menuButton.click({ timeout: 2000 });
+            await page.waitForLoadState('domcontentloaded');
+            // Try to close it
+            await menuButton.click({ timeout: 2000 });
+            await page.waitForLoadState('domcontentloaded');
+            break; // Only test one menu toggle per page
+          } catch (error) {
+            // Menu button might not be clickable, try next
+            continue;
+          }
+        } catch (error) {
+          // Continue with next menu button
         }
       }
     } catch (error) {
-      // Media testing errors don't fail the test
+      // Navigation testing errors don't fail the test
+    }
+    
+    // Test 4: Interactive controls using ARIA patterns
+    try {
+      // Test expandable elements (dropdowns, accordions)
+      const expandableElements = await page.locator('[aria-expanded], [aria-haspopup="true"]').all();
+      for (let i = 0; i < Math.min(expandableElements.length, 4); i++) {
+        try {
+          const element = expandableElements[i];
+          if (await element.isVisible()) {
+            await element.click({ timeout: 2000 });
+            await page.waitForLoadState('domcontentloaded');
+          }
+        } catch (error) {
+          // Continue with next element
+        }
+      }
+      
+      // Test tabs using tab role
+      const tabElements = await page.getByRole('tab').all();
+      for (let i = 0; i < Math.min(tabElements.length, 4); i++) {
+        try {
+          if (await tabElements[i].isVisible()) {
+            await tabElements[i].click({ timeout: 2000 });
+            await page.waitForLoadState('domcontentloaded');
+          }
+        } catch (error) {
+          // Continue with next tab
+        }
+      }
+    } catch (error) {
+      // Interactive controls testing errors don't fail the test
+    }
+    
+    // Test 5: Dialog and modal interactions
+    try {
+      // Test dialog triggers
+      const dialogTriggers = await page.locator('[data-bs-toggle="modal"], [data-toggle="modal"], [aria-haspopup="dialog"]').all();
+      for (let i = 0; i < Math.min(dialogTriggers.length, 2); i++) {
+        try {
+          const trigger = dialogTriggers[i];
+          if (await trigger.isVisible()) {
+            await trigger.click({ timeout: 2000 });
+            await page.waitForLoadState('domcontentloaded');
+            
+            // Try to close any opened dialog
+            const closeButtons = await page.getByRole('button', { name: /close|cancel|×/i }).all();
+            for (const closeBtn of closeButtons) {
+              if (await closeBtn.isVisible()) {
+                await closeBtn.click({ timeout: 1000 });
+                await page.waitForLoadState('domcontentloaded');
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          // Continue with next trigger
+        }
+      }
+    } catch (error) {
+      // Modal testing errors don't fail the test
     }
     
     console.log(`✅ Completed interactive JS tests on: ${currentPage}`);
@@ -161,24 +217,64 @@ test.beforeAll(async () => {
   SiteLoader.validateSiteConfig(siteConfig);
 });
 
+// Enhanced page lifecycle management using test helpers
+let testErrorContext;
+
+test.beforeEach(async ({ page, context }) => {
+  testErrorContext = await setupTestPage(page, context);
+  console.log('🚀 Test setup completed');
+});
+
+test.afterEach(async ({ page, context }) => {
+  await teardownTestPage(page, context, testErrorContext);
+  console.log('🏁 Test teardown completed');
+});
+
 test.describe(`Functionality Tests - ${siteName}`, () => {
   
-  test('broken-links', async ({ page }) => {
+  test('broken-links', async ({ page, context }) => {
     const checkedUrls = new Set();
     const brokenLinks = [];
     const missingPages = [];
     
     for (const testPage of siteConfig.testPages) {
-      const response = await page.goto(`${siteConfig.baseUrl}${testPage}`);
-      
-      // Check if the page itself exists
-      if (response?.status() >= 400) {
+      try {
+        console.log(`🔗 Checking links on: ${testPage}`);
+        
+        const response = await retryOperation(
+          async () => await page.goto(`${siteConfig.baseUrl}${testPage}`, {
+            timeout: 20000,
+            waitUntil: 'domcontentloaded'
+          }),
+          `Navigate to ${testPage}`,
+          2, // 2 retries
+          2000 // 2 second delay
+        );
+        
+        // Check if the page itself exists
+        if (response?.status() >= 400) {
+          missingPages.push({
+            page: testPage,
+            status: response.status(),
+            url: `${siteConfig.baseUrl}${testPage}`
+          });
+          continue; // Skip link checking on broken pages
+        }
+        
+      } catch (navigationError) {
+        console.error(`❌ Failed to navigate to ${testPage}: ${navigationError.message}`);
+        
+        if (navigationError.message.includes('closed') || navigationError.message.includes('Target page')) {
+          await debugBrowserState(page, context, `broken-links-navigation-${testPage}`);
+        }
+        
         missingPages.push({
           page: testPage,
-          status: response.status(),
-          url: `${siteConfig.baseUrl}${testPage}`
+          status: 'navigation-error',
+          url: `${siteConfig.baseUrl}${testPage}`,
+          error: navigationError.message
         });
-        continue; // Skip link checking on broken pages
+        continue;
       }
       
       // Find all internal links
@@ -206,6 +302,9 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
               foundOn: testPage
             });
           }
+          
+          // Small delay to prevent overwhelming the server
+          await page.waitForTimeout(50);
         } catch (error) {
           brokenLinks.push({
             url: href,
@@ -224,67 +323,157 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
       console.log('❌ Broken links found:', brokenLinks);
     }
     
-    // Fail if we found missing pages or broken links
-    const totalIssues = missingPages.length + brokenLinks.length;
-    if (totalIssues > 0) {
-      const errorMessage = [
-        missingPages.length > 0 ? `${missingPages.length} missing pages` : '',
-        brokenLinks.length > 0 ? `${brokenLinks.length} broken links` : ''
-      ].filter(Boolean).join(', ');
-      throw new Error(`Found ${errorMessage}`);
+    // Use soft assertions to collect all issues before failing
+    // This allows us to find ALL broken links instead of stopping at the first one
+    if (missingPages.length > 0) {
+      missingPages.forEach(page => {
+        expect.soft(page.status, `Missing page: ${page.page}`).toBeLessThan(400);
+      });
     }
+    
+    if (brokenLinks.length > 0) {
+      brokenLinks.forEach(link => {
+        if (link.status) {
+          expect.soft(link.status, `Broken link: ${link.url} (found on ${link.foundOn})`).toBeLessThan(400);
+        } else {
+          expect.soft(link.error, `Link error: ${link.url} (found on ${link.foundOn})`).toBeUndefined();
+        }
+      });
+    }
+    
+    // Final assertion to ensure test fails if any issues were found
+    const totalIssues = missingPages.length + brokenLinks.length;
+    expect(totalIssues, `Found ${missingPages.length} missing pages and ${brokenLinks.length} broken links`).toBe(0);
   });
   
-  test('javascript-errors', async ({ page }) => {
+  test('javascript-errors', async ({ page, context }) => {
     const jsErrors = [];
     const missingPages = [];
     
-    // Listen for console errors
+    // Use the enhanced error context from test helpers
+    testErrorContext.setTest('javascript-errors');
+    
+    // Listen for console errors with enhanced context
     page.on('console', msg => {
       if (msg.type() === 'error') {
+        const contextInfo = testErrorContext.getContextInfo();
         jsErrors.push({
           message: msg.text(),
-          location: msg.location()
+          location: msg.location(),
+          page: contextInfo.currentPage,
+          action: contextInfo.currentAction,
+          timestamp: new Date().toISOString()
         });
       }
     });
     
-    // Listen for page errors
+    // Listen for page errors with enhanced context
     page.on('pageerror', error => {
+      const contextInfo = testErrorContext.getContextInfo();
       jsErrors.push({
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
+        page: contextInfo.currentPage,
+        action: contextInfo.currentAction,
+        timestamp: new Date().toISOString()
       });
     });
     
-    // Test each page for JS errors
+    // Test each page for JS errors with enhanced error handling
     for (const testPage of siteConfig.testPages) {
-      const response = await page.goto(`${siteConfig.baseUrl}${testPage}`);
+      testErrorContext.setPage(testPage);
+      testErrorContext.setAction('navigation');
       
-      // Skip JS testing on missing pages
-      if (response?.status() >= 400) {
-        missingPages.push({ page: testPage, status: response.status() });
-        console.log(`⚠️  Skipping JS tests for missing page: ${testPage} (${response.status()})`);
-        continue;
-      }
-      
-      // Only wait for network idle on pages that actually loaded
       try {
-        await page.waitForLoadState('networkidle', { timeout: 10000 });
-      } catch (error) {
-        console.log(`⚠️  Network idle timeout for ${testPage}, continuing with JS error check`);
+        console.log(`🔍 Testing JavaScript errors on: ${testPage}`);
+        
+        // Use safe navigation from helpers
+        const response = await safeNavigate(
+          page,
+          `${siteConfig.baseUrl}${testPage}`,
+          {
+            timeout: 20000,
+            waitUntil: 'domcontentloaded'
+          }
+        );
+        
+        // Skip JS testing on missing pages
+        if (response?.status() >= 400) {
+          missingPages.push({ page: testPage, status: response.status() });
+          console.log(`⚠️  Skipping JS tests for missing page: ${testPage} (${response.status()})`);
+          continue;
+        }
+        
+        testErrorContext.setAction('waiting for page stability');
+        
+        // Use enhanced page stability waiting
+        await waitForPageStability(page, {
+          timeout: 12000,
+          strategies: ['networkidle', 'domcontentloaded']
+        });
+        
+        testErrorContext.setAction('interactive testing');
+        
+        // Comprehensive interactive testing with timeout protection
+        try {
+          await Promise.race([
+            performInteractiveJSTests(page, testPage),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Interactive testing timeout after 35s')), 35000))
+          ]);
+        } catch (interactiveError) {
+          console.log(`⚠️  Interactive testing timeout or error on ${testPage}: ${interactiveError.message}`);
+          testErrorContext.logError(interactiveError, { phase: 'interactive-testing', page: testPage });
+          // Don't fail the test, just log and continue
+        }
+        
+      } catch (navigationError) {
+        console.error(`❌ Failed to test ${testPage}: ${navigationError.message}`);
+        
+        if (navigationError.message.includes('closed') || navigationError.message.includes('Target page')) {
+          console.error(`💥 Browser/page lifecycle issue detected. This usually indicates:`);
+          console.error(`   1. Previous test caused browser crash or instability`);
+          console.error(`   2. Page navigation triggered unexpected browser behavior`);
+          console.error(`   3. Memory/resource exhaustion or timeout`);
+          console.error(`   4. Network connectivity issues`);
+          
+          // Enhanced debug information
+          await debugBrowserState(page, context, `javascript-errors-navigation-${testPage}`);
+          testErrorContext.logError(navigationError, { 
+            phase: 'navigation',
+            page: testPage,
+            suggestion: 'Consider increasing timeouts, checking site stability, or running fewer pages per test'
+          });
+          
+          throw navigationError; // Re-throw to fail the test with context
+        }
+        
+        // For other errors, continue testing other pages
+        jsErrors.push({
+          message: `Navigation error: ${navigationError.message}`,
+          page: testPage,
+          action: testErrorContext.getContextInfo().currentAction,
+          timestamp: new Date().toISOString(),
+          stack: navigationError.stack
+        });
       }
-      
-      // Comprehensive interactive testing for JS errors
-      await performInteractiveJSTests(page, testPage);
     }
     
-    // Report findings
+    // Report findings with enhanced context
     if (missingPages.length > 0) {
       console.log(`ℹ️  Skipped JS testing on ${missingPages.length} missing pages:`, missingPages.map(p => p.page));
     }
     if (jsErrors.length > 0) {
-      console.log('❌ JavaScript errors found:', jsErrors);
+      console.log('❌ JavaScript errors found:');
+      jsErrors.forEach(error => {
+        console.log(`  📄 Page: ${error.page || 'unknown'}`);
+        console.log(`  🔧 Action: ${error.action || 'unknown'}`);
+        console.log(`  ⏰ Time: ${error.timestamp || 'unknown'}`);
+        console.log(`  💬 Message: ${error.message}`);
+        if (error.stack) {
+          console.log(`  📋 Stack: ${error.stack.substring(0, 200)}...`);
+        }
+        console.log('');
+      });
     }
     
     expect(jsErrors).toHaveLength(0);
@@ -302,33 +491,68 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
           return;
         }
         
-        // Wait for form to be visible
+        // Wait for form to be visible using both selector and semantic approach
         await expect(page.locator(form.selector)).toBeVisible({ timeout: 10000 });
         
-        // Fill form fields if configured
-        if (form.fields) {
-          if (form.fields.name) {
-            await page.fill(form.fields.name, 'Test User');
-          }
-          if (form.fields.email) {
-            await page.fill(form.fields.email, 'test@example.com');
-          }
-          if (form.fields.message) {
-            await page.fill(form.fields.message, 'This is a test message from automated testing.');
-          }
-        }
-        
-        // Test form validation (submit empty form first)
-        if (form.submitButton) {
-          // Clear fields to test validation
-          if (form.fields?.name) await page.fill(form.fields.name, '');
-          if (form.fields?.email) await page.fill(form.fields.email, '');
+        // Enhanced form testing using semantic queries
+        try {
+          // Try to find form fields using semantic labels first
+          const nameField = page.getByRole('textbox', { name: /name|your.name/i }).or(page.locator(form.fields?.name || 'input[name*="name"]'));
+          const emailField = page.getByRole('textbox', { name: /email|e.mail/i }).or(page.locator(form.fields?.email || 'input[name*="email"]'));
+          const messageField = page.getByRole('textbox', { name: /message|comment|inquiry/i }).or(page.locator(form.fields?.message || 'textarea[name*="message"]'));
+          const submitButton = page.getByRole('button', { name: /submit|send|contact/i }).or(page.locator(form.submitButton || 'input[type="submit"]'));
           
-          await page.click(form.submitButton);
-          await page.waitForTimeout(2000);
+          // Test form field interactions
+          if (await nameField.first().isVisible()) {
+            await nameField.first().fill('Test User');
+            await nameField.first().blur(); // Test blur validation
+          }
           
-          // Form should still be visible (validation should prevent submission)
-          await expect(page.locator(form.selector)).toBeVisible();
+          if (await emailField.first().isVisible()) {
+            // Test invalid email first
+            await emailField.first().fill('invalid-email');
+            await emailField.first().blur();
+            await page.waitForLoadState('domcontentloaded');
+            
+            // Then test valid email
+            await emailField.first().fill('test@example.com');
+            await emailField.first().blur();
+          }
+          
+          if (await messageField.first().isVisible()) {
+            await messageField.first().fill('This is a test message from automated testing.');
+            await messageField.first().blur();
+          }
+          
+          // Test form validation by submitting empty form
+          if (await submitButton.first().isVisible()) {
+            // Clear all fields first
+            if (await nameField.first().isVisible()) await nameField.first().fill('');
+            if (await emailField.first().isVisible()) await emailField.first().fill('');
+            if (await messageField.first().isVisible()) await messageField.first().fill('');
+            
+            // Try to submit empty form
+            await submitButton.first().click();
+            await page.waitForLoadState('domcontentloaded');
+            
+            // Form should still be visible (validation should prevent submission)
+            await expect(page.locator(form.selector)).toBeVisible();
+          }
+        } catch (error) {
+          // Fallback to original selector-based approach if semantic queries fail
+          if (form.fields) {
+            if (form.fields.name) await page.fill(form.fields.name, 'Test User');
+            if (form.fields.email) await page.fill(form.fields.email, 'test@example.com');
+            if (form.fields.message) await page.fill(form.fields.message, 'This is a test message from automated testing.');
+          }
+          
+          if (form.submitButton) {
+            if (form.fields?.name) await page.fill(form.fields.name, '');
+            if (form.fields?.email) await page.fill(form.fields.email, '');
+            await page.click(form.submitButton);
+            await page.waitForLoadState('domcontentloaded');
+            await expect(page.locator(form.selector)).toBeVisible();
+          }
         }
       });
     }
@@ -377,6 +601,75 @@ test.describe(`Functionality Tests - ${siteName}`, () => {
     // Only fail if ALL existing pages are slow (very unlikely)
     const existingPagesCount = siteConfig.testPages.length - missingPages.length;
     expect(slowPages.length).toBeLessThan(existingPagesCount);
+  });
+  
+  test('accessibility', async ({ page }) => {
+    const accessibilityIssues = [];
+    const missingPages = [];
+    
+    for (const testPage of siteConfig.testPages) {
+      const response = await page.goto(`${siteConfig.baseUrl}${testPage}`);
+      
+      // Skip accessibility testing on missing pages
+      if (response?.status() >= 400) {
+        missingPages.push({ page: testPage, status: response.status() });
+        console.log(`⚠️  Skipping accessibility tests for missing page: ${testPage} (${response.status()})`);
+        continue;
+      }
+      
+      try {
+        await page.waitForLoadState('networkidle', { timeout: 10000 });
+      } catch (error) {
+        console.log(`⚠️  Network idle timeout for ${testPage}, continuing with accessibility check`);
+      }
+      
+      // Run axe accessibility scan
+      try {
+        const accessibilityScanResults = await new AxeBuilder({ page })
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21aa']) // WCAG 2.1 AA standards
+          .analyze();
+        
+        if (accessibilityScanResults.violations.length > 0) {
+          accessibilityIssues.push({
+            page: testPage,
+            violations: accessibilityScanResults.violations.map(violation => ({
+              id: violation.id,
+              impact: violation.impact,
+              description: violation.description,
+              nodes: violation.nodes.length,
+              helpUrl: violation.helpUrl
+            }))
+          });
+        }
+      } catch (error) {
+        console.log(`⚠️  Accessibility scan failed for ${testPage}: ${error.message}`);
+      }
+    }
+    
+    // Report findings
+    if (missingPages.length > 0) {
+      console.log(`ℹ️  Skipped accessibility testing on ${missingPages.length} missing pages:`, missingPages.map(p => p.page));
+    }
+    if (accessibilityIssues.length > 0) {
+      console.log('❌ Accessibility violations found:', accessibilityIssues);
+      
+      // Log detailed violations for debugging
+      accessibilityIssues.forEach(issue => {
+        console.log(`\n📄 Page: ${issue.page}`);
+        issue.violations.forEach(violation => {
+          console.log(`  🚫 ${violation.id} (${violation.impact}): ${violation.description}`);
+          console.log(`     Affected elements: ${violation.nodes}`);
+          console.log(`     Help: ${violation.helpUrl}`);
+        });
+      });
+    }
+    
+    // Only fail on critical accessibility issues (exclude minor/moderate)
+    const criticalIssues = accessibilityIssues.filter(issue => 
+      issue.violations.some(v => v.impact === 'critical' || v.impact === 'serious')
+    );
+    
+    expect(criticalIssues).toHaveLength(0);
   });
   
 });

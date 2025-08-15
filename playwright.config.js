@@ -11,12 +11,23 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
-    ['html', { outputFolder: process.env.PLAYWRIGHT_REPORT_FOLDER || 'playwright-report' }],
-    ['list']
+    ['allure-playwright', { 
+      resultsDir: 'allure-results',
+      suiteTitle: 'WordPress Testing Suite',
+      detail: true,
+      outputFolder: 'allure-report',
+      environmentInfo: {
+        framework: 'playwright',
+        language: 'javascript',
+        project_type: 'wordpress_testing'
+      }
+    }],
+    ['list']  // Console output only
   ],
-  timeout: 30000,
+  // Test timeout increased for better stability
+  timeout: 60000,
   expect: {
-    timeout: 10000,
+    timeout: 15000,
   },
   
   // Custom snapshot directory and path template

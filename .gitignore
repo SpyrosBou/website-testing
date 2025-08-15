@@ -6,10 +6,12 @@ yarn-error.log*
 
 # Test Results
 test-results/
-playwright-report-*/
-playwright-report/  # Default report directory (we use site-specific naming)
 playwright/.cache/
 example-site/  # Generated when using example-site fallback
+
+# Allure Reports
+allure-results/
+allure-report/
 
 # Screenshots and media files (too large for repo, regenerated each test)
 *.png

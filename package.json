@@ -10,18 +10,28 @@
     "install-browsers": "npx playwright install",
     "setup": "npm install && npm run install-browsers",
     "clean-old-results": "find test-results -mtime +15 -type f -delete 2>/dev/null && find test-results -type d -empty -delete 2>/dev/null || echo 'Cleaned test results older than 15 days'",
-    "clean-old-reports": "find . -name 'playwright-report-*' -mtime +7 -type d -exec rm -rf {} + 2>/dev/null || echo 'Cleaned HTML reports older than 7 days'",
     "clean-videos": "find test-results -name '*.webm' -delete 2>/dev/null || echo 'Cleaned all test videos'",
     "clean-traces": "find test-results -name '*.zip' -delete 2>/dev/null || echo 'Cleaned all trace files'",
     "clean-all-results": "rm -rf test-results/* 2>/dev/null || echo 'Cleaned all test results'",
-    "clean-all-reports": "rm -rf playwright-report-* 2>/dev/null || echo 'Cleaned all HTML reports'",
-    "clean-site-results": "test \"$SITE\" && rm -rf test-results/$SITE 2>/dev/null || echo 'Usage: SITE=sitename npm run clean-site-results'"
+    "clean-site-results": "test \"$SITE\" && rm -rf test-results/$SITE 2>/dev/null || echo 'Usage: SITE=sitename npm run clean-site-results'",
+    "allure-report": "npx allure generate allure-results --clean -o allure-report && npx allure open allure-report",
+    "allure-serve": "npx allure serve allure-results",
+    "clean-allure": "rm -rf allure-results allure-report 2>/dev/null || echo 'Cleaned Allure results and reports'"
   },
-  "keywords": ["testing", "wordpress", "playwright", "automation"],
+  "keywords": [
+    "testing",
+    "wordpress",
+    "playwright",
+    "automation"
+  ],
   "author": "Web Dev Agency",
   "license": "MIT",
   "devDependencies": {
-    "@playwright/test": "^1.40.0"
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.40.0",
+    "@testing-library/dom": "^10.4.1",
+    "allure-playwright": "^3.3.3",
+    "playwright-testing-library": "^4.5.0"
   },
   "dependencies": {
     "minimist": "^1.2.8"
