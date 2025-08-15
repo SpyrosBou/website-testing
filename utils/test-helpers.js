@@ -2,8 +2,97 @@
  * Enhanced Test Helpers for Playwright WordPress Testing Suite
  * 
  * This module provides comprehensive utilities for better error reporting,
- * debugging, and browser lifecycle management across all test files.
+ * debugging, browser lifecycle management, and industry-standard retry strategies
+ * following Playwright and testing-library best practices.
  */
+
+// Error types for better error handling
+const ErrorTypes = {
+  NETWORK: 'network',
+  TIMEOUT: 'timeout',
+  ELEMENT_NOT_FOUND: 'element_not_found',
+  BROWSER_CRASH: 'browser_crash',
+  NAVIGATION: 'navigation',
+  ASSERTION: 'assertion',
+  UNKNOWN: 'unknown'
+};
+
+// Retry configurations for different operation types
+const RetryConfig = {
+  NETWORK_OPERATION: { maxRetries: 3, baseDelay: 1000, backoffMultiplier: 2 },
+  ELEMENT_INTERACTION: { maxRetries: 2, baseDelay: 500, backoffMultiplier: 1.5 },
+  NAVIGATION: { maxRetries: 2, baseDelay: 2000, backoffMultiplier: 2 },
+  ASSERTION: { maxRetries: 1, baseDelay: 1000, backoffMultiplier: 1 }
+};
+
+/**
+ * Classify error type for appropriate retry strategy
+ * @param {Error} error - The error to classify
+ * @returns {string} Error type constant
+ */
+function classifyError(error) {
+  const message = error.message.toLowerCase();
+  
+  if (message.includes('net::') || message.includes('network') || message.includes('connection')) {
+    return ErrorTypes.NETWORK;
+  }
+  if (message.includes('timeout') || message.includes('waiting for')) {
+    return ErrorTypes.TIMEOUT;
+  }
+  if (message.includes('element') || message.includes('locator') || message.includes('selector')) {
+    return ErrorTypes.ELEMENT_NOT_FOUND;
+  }
+  if (message.includes('target closed') || message.includes('browser') || message.includes('context')) {
+    return ErrorTypes.BROWSER_CRASH;
+  }
+  if (message.includes('navigation') || message.includes('goto') || message.includes('page.goto')) {
+    return ErrorTypes.NAVIGATION;
+  }
+  if (message.includes('expect') || message.includes('assertion')) {
+    return ErrorTypes.ASSERTION;
+  }
+  
+  return ErrorTypes.UNKNOWN;
+}
+
+/**
+ * Determine if error is retryable based on error type and context
+ * @param {Error} error - The error to check
+ * @param {number} attemptNumber - Current attempt number
+ * @param {Object} context - Additional context for retry decision
+ * @returns {boolean} Whether the error should be retried
+ */
+function isRetryableError(error, attemptNumber, context = {}) {
+  const errorType = classifyError(error);
+  const { maxRetries = 3, operation = 'generic' } = context;
+  
+  // Don't retry if we've exceeded max attempts
+  if (attemptNumber >= maxRetries) {
+    return false;
+  }
+  
+  // Don't retry assertion errors (they indicate actual test failures)
+  if (errorType === ErrorTypes.ASSERTION) {
+    return false;
+  }
+  
+  // Don't retry browser crashes (need fresh context)
+  if (errorType === ErrorTypes.BROWSER_CRASH) {
+    return false;
+  }
+  
+  // Network and timeout errors are usually retryable
+  if ([ErrorTypes.NETWORK, ErrorTypes.TIMEOUT, ErrorTypes.NAVIGATION].includes(errorType)) {
+    return true;
+  }
+  
+  // Element interaction errors may be retryable if page is still responsive
+  if (errorType === ErrorTypes.ELEMENT_NOT_FOUND && operation === 'element_interaction') {
+    return true;
+  }
+  
+  return false;
+}
 
 // Enhanced debugging utility for browser/page lifecycle issues
 async function debugBrowserState(page, context, testName) {
@@ -53,39 +142,128 @@ async function debugBrowserState(page, context, testName) {
   return debugInfo;
 }
 
-// Retry mechanism for flaky operations with exponential backoff
-async function retryOperation(operation, operationName, maxRetries = 3, baseDelay = 1000) {
+/**
+ * Enhanced retry mechanism with intelligent error handling
+ * @param {Function} operation - Async operation to retry
+ * @param {string} operationName - Human-readable operation name
+ * @param {Object} options - Retry configuration options
+ */
+async function retryOperation(operation, operationName, options = {}) {
+  // Support legacy signature (operation, name, maxRetries, baseDelay)
+  if (typeof options === 'number') {
+    options = {
+      maxRetries: options,
+      baseDelay: arguments[3] || 1000,
+      operation: 'generic'
+    };
+  }
+
+  const {
+    maxRetries = 3,
+    baseDelay = 1000,
+    backoffMultiplier = 2,
+    operation: operationType = 'generic',
+    context = {}
+  } = options;
+
   let lastError;
+  let errorHistory = [];
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const result = await operation();
       if (attempt > 1) {
-        console.log(`✅ ${operationName} succeeded on attempt ${attempt}`);
+        console.log(`✅ ${operationName} succeeded on attempt ${attempt} (error types: ${errorHistory.map(e => classifyError(e)).join(', ')})`);
       }
       return result;
     } catch (error) {
       lastError = error;
+      errorHistory.push(error);
+      const errorType = classifyError(error);
       const isLastAttempt = attempt === maxRetries;
-      const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
       
-      console.log(`⚠️  ${operationName} attempt ${attempt}/${maxRetries} failed: ${error.message.substring(0, 100)}...`);
+      console.log(`⚠️  ${operationName} attempt ${attempt}/${maxRetries} failed [${errorType}]: ${error.message.substring(0, 100)}...`);
+      
+      // Check if error is retryable
+      if (!isRetryableError(error, attempt, { maxRetries, operation: operationType, ...context })) {
+        console.error(`💥 ${operationName} failed with non-retryable error: ${errorType}`);
+        throw error;
+      }
       
       if (isLastAttempt) {
         console.error(`💥 ${operationName} failed after ${maxRetries} attempts`);
+        console.error(`Error types encountered: ${errorHistory.map(e => classifyError(e)).join(', ')}`);
         console.error(`Final error: ${error.message}`);
         break;
       }
       
-      console.log(`   Waiting ${delay}ms before retry...`);
+      // Calculate delay with jitter to prevent thundering herd
+      const baseDelayForAttempt = baseDelay * Math.pow(backoffMultiplier, attempt - 1);
+      const jitter = Math.random() * 0.1 * baseDelayForAttempt; // 10% jitter
+      const delay = Math.round(baseDelayForAttempt + jitter);
+      
+      console.log(`   Waiting ${delay}ms before retry (error type: ${errorType})...`);
       await new Promise(resolve => setTimeout(resolve, delay));
+      
+      // Additional recovery actions based on error type
+      await performErrorRecovery(error, errorType, context);
     }
   }
   
   throw lastError;
 }
 
-// Enhanced navigation with comprehensive error handling
+/**
+ * Perform recovery actions based on error type
+ * @param {Error} error - The error that occurred
+ * @param {string} errorType - Classified error type
+ * @param {Object} context - Additional context including page, etc.
+ */
+async function performErrorRecovery(error, errorType, context = {}) {
+  const { page } = context;
+  
+  if (!page) return;
+  
+  try {
+    switch (errorType) {
+      case ErrorTypes.TIMEOUT:
+        // Clear any pending operations
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+        break;
+        
+      case ErrorTypes.ELEMENT_NOT_FOUND:
+        // Wait for potential animations to complete
+        await page.waitForTimeout(500);
+        break;
+        
+      case ErrorTypes.NAVIGATION:
+        // Ensure page is in a good state for navigation
+        if (!page.isClosed()) {
+          await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+        }
+        break;
+        
+      case ErrorTypes.NETWORK:
+        // Wait for network to stabilize
+        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+        break;
+        
+      default:
+        // Generic recovery - just wait a bit
+        await page.waitForTimeout(200);
+        break;
+    }
+  } catch (recoveryError) {
+    console.log(`⚠️  Error recovery failed: ${recoveryError.message}`);
+  }
+}
+
+/**
+ * Enhanced navigation with comprehensive error handling and smart retries
+ * @param {Page} page - Playwright page object
+ * @param {string} url - URL to navigate to
+ * @param {Object} options - Navigation options
+ */
 async function safeNavigate(page, url, options = {}) {
   const defaultOptions = {
     timeout: 20000,
@@ -106,11 +284,21 @@ async function safeNavigate(page, url, options = {}) {
         throw new Error(`Navigation to ${url} returned null response`);
       }
       
+      // Check for common error pages
+      if (response.status() >= 400) {
+        const errorType = response.status() === 404 ? 'Page not found' : 
+                         response.status() >= 500 ? 'Server error' : 'Client error';
+        throw new Error(`${errorType}: ${url} (Status: ${response.status()})`);
+      }
+      
       return response;
     },
     `Navigate to ${url}`,
-    2, // 2 retries for navigation
-    2000 // 2 second delay
+    {
+      ...RetryConfig.NAVIGATION,
+      operation: 'navigation',
+      context: { page, url }
+    }
   );
 }
 
@@ -142,43 +330,106 @@ async function waitForPageStability(page, options = {}) {
   return false; // Don't throw, let tests continue
 }
 
-// Enhanced element interaction with safety checks
+/**
+ * Enhanced element interaction with comprehensive safety checks and retries
+ * @param {Locator} element - Playwright locator
+ * @param {string} action - Action to perform (click, fill, hover, etc.)
+ * @param {Object} options - Action options including retry configuration
+ */
 async function safeElementInteraction(element, action, options = {}) {
-  const defaultOptions = {
-    timeout: 5000,
-    ...options
-  };
-  
-  try {
-    // Pre-interaction checks
-    if (!(await element.isAttached())) {
+  const {
+    timeout = 5000,
+    retries = true,
+    text,
+    force = false,
+    ...actionOptions
+  } = options;
+
+  const interactionFunction = async () => {
+    // Enhanced pre-interaction checks
+    const checks = await Promise.allSettled([
+      element.isAttached(),
+      element.isVisible(),
+      element.isEnabled()
+    ]);
+
+    const [isAttached, isVisible, isEnabled] = checks.map(result => 
+      result.status === 'fulfilled' ? result.value : false
+    );
+
+    if (!isAttached) {
       throw new Error('Element is not attached to DOM');
     }
     
-    if (!(await element.isVisible())) {
+    if (!isVisible && !force) {
       throw new Error('Element is not visible');
     }
+
+    if (!isEnabled && !force && ['click', 'fill'].includes(action)) {
+      throw new Error('Element is not enabled for interaction');
+    }
+
+    // Scroll element into view if needed
+    try {
+      await element.scrollIntoViewIfNeeded({ timeout: 2000 });
+    } catch (scrollError) {
+      console.log(`⚠️  Could not scroll element into view: ${scrollError.message}`);
+    }
+
+    // Perform the action with enhanced options
+    const actionOptionsWithTimeout = { timeout, ...actionOptions };
     
-    // Perform the action
     switch (action) {
       case 'click':
-        await element.click(defaultOptions);
+        await element.click(actionOptionsWithTimeout);
         break;
       case 'fill':
-        if (!options.text) throw new Error('Text is required for fill action');
-        await element.fill(options.text, defaultOptions);
+        if (!text) throw new Error('Text is required for fill action');
+        await element.fill(text, actionOptionsWithTimeout);
         break;
       case 'hover':
-        await element.hover(defaultOptions);
+        await element.hover(actionOptionsWithTimeout);
+        break;
+      case 'focus':
+        await element.focus(actionOptionsWithTimeout);
+        break;
+      case 'blur':
+        await element.blur(actionOptionsWithTimeout);
+        break;
+      case 'check':
+        await element.check(actionOptionsWithTimeout);
+        break;
+      case 'uncheck':
+        await element.uncheck(actionOptionsWithTimeout);
+        break;
+      case 'selectOption':
+        if (!options.value) throw new Error('Value is required for selectOption action');
+        await element.selectOption(options.value, actionOptionsWithTimeout);
         break;
       default:
         throw new Error(`Unsupported action: ${action}`);
     }
-    
+
     return true;
-  } catch (error) {
-    console.log(`⚠️  Element ${action} failed: ${error.message}`);
-    return false;
+  };
+
+  if (retries) {
+    return await retryOperation(
+      interactionFunction,
+      `Element ${action} interaction`,
+      {
+        ...RetryConfig.ELEMENT_INTERACTION,
+        operation: 'element_interaction',
+        context: { element, action }
+      }
+    );
+  } else {
+    try {
+      return await interactionFunction();
+    } catch (error) {
+      console.log(`⚠️  Element ${action} failed: ${error.message}`);
+      return false;
+    }
   }
 }
 
@@ -301,6 +552,13 @@ async function teardownTestPage(page, context, errorContext) {
 }
 
 module.exports = {
+  // Enhanced error handling and retry strategies
+  ErrorTypes,
+  RetryConfig,
+  classifyError,
+  isRetryableError,
+  performErrorRecovery,
+  // Existing functionality with enhancements
   debugBrowserState,
   retryOperation,
   safeNavigate,

@@ -132,9 +132,9 @@ Each WordPress site needs TWO configurations:
     }
   ],
   "criticalElements": [
-    {"name": "Navigation", "selector": ".main-navigation"},
-    {"name": "Header", "selector": "header"},
-    {"name": "Footer", "selector": "footer"}
+    {"name": "Main Navigation", "selector": ".main-navigation, #main-menu, nav"},
+    {"name": "Header", "selector": "header, .site-header"},
+    {"name": "Footer", "selector": "footer, .site-footer"}
   ]
 }
 ```
@@ -211,6 +211,20 @@ Access via: `node run-tests.js --interactive`
 3. Choose site from list
 4. Select test type (functionality/responsive/both)
 5. View results in generated report
+
+**Advanced Features:**
+- **Site Configuration Management**: Create and edit site configurations interactively
+- **Sitemap Auto-Discovery**: Automatically find pages from XML sitemaps (up to 30 pages)
+- **Visual Baseline Updates**: Update screenshot baselines for specific sites
+- **Cleanup Utilities**: Manage old reports and test artifacts
+- **Error Recovery**: Graceful handling with fallback to main menu
+
+**Implementation Best Practices:**
+- **Progress Feedback**: Shows what's happening during long operations
+- **Clear Error Messages**: Explains what went wrong AND what to do next
+- **Intuitive Navigation**: Consistent menu numbering with 'b' for back, 'q' for quit
+- **State Persistence**: Auto-saves configuration changes immediately
+- **Input Validation**: Handles edge cases and invalid input gracefully
 
 ## File Management & Architecture
 
@@ -337,10 +351,13 @@ npx playwright test --update-snapshots  # Update ALL baselines after layout chan
 5. **Test incrementally**: Add pages gradually after confirming they exist
 
 ### Sitemap Discovery
-- **Auto-discovery**: Excludes WordPress demo content but includes dev pages
-- **Security exclusions**: System pages (`/wp-admin`, `/wp-login`) always excluded
+- **Multi-Format Support**: Handles sitemap.xml, sitemap_index.xml, wp-sitemap.xml
+- **Auto-discovery**: Finds up to 30 pages with intelligent exclusions
+- **WordPress-Specific Exclusions**: `/wp-admin`, `/wp-login`, `/wp-json`, demo content (`/hello-world/`, `/sample-page/`)
+- **Content Filtering**: Excludes files (.pdf, .jpg), query parameters, system pages
+- **Local Development**: SSL certificate bypass for .local domains
+- **Fallback Strategy**: Multiple sitemap URL attempts with graceful degradation
 - **Custom exclusions**: Use flags like `--exclude-testimonials` for sites with many auto-generated pages
-- **Page limits**: Configurable to prevent excessive test times
 
 ## Claude-Specific Guidance
 

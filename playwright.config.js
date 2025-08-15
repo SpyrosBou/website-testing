@@ -31,8 +31,9 @@ module.exports = defineConfig({
     timeout: 15000,
   },
   
-  // Custom snapshot directory and path template
-  snapshotPathTemplate: '{testDir}/baseline-snapshots/{arg}{ext}',
+  // Industry-standard snapshot organization following Playwright best practices
+  // Organize by test file, then test name, with browser-specific suffixes
+  snapshotPathTemplate: '{testDir}/baseline-snapshots/{testFileDir}/{testFileName}/{arg}{ext}',
   use: {
     trace: 'retain-on-failure', // Changed: Create traces for failed tests (better debugging)
     screenshot: 'only-on-failure',
