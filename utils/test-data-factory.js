@@ -585,7 +585,7 @@ class TestDataFactory {
    */
   validateTestData(data, requiredFields = []) {
     const missing = requiredFields.filter(field => {
-      return !data.hasOwnProperty(field) || !data[field];
+      return !Object.prototype.hasOwnProperty.call(data, field) || !data[field];
     });
 
     return {

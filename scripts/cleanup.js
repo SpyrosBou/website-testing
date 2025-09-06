@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-empty */
 const fs = require('fs');
 const path = require('path');
 
@@ -91,4 +92,3 @@ switch (cmd) {
     console.log('Unknown command');
     process.exit(1);
 }
-

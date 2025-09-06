@@ -1,3 +1,5 @@
+/* eslint-env node, browser */
+/* global window, navigator */
 /**
  * Enhanced Test Helpers for Playwright WordPress Testing Suite
  * 

@@ -1,3 +1,5 @@
+/* eslint-env node, browser */
+/* global window */
 /**
  * WordPress Page Object Model
  * 
