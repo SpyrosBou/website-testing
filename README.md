@@ -58,6 +58,9 @@ node run-tests.js --list
 # Test specific site
 node run-tests.js --site=my-site
 
+# Using npm script (pass args after --)
+npm run test:site -- --site=my-site
+
 # Run only responsive tests
 node run-tests.js --site=my-site --responsive
 

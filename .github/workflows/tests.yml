@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    env:
+      SMOKE_SITE: ${{ vars.SMOKE_SITE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run smoke tests (skips if SMOKE_SITE not set)
+        if: env.SMOKE_SITE != ''
+        run: node run-tests.js --site=${{ env.SMOKE_SITE }} --responsive --project=Chrome
+
+      - name: Skip notice (SMOKE_SITE not set)
+        if: env.SMOKE_SITE == ''
+        run: |
+          echo "Skipping smoke tests. Set repository variable SMOKE_SITE to a reachable site (e.g., example-site) to enable."
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.node-version }}
+          path: playwright-report
+          if-no-files-found: ignore

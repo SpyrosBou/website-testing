@@ -13,6 +13,7 @@
 - `--responsive` / `--functionality` — filter suites (example: `node run-tests.js --site=daygroup-local --responsive`).
 - `npm run allure-report` — generate and open Allure report.
 - Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`.
+- `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
 
 ## Coding Style & Naming Conventions
 - Language: Node.js (CommonJS). Use 2-space indentation, semicolons, single quotes.
