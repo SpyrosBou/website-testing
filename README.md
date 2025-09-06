@@ -140,6 +140,12 @@ open playwright-report/index.html
 - Configure the site via repository Actions variable `SMOKE_SITE` (e.g., `nfsmediation-live`).
 - You can also trigger manually via the "Run workflow" button and provide a site input.
 
+### Deterministic Smoke (optional)
+- A static fixture and local server exist for fully deterministic smoke runs:
+  - Server: `node scripts/static-server.js` (serves `fixtures/static-site/` on `http://127.0.0.1:8080`).
+  - Config: `sites/static-smoke.json`.
+  - CI will auto-start this server when `SMOKE_SITE=static-smoke` or manual input `site=static-smoke`.
+
 ## Local ddev Preflight (Optional)
 - If your site uses ddev and is unreachable, the runner can attempt to start it when:
   - `ENABLE_DDEV=true` and `DDEV_PROJECT_PATH=/path/to/your/wp/project` are set in the environment.

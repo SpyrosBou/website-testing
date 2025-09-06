@@ -7,6 +7,7 @@ const {
   waitForPageStability,
   safeElementInteraction,
 } = require('../utils/test-helpers');
+const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
@@ -19,6 +20,7 @@ const PERFORMANCE_THRESHOLDS = { mobile: 3000, tablet: 2500, desktop: 2000 };
 test.describe('Responsive Structure & UX', () => {
   let siteConfig;
   let errorContext;
+  let wp;
 
   test.beforeEach(async ({ page, context }) => {
     const siteName = process.env.SITE_NAME;
@@ -26,6 +28,7 @@ test.describe('Responsive Structure & UX', () => {
     siteConfig = SiteLoader.loadSite(siteName);
     SiteLoader.validateSiteConfig(siteConfig);
     errorContext = await setupTestPage(page, context);
+    wp = new WordPressPageObjects(page, siteConfig);
   });
 
   test.afterEach(async ({ page, context }) => {
@@ -61,15 +64,9 @@ test.describe('Responsive Structure & UX', () => {
               console.log(`✅ ${viewportName} load time ${loadTime}ms within threshold for ${testPage}`);
             }
 
-            // Critical elements visibility
-            const headerSelectors = ['header', '.header', '.site-header', '.masthead'];
-            const navSelectors = ['nav', '.main-navigation', '.primary-menu', '#main-menu'];
-            const contentSelectors = ['main', '.main', '.content', '#content', '.site-content'];
-            const footerSelectors = ['footer', '.footer', '.site-footer'];
-
-            let headerVisible = false;
-            for (const s of headerSelectors) if (await page.locator(s).isVisible()) { headerVisible = true; break; }
-            expect.soft(headerVisible).toBe(true);
+            // Critical elements via page objects
+            const critical = await wp.verifyCriticalElements();
+            expect.soft(critical.header).toBe(true);
 
             if (viewportName === 'mobile') {
               const mobileNavSelectors = [
@@ -92,21 +89,16 @@ test.describe('Responsive Structure & UX', () => {
                 }
               }
               if (!mobileNavFound) {
-                for (const s of navSelectors) if (await page.locator(s).isVisible()) break;
+                const nav = await wp.verifyCriticalElements();
+                expect.soft(nav.navigation).toBe(true);
               }
             } else {
-              let navVisible = false;
-              for (const s of navSelectors) if (await page.locator(s).isVisible()) { navVisible = true; break; }
-              expect.soft(navVisible).toBe(true);
+              const nav = await wp.verifyCriticalElements();
+              expect.soft(nav.navigation).toBe(true);
             }
-
-            let contentVisible = false;
-            for (const s of contentSelectors) if (await page.locator(s).isVisible()) { contentVisible = true; break; }
-            expect.soft(contentVisible).toBe(true);
-
-            let footerVisible = false;
-            for (const s of footerSelectors) if (await page.locator(s).isVisible()) { footerVisible = true; break; }
-            expect.soft(footerVisible).toBe(true);
+            const again = await wp.verifyCriticalElements();
+            expect.soft(again.content).toBe(true);
+            expect.soft(again.footer).toBe(true);
 
             // Optional basic form visibility/touch checks on mobile
             if (viewportName === 'mobile' && siteConfig.forms && siteConfig.forms.length > 0) {
@@ -193,4 +185,3 @@ test.describe('Responsive Structure & UX', () => {
     });
   });
 });
-

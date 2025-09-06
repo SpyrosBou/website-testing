@@ -37,6 +37,12 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
+      - name: Start static smoke server (if SITE=static-smoke)
+        if: env.SITE == 'static-smoke'
+        run: |
+          node scripts/static-server.js &
+          node scripts/wait-url.js http://127.0.0.1:8080
+
       - name: Run smoke tests (skips if SITE not set)
         if: env.SITE != ''
         run: node run-tests.js --site=${{ env.SITE }} --profile=smoke

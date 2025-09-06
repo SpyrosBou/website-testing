@@ -49,7 +49,8 @@ Phase 2 — Maintainability (1–2 weeks)
 - Lint/format: add ESLint + Prettier, scripts (`lint`, `lint:fix`, `format`), wire into CI. [DONE]
 - Test stability: mask common dynamic elements, allow per-site `visualThresholds`, and `dynamicMasks`. [DONE]
 - Profiles: add `--profile=smoke|full|nightly` and make smoke limit to first page and Chrome. [DONE]
-- Test hygiene: consider splitting monolithic specs into focused files and extract shared assertions. [NEXT]
+- Test hygiene: split monolithic specs into focused files (responsive + functionality). [DONE]
+- Shared assertions: use WordPress page objects for critical elements. [DONE]
 - Docs sync: reconcile README/AGENTS with new profiles and masking guidance. [DONE]
 
 Acceptance: CI enforces linting; repeated runs are stable on the demo site; README matches actual outputs and commands.

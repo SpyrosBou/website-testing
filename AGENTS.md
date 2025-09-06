@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `tests/` Playwright specs: `responsive.spec.js`, `functionality.spec.js`, and `baseline-snapshots/` for visual baselines.
+- `tests/` Playwright specs: responsive (`responsive.*.spec.js`), functionality (`functionality.*.spec.js`), and `baseline-snapshots/` for visual baselines.
 - `sites/` JSON site configs (e.g., `example-site.json`, `*-local.json`, `*-live.json`).
 - `utils/` helpers (`test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`).
 - Reports/artifacts: `allure-results/`, `allure-report/`, `playwright-report/`, `test-results/` (git-ignored).
@@ -16,6 +16,7 @@
 - Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
 - For CI smoke runs, consider `sites/nfsmediation-smoke.json` (homepage only) or use `nfsmediation-live`.
+ - Deterministic CI option: set `SMOKE_SITE=static-smoke` to use the built-in static server (`scripts/static-server.js`) and `sites/static-smoke.json`.
  - Lint/format: `npm run lint`, `npm run lint:fix`, `npm run format`.
 
 ## Coding Style & Naming Conventions
@@ -39,7 +40,7 @@
   - `functionality.wordpress.spec.js` (plugins, theme)
   - `functionality.accessibility.spec.js` (WCAG scans)
 - Snapshot baselines go in `tests/baseline-snapshots/`.
-- Update visual baselines after intentional UI changes: `npx playwright test tests/responsive.spec.js --update-snapshots`.
+- Update visual baselines after intentional UI changes: `npx playwright test tests/responsive.visual.spec.js --update-snapshots`.
 - Generate reports: `npm run allure-report`. Artifacts per site in `test-results/<site>/`.
 
 ## Commit & Pull Request Guidelines
