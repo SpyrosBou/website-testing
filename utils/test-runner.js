@@ -2,6 +2,8 @@ const { spawn } = require('child_process');
 const SiteLoader = require('./site-loader');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+const https = require('https');
 
 class TestRunner {
   
@@ -73,9 +75,6 @@ class TestRunner {
   }
 
   static async runTestsForSite(siteName, options = {}) {
-    // Clean previous Allure results for fresh run
-    this.cleanAllureResults();
-    
     // Validate site exists
     try {
       const siteConfig = SiteLoader.loadSite(siteName);
@@ -84,12 +83,18 @@ class TestRunner {
       console.log(`Base URL: ${siteConfig.baseUrl}`);
       console.log(`Pages to test: ${siteConfig.testPages.join(', ')}`);
       console.log('');
+
+      // Optional local preflight for ddev-based sites
+      await this.preflightLocalSite(siteConfig);
     } catch (error) {
       console.error(`Error: ${error.message}`);
       console.log('');
       this.displaySites();
       throw error;
     }
+
+    // Clean previous Allure results for fresh run
+    this.cleanAllureResults();
     
     // Create test-results directory
     const resultsDir = path.join(process.cwd(), 'test-results', 'screenshots');
@@ -145,6 +150,80 @@ class TestRunner {
         reject(error);
       });
     });
+  }
+
+  static requestReachable(urlString, timeoutMs = 5000) {
+    return new Promise((resolve) => {
+      try {
+        const url = new URL(urlString);
+        const lib = url.protocol === 'https:' ? https : http;
+        const req = lib.request({
+          method: 'GET',
+          protocol: url.protocol,
+          hostname: url.hostname,
+          port: url.port || (url.protocol === 'https:' ? 443 : 80),
+          path: url.pathname || '/',
+          timeout: timeoutMs,
+        }, (res) => {
+          resolve(res.statusCode && res.statusCode < 500);
+        });
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => {
+          req.destroy();
+          resolve(false);
+        });
+        req.end();
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  static async waitUntilReachable(url, { timeoutMs = 120000, intervalMs = 3000 } = {}) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const ok = await this.requestReachable(url, Math.min(intervalMs, 5000));
+      if (ok) return true;
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return false;
+  }
+
+  static async preflightLocalSite(siteConfig) {
+    const baseUrl = siteConfig.baseUrl;
+    const isLocal = /\.ddev\.site|localhost|127\.0\.0\.1/.test(baseUrl);
+    if (!isLocal) return;
+
+    const reachable = await this.requestReachable(baseUrl, 3000);
+    if (reachable) return;
+
+    const enableDdev = String(process.env.ENABLE_DDEV || '').toLowerCase() === 'true';
+    const ddevPath = process.env.DDEV_PROJECT_PATH;
+
+    if (!enableDdev || !ddevPath) {
+      console.log('ℹ️ Local site appears unreachable. Set ENABLE_DDEV=true and DDEV_PROJECT_PATH to auto-start ddev.');
+      return;
+    }
+
+    console.log(`🔧 Attempting to start ddev in ${ddevPath} ...`);
+    try {
+      await new Promise((resolve, reject) => {
+        const child = spawn('ddev', ['start'], { cwd: ddevPath, stdio: 'inherit' });
+        child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`ddev start exited with ${code}`)));
+        child.on('error', reject);
+      });
+    } catch (err) {
+      console.log(`⚠️  ddev start failed: ${err.message}`);
+      return;
+    }
+
+    console.log('⏳ Waiting for local site to become reachable...');
+    const ok = await this.waitUntilReachable(baseUrl, { timeoutMs: 120000, intervalMs: 5000 });
+    if (ok) {
+      console.log('✅ Local site is reachable. Proceeding with tests.');
+    } else {
+      console.log('⚠️  Local site did not become reachable in time. Tests may fail.');
+    }
   }
 
   static cleanAllureResults() {

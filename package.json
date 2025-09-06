@@ -19,8 +19,11 @@
     "allure-report": "npx allure generate allure-results -o allure-report && npx allure open allure-report",
     "allure-serve": "npx allure serve allure-results",
     "clean-allure": "rm -rf allure-results allure-report 2>/dev/null || echo 'Cleaned Allure results and reports'",
-    "clean-backup-html": "rm -rf playwright-report 2>/dev/null || echo 'Cleaned backup HTML report'"
+    "clean-backup-html": "rm -rf playwright-report 2>/dev/null || echo 'Cleaned backup HTML report'",
+    "smoke:nfs": "node run-tests.js --site=nfsmediation-local --responsive --project=Chrome"
   },
+  
+  
   "keywords": [
     "testing",
     "wordpress",

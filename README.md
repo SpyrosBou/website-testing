@@ -19,6 +19,14 @@ Automated testing suite for WordPress websites with responsive design, functiona
    node run-tests.js --site=your-site-name
    ```
 
+4. **Run smoke test (Chrome + responsive only)**
+   ```bash
+   # Against local ddev site (make sure ddev is running)
+   npm run smoke:nfs -- --site=nfsmediation-local
+   # Or directly
+   node run-tests.js --site=nfsmediation-local --responsive --project=Chrome
+   ```
+
 ## Site Configuration
 
 Create a JSON file in the `sites/` directory for each WordPress site you want to test:
@@ -60,6 +68,9 @@ node run-tests.js --site=my-site
 
 # Using npm script (pass args after --)
 npm run test:site -- --site=my-site
+
+# Smoke test helper (nfs ddev)
+npm run smoke:nfs
 
 # Run only responsive tests
 node run-tests.js --site=my-site --responsive
@@ -111,6 +122,19 @@ After tests complete, open the Playwright HTML report:
 open playwright-report/index.html
 📸 Screenshots and videos: ./test-results/
 ```
+
+## CI & Scheduling
+- GitHub Actions runs smoke tests on:
+  - Pull requests and pushes to `main`.
+  - Nightly at 02:00 UTC (cron).
+- Configure the site via repository Actions variable `SMOKE_SITE` (e.g., `nfsmediation-live`).
+- You can also trigger manually via the "Run workflow" button and provide a site input.
+
+## Local ddev Preflight (Optional)
+- If your site uses ddev and is unreachable, the runner can attempt to start it when:
+  - `ENABLE_DDEV=true` and `DDEV_PROJECT_PATH=/path/to/your/wp/project` are set in the environment.
+  - The site `baseUrl` contains `.ddev.site`.
+- The runner will try `ddev start` and wait up to 2 minutes for the site to respond.
 
 ### Managing Reports
 ```bash

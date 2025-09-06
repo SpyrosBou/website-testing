@@ -60,7 +60,7 @@ Phase 3 — Extensibility (Optional)
 Acceptance: type-safe helpers; clearer layering; optional advanced profiles.
 
 ## 5) CI/CD Plan (Sketch)
-- Trigger: PRs and `main` pushes.
+- Triggers: PRs and `main` pushes; nightly (02:00 UTC) schedule; manual dispatch with site input.
 - Jobs: Node 18/20 matrix; install, setup browsers, run smoke tests (`--responsive --project=Chrome`), upload HTML report and traces.
 - Cache: npm cache and Playwright browsers where feasible.
 
@@ -74,6 +74,7 @@ Acceptance: type-safe helpers; clearer layering; optional advanced profiles.
 - Style: CommonJS, 2-space indent, semicolons, single quotes.
 - Naming: test files `*.spec.js`, site configs `*-local.json` / `*-live.json`.
 - Secrets: do not commit `.env`; live sites are read-only; avoid destructive paths.
+- Local preflight: for `.ddev.site` bases, optional `ENABLE_DDEV=true` with `DDEV_PROJECT_PATH` to auto-start and wait for the local site.
 
 ## 8) Deliverables & Acceptance Criteria (Summary)
 - P0: Non-interactive reliability + Allure works locally and in CI.

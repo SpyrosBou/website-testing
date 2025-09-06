@@ -4,6 +4,14 @@ on:
   pull_request:
   push:
     branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *' # daily at 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'Site config name (e.g., example-site)'
+        required: false
+        type: string
 
 jobs:
   smoke:
@@ -12,7 +20,7 @@ jobs:
       matrix:
         node-version: [18.x, 20.x]
     env:
-      SMOKE_SITE: ${{ vars.SMOKE_SITE }}
+      SITE: ${{ github.event.inputs.site || vars.SMOKE_SITE }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,14 +37,18 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Run smoke tests (skips if SMOKE_SITE not set)
-        if: env.SMOKE_SITE != ''
-        run: node run-tests.js --site=${{ env.SMOKE_SITE }} --responsive --project=Chrome
+      - name: Run smoke tests (skips if SITE not set)
+        if: env.SITE != ''
+        run: node run-tests.js --site=${{ env.SITE }} --responsive --project=Chrome
 
-      - name: Skip notice (SMOKE_SITE not set)
-        if: env.SMOKE_SITE == ''
+      - name: Skip notice (SITE not set)
+        if: env.SITE == ''
         run: |
-          echo "Skipping smoke tests. Set repository variable SMOKE_SITE to a reachable site (e.g., example-site) to enable."
+          echo "Skipping smoke tests. Set repo variable SMOKE_SITE or provide a 'site' input on manual runs."
+
+    concurrency:
+      group: smoke-${{ github.ref }}
+      cancel-in-progress: true
 
       - name: Upload Playwright HTML report
         if: always()
