@@ -72,6 +72,10 @@ npm run test:site -- --site=my-site
 # Smoke test helper (nfs ddev)
 npm run smoke:nfs
 
+## Smoke Site Config
+- A minimal CI-friendly config is provided at `sites/nfsmediation-smoke.json` (points to `https://nfs.atelierdev.uk`, homepage only).
+- For CI, set the repository Actions variable `SMOKE_SITE=nfsmediation-live` or `nfsmediation-smoke`.
+
 # Run only responsive tests
 node run-tests.js --site=my-site --responsive
 

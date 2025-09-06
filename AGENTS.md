@@ -14,6 +14,7 @@
 - `npm run allure-report` — generate and open Allure report.
 - Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
+- For CI smoke runs, consider `sites/nfsmediation-smoke.json` (homepage only) or use `nfsmediation-live`.
 
 ## Coding Style & Naming Conventions
 - Language: Node.js (CommonJS). Use 2-space indentation, semicolons, single quotes.

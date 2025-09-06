@@ -57,3 +57,5 @@ jobs:
           name: playwright-report-${{ matrix.node-version }}
           path: playwright-report
           if-no-files-found: ignore
+      - name: Lint
+        run: npm run lint
