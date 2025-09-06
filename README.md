@@ -17,8 +17,6 @@ Automated testing suite for WordPress websites with responsive design, functiona
 3. **Run tests**
    ```bash
    node run-tests.js --site=your-site-name
-   # OR use interactive mode
-   node run-tests.js --interactive
    ```
 
 ## Site Configuration
@@ -72,7 +70,7 @@ node run-tests.js --site=my-site --headed
 # Test specific browser
 node run-tests.js --site=my-site --project="Chrome"
 node run-tests.js --site=my-site --project="Firefox"
-node run-tests.js --site=my-site --project="Safari"  # macOS only
+node run-tests.js --site=my-site --project="Safari"  # WebKit engine
 ```
 
 ## What Gets Tested
@@ -105,10 +103,10 @@ node run-tests.js --site=my-site --project="Safari"  # macOS only
 - **Console Output**: Shows exact report path to open after each run
 
 ### Viewing Reports
-After tests complete, the console will show exactly which report to open:
+After tests complete, open the Playwright HTML report:
 ```bash
-📊 View detailed report: open playwright-report-2025-01-14T10-30-15/index.html
-📸 Screenshots and videos: ./test-results/nfsmediation-local/
+open playwright-report/index.html
+📸 Screenshots and videos: ./test-results/
 ```
 
 ### Managing Reports
@@ -126,16 +124,14 @@ npm run clean-old-results
 npm run clean-all-results
 ```
 
-**Note**: HTML reports are timestamped and preserved permanently, while test artifacts (videos/screenshots) are overwritten each run per site.
+**Note**: HTML report is located at `playwright-report/index.html`. Test artifacts (videos/screenshots) are stored in `test-results/`.
 
 ## Browser Coverage
 
 Tests run on:
 - Desktop Chrome & Firefox
-- **Desktop Safari** (macOS only - uses real Safari browser)
-- Mobile Chrome (Pixel 5)
-- Mobile Safari (iPhone 12) 
-- Tablet (iPad Pro)
+- Safari (WebKit engine)
+- Mobile and tablet viewports via device profiles
 
 ## Troubleshooting
 

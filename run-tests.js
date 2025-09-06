@@ -2,7 +2,6 @@
 
 const minimist = require('minimist');
 const TestRunner = require('./utils/test-runner');
-const InteractiveMode = require('./interactive-mode/interactive');
 
 // Parse command line arguments
 const argv = minimist(process.argv.slice(2));
@@ -11,15 +10,12 @@ function showUsage() {
   console.log(`
 WordPress Testing Suite Usage:
 
-  node run-tests.js                 # Interactive mode (recommended)
   npm test                          # Run tests for example-site
-  npm run test:site example-site    # Test specific site
-  node run-tests.js --site=my-site  # Alternative syntax
+  node run-tests.js --site=my-site  # Run for specific site
   node run-tests.js --list          # List available sites
   node run-tests.js --help          # Show this help
 
 Available options:
-  --interactive       Start interactive mode
   --site=SITE_NAME    Test specific site configuration
   --responsive        Run only responsive tests
   --functionality     Run only functionality tests  
@@ -27,7 +23,7 @@ Available options:
   --help              Show this help message
 
 Examples:
-  node run-tests.js                              # Interactive mode
+  npm test                                       # Default run for example-site
   node run-tests.js --site=daygroup-local        # Test local development site
   node run-tests.js --site=daygroup-live         # Test live production site
   node run-tests.js --site=nfsmediation-local --responsive
@@ -69,17 +65,7 @@ async function runTests() {
 }
 
 async function main() {
-  // Check if no arguments provided or interactive flag
-  const hasArguments = Object.keys(argv).length > 1 || (Object.keys(argv).length === 1 && argv._?.length > 0);
-  
-  if (!hasArguments || argv.interactive) {
-    // Start interactive mode
-    const interactive = new InteractiveMode();
-    await interactive.start();
-  } else {
-    // Run CLI mode
-    await runTests();
-  }
+  await runTests();
 }
 
 main().catch(console.error);

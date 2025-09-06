@@ -134,10 +134,8 @@ class TestRunner {
           console.log('❌ Some tests failed.');
         }
         console.log('📊 Generate Allure report: npm run allure-report');
-        console.log(`📸 Test artifacts: ./test-results/${siteName}/`);
-        
-        // Clean up any orphaned report server processes
-        this.killOrphanedReportServers();
+        console.log('🧭 HTML report: ./playwright-report/index.html');
+        console.log('📸 Test artifacts: ./test-results/');
         
         resolve({ code, siteName });
       });
@@ -159,17 +157,8 @@ class TestRunner {
     }
   }
 
-  static killOrphanedReportServers() {
-    const { exec } = require('child_process');
-    
-    // Kill any node processes running playwright report servers
-    exec('pkill -f "playwright.*report"', (error, stdout, stderr) => {
-      // Ignore errors - it's normal if no processes are found
-      if (stdout || stderr) {
-        console.log('🧹 Cleaned up report server processes');
-      }
-    });
-  }
+  // Removed unsafe process cleanup; no-op retained for compatibility
+  static killOrphanedReportServers() { /* no-op */ }
 
   static async updateBaselines(siteName) {
     console.log(`Updating visual baselines for: ${siteName}`);
