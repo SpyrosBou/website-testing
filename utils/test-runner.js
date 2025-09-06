@@ -107,7 +107,7 @@ class TestRunner {
     if (options.responsive) {
       testPattern = './tests/responsive.*.spec.js';
     } else if (options.functionality) {
-      testPattern = './tests/functionality.spec.js';
+      testPattern = './tests/functionality.*.spec.js';
     }
     
     // Set environment variables for test execution

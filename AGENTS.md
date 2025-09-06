@@ -27,7 +27,18 @@
 ## Testing Guidelines
 - Frameworks: `@playwright/test` + `@axe-core/playwright`; reporting via `allure-playwright`.
 - Required env: set `SITE_NAME` implicitly via runner (`--site=<name>`). Running Playwright directly: `SITE_NAME=my-site npx playwright test`.
-- Add new tests under `tests/`; responsive specs are split into `responsive.structure.spec.js`, `responsive.visual.spec.js`, `responsive.a11y.spec.js`. Snapshot baselines go in `tests/baseline-snapshots/`.
+- Add new tests under `tests/`.
+- Responsive specs are split into:
+  - `responsive.structure.spec.js` (layout/critical elements, cross-viewport consistency, WP features)
+  - `responsive.visual.spec.js` (visual regression with masks/thresholds)
+  - `responsive.a11y.spec.js` (axe-core scans)
+- Functionality specs are split into:
+  - `functionality.infrastructure.spec.js` (availability, responses, performance)
+  - `functionality.links.spec.js` (internal links)
+  - `functionality.interactive.spec.js` (JS errors, forms)
+  - `functionality.wordpress.spec.js` (plugins, theme)
+  - `functionality.accessibility.spec.js` (WCAG scans)
+- Snapshot baselines go in `tests/baseline-snapshots/`.
 - Update visual baselines after intentional UI changes: `npx playwright test tests/responsive.spec.js --update-snapshots`.
 - Generate reports: `npm run allure-report`. Artifacts per site in `test-results/<site>/`.
 

@@ -85,7 +85,7 @@ npm run smoke:nfs
 # Run only responsive tests (all responsive specs)
 node run-tests.js --site=my-site --responsive
 
-# Run only functionality tests  
+# Run only functionality tests (all functionality specs)
 node run-tests.js --site=my-site --functionality
 
 # Run with browser visible (debugging)
