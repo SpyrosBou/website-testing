@@ -46,9 +46,11 @@ Phase 1 — CI + Defaults (2–3 days)
 Acceptance: PRs run smoke tests in CI and produce an artifact. Repo is runnable with zero external prerequisites beyond Node + browsers.
 
 Phase 2 — Maintainability (1–2 weeks)
-- Lint/format: add ESLint + Prettier, scripts (`lint`, `lint:fix`, `format`), wire into CI.
-- Test hygiene: split long specs; extract common assertions; add masking/stabilization for dynamic areas; tighten visual thresholds per page/area.
-- Docs sync: reconcile README with reporting behavior; document snapshot/baseline workflow.
+- Lint/format: add ESLint + Prettier, scripts (`lint`, `lint:fix`, `format`), wire into CI. [DONE]
+- Test stability: mask common dynamic elements, allow per-site `visualThresholds`, and `dynamicMasks`. [DONE]
+- Profiles: add `--profile=smoke|full|nightly` and make smoke limit to first page and Chrome. [DONE]
+- Test hygiene: consider splitting monolithic specs into focused files and extract shared assertions. [NEXT]
+- Docs sync: reconcile README/AGENTS with new profiles and masking guidance. [DONE]
 
 Acceptance: CI enforces linting; repeated runs are stable on the demo site; README matches actual outputs and commands.
 

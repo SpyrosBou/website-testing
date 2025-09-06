@@ -105,7 +105,7 @@ class TestRunner {
     // Determine which tests to run
     let testPattern = './tests/*.spec.js';
     if (options.responsive) {
-      testPattern = './tests/responsive.spec.js';
+      testPattern = './tests/responsive.*.spec.js';
     } else if (options.functionality) {
       testPattern = './tests/functionality.spec.js';
     }
@@ -128,7 +128,11 @@ class TestRunner {
     return new Promise((resolve, reject) => {
       const playwright = spawn('npx', ['playwright', ...playwrightArgs], {
         stdio: 'inherit',
-        env: { ...process.env, SITE_NAME: siteName }
+        env: { 
+          ...process.env, 
+          SITE_NAME: siteName,
+          SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || ''
+        }
       });
       
       playwright.on('close', (code) => {

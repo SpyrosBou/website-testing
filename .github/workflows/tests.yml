@@ -39,7 +39,7 @@ jobs:
 
       - name: Run smoke tests (skips if SITE not set)
         if: env.SITE != ''
-        run: node run-tests.js --site=${{ env.SITE }} --responsive --project=Chrome
+        run: node run-tests.js --site=${{ env.SITE }} --profile=smoke
 
       - name: Skip notice (SITE not set)
         if: env.SITE == ''

@@ -73,11 +73,16 @@ npm run test:site -- --site=my-site
 # Smoke test helper (nfs ddev)
 npm run smoke:nfs
 
+### Profiles
+- `--profile=smoke` → responsive-only, Chrome-only, single page (fast).
+- `--profile=full` → default behavior (all enabled specs, all configured projects).
+- `--profile=nightly` → same as full; reserve for longer, scheduled runs.
+
 ## Smoke Site Config
 - A minimal CI-friendly config is provided at `sites/nfsmediation-smoke.json` (points to `https://nfs.atelierdev.uk`, homepage only).
 - For CI, set the repository Actions variable `SMOKE_SITE=nfsmediation-live` or `nfsmediation-smoke`.
 
-# Run only responsive tests
+# Run only responsive tests (all responsive specs)
 node run-tests.js --site=my-site --responsive
 
 # Run only functionality tests  

@@ -17,6 +17,7 @@ WordPress Testing Suite Usage:
 
 Available options:
   --site=SITE_NAME    Test specific site configuration
+  --profile=smoke|full|nightly  Preset options (smoke = responsive+Chrome)
   --responsive        Run only responsive tests
   --functionality     Run only functionality tests  
   --list              List all available site configurations
@@ -47,14 +48,22 @@ async function runTests() {
   // Determine site to test
   const siteName = argv.site || argv.s || 'example-site';
   
-  // Build options from CLI arguments
+  // Build options from CLI arguments and profile
+  const profile = argv.profile;
   const options = {
     responsive: argv.responsive,
     functionality: argv.functionality,
     headed: argv.headed,
     debug: argv.debug,
-    project: argv.project
+    project: argv.project,
+    profile
   };
+
+  if (profile === 'smoke') {
+    options.responsive = true;
+    options.functionality = false;
+    options.project = options.project || 'Chrome';
+  }
   
   try {
     const result = await TestRunner.runTestsForSite(siteName, options);

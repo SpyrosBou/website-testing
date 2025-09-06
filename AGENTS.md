@@ -11,6 +11,7 @@
 - `npm test` or `node run-tests.js` — run suite for `example-site` (CLI only; no interactive mode).
 - `node run-tests.js --site=<name>` — run against a specific config.
 - `--responsive` / `--functionality` — filter suites (example: `node run-tests.js --site=daygroup-local --responsive`).
+- `--profile=smoke|full|nightly` — presets for common runs (smoke = responsive + Chrome + first page only).
 - `npm run allure-report` — generate and open Allure report.
 - Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
@@ -26,7 +27,7 @@
 ## Testing Guidelines
 - Frameworks: `@playwright/test` + `@axe-core/playwright`; reporting via `allure-playwright`.
 - Required env: set `SITE_NAME` implicitly via runner (`--site=<name>`). Running Playwright directly: `SITE_NAME=my-site npx playwright test`.
-- Add new tests under `tests/`; snapshot baselines go in `tests/baseline-snapshots/`.
+- Add new tests under `tests/`; responsive specs are split into `responsive.structure.spec.js`, `responsive.visual.spec.js`, `responsive.a11y.spec.js`. Snapshot baselines go in `tests/baseline-snapshots/`.
 - Update visual baselines after intentional UI changes: `npx playwright test tests/responsive.spec.js --update-snapshots`.
 - Generate reports: `npm run allure-report`. Artifacts per site in `test-results/<site>/`.
 
