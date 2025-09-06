@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
@@ -52,10 +55,6 @@ jobs:
         run: |
           echo "Skipping smoke tests. Set repo variable SMOKE_SITE or provide a 'site' input on manual runs."
 
-    concurrency:
-      group: smoke-${{ github.ref }}
-      cancel-in-progress: true
-
       - name: Upload Playwright HTML report
         if: always()
         uses: actions/upload-artifact@v4
@@ -63,5 +62,7 @@ jobs:
           name: playwright-report-${{ matrix.node-version }}
           path: playwright-report
           if-no-files-found: ignore
-      - name: Lint
-        run: npm run lint
+
+    concurrency:
+      group: smoke-${{ github.ref }}
+      cancel-in-progress: true
