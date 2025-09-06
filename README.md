@@ -37,6 +37,11 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
   "baseUrl": "https://mywordpresssite.com",
   "testPages": ["/", "/about", "/contact"],
   "visualThresholds": { "ui_elements": 0.1, "content": 0.25, "dynamic": 0.5 },
+  "dynamicMasks": [".breaking-news", ".ticker"],
+  "visualOverrides": [
+    { "match": "/", "threshold": 0.35, "masks": [".dynamic-widget"] },
+    { "pattern": "^/blog", "threshold": 0.4 }
+  ],
   "forms": [
     {
       "name": "Contact Form",
@@ -72,6 +77,9 @@ npm run test:site -- --site=my-site
 
 # Smoke test helper (nfs ddev)
 npm run smoke:nfs
+
+# Update visual baselines for a site (responsive visuals only)
+npm run update-baselines -- --site=my-site
 
 ### Profiles
 - `--profile=smoke` → responsive-only, Chrome-only, single page (fast).

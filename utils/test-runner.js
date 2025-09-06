@@ -247,7 +247,7 @@ class TestRunner {
     console.log(`Updating visual baselines for: ${siteName}`);
     
     return new Promise((resolve, reject) => {
-      const playwright = spawn('npx', ['playwright', 'test', 'tests/responsive.spec.js', '--update-snapshots', 'all'], {
+      const playwright = spawn('npx', ['playwright', 'test', 'tests/responsive.visual.spec.js', '--update-snapshots', 'all'], {
         stdio: 'inherit',
         env: { ...process.env, SITE_NAME: siteName }
       });

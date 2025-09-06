@@ -20,6 +20,7 @@ Available options:
   --profile=smoke|full|nightly  Preset options (smoke = responsive+Chrome)
   --responsive        Run only responsive tests
   --functionality     Run only functionality tests  
+  --update-baselines  Update visual baselines for responsive visual tests
   --list              List all available site configurations
   --help              Show this help message
 
@@ -42,6 +43,11 @@ async function runTests() {
   
   if (argv.list || argv.l) {
     TestRunner.displaySites();
+    return;
+  }
+  if (argv['update-baselines'] || argv.updateBaselines) {
+    const siteName = argv.site || argv.s || 'example-site';
+    await TestRunner.updateBaselines(siteName);
     return;
   }
   

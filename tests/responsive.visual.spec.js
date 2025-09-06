@@ -77,10 +77,20 @@ test.describe('Responsive Visual Regression', () => {
               .replace(/\s+/g, '-')}-${pageName}-${viewportName}-${browserName}.png`;
 
             const thresholds = siteConfig.visualThresholds || DEFAULT_VISUAL_THRESHOLDS;
-            const threshold =
-              testPage === '/' || testPage.includes('home')
-                ? thresholds.dynamic
-                : thresholds.content;
+            let threshold = testPage === '/' || testPage.includes('home')
+              ? thresholds.dynamic
+              : thresholds.content;
+
+            // Per-page visual overrides
+            const overrides = Array.isArray(siteConfig.visualOverrides) ? siteConfig.visualOverrides : [];
+            const matchOverride = overrides.find((ovr) => {
+              if (ovr && typeof ovr.match === 'string' && ovr.match === testPage) return true;
+              if (ovr && typeof ovr.page === 'string' && ovr.page === testPage) return true;
+              if (ovr && typeof ovr.pattern === 'string') {
+                try { return new RegExp(ovr.pattern).test(testPage); } catch (_) { return false; }
+              }
+              return false;
+            });
 
             const maskSelectors = [
               'time',
@@ -92,7 +102,11 @@ test.describe('Responsive Visual Regression', () => {
               'iframe',
               'video',
               'canvas',
-            ].concat(siteConfig.dynamicMasks || []);
+            ].concat(siteConfig.dynamicMasks || [])
+             .concat(matchOverride?.masks || matchOverride?.maskSelectors || []);
+            if (typeof matchOverride?.threshold === 'number') {
+              threshold = matchOverride.threshold;
+            }
             const masks = maskSelectors.map((sel) => page.locator(sel));
 
             try {
@@ -115,4 +129,3 @@ test.describe('Responsive Visual Regression', () => {
     });
   });
 });
-

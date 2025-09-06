@@ -40,7 +40,9 @@
   - `functionality.wordpress.spec.js` (plugins, theme)
   - `functionality.accessibility.spec.js` (WCAG scans)
 - Snapshot baselines go in `tests/baseline-snapshots/`.
-- Update visual baselines after intentional UI changes: `npx playwright test tests/responsive.visual.spec.js --update-snapshots`.
+- Update visual baselines after intentional UI changes:
+  - CLI: `npx playwright test tests/responsive.visual.spec.js --update-snapshots`
+  - Runner helper: `node run-tests.js --update-baselines --site=<name>` or `npm run update-baselines -- --site=<name>`
 - Generate reports: `npm run allure-report`. Artifacts per site in `test-results/<site>/`.
 
 ## Commit & Pull Request Guidelines

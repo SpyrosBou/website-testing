@@ -21,6 +21,7 @@
     "clean-allure": "node scripts/cleanup.js clean-allure",
     "clean-backup-html": "node scripts/cleanup.js clean-backup-html",
     "smoke:nfs": "node run-tests.js --site=nfsmediation-local --responsive --project=Chrome",
+    "update-baselines": "node run-tests.js --update-baselines --site=example-site",
     "lint": "eslint run-tests.js utils/**/*.js scripts/**/*.js playwright.config.js",
     "lint:fix": "eslint run-tests.js utils/**/*.js scripts/**/*.js playwright.config.js --fix",
     "format": "prettier -w ."
