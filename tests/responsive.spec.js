@@ -45,9 +45,9 @@ const PERFORMANCE_THRESHOLDS = {
 };
 
 // Visual regression thresholds based on content type
-const VISUAL_THRESHOLDS = {
+const DEFAULT_VISUAL_THRESHOLDS = {
   ui_elements: 0.1,      // 10% for UI elements (buttons, navigation)
-  content: 0.3,          // 30% for content areas (text, images)
+  content: 0.25,         // 25% for content areas (text, images)
   dynamic: 0.5           // 50% for dynamic content (feeds, timestamps)
 };
 
@@ -264,15 +264,27 @@ test.describe("Responsive Design and Visual Regression Testing", () => {
             const screenshotName = `${siteConfig.name.toLowerCase().replace(/\s+/g, '-')}-${pageName}-${viewportName}-${browserName}.png`;
             
             // Take full page screenshot with appropriate threshold
+            const thresholds = siteConfig.visualThresholds || DEFAULT_VISUAL_THRESHOLDS;
             const threshold = testPage === '/' || testPage.includes('home') ? 
-              VISUAL_THRESHOLDS.dynamic : VISUAL_THRESHOLDS.content;
+              thresholds.dynamic : thresholds.content;
+
+            // Mask common dynamic elements to reduce false positives
+            const maskSelectors = [
+              'time',
+              '.wp-block-latest-posts__post-date',
+              '.wp-block-latest-comments__comment-date',
+              '.carousel', '.slider', '.ticker',
+              'iframe', 'video', 'canvas'
+            ];
+            const masks = maskSelectors.map(sel => page.locator(sel));
             
             try {
               await expect(page).toHaveScreenshot(screenshotName, {
                 fullPage: true,
                 threshold: threshold,
                 maxDiffPixels: 1000,
-                animations: 'disabled'
+                animations: 'disabled',
+                mask: masks
               });
               
               console.log(`✅ Visual regression passed for ${testPage} (${viewportName})`);

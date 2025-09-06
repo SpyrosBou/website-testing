@@ -36,6 +36,7 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
   "name": "My WordPress Site",
   "baseUrl": "https://mywordpresssite.com",
   "testPages": ["/", "/about", "/contact"],
+  "visualThresholds": { "ui_elements": 0.1, "content": 0.25, "dynamic": 0.5 },
   "forms": [
     {
       "name": "Contact Form",
