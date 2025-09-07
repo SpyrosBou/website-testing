@@ -26,11 +26,11 @@ test.describe('Functionality: WordPress Specific', () => {
         const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
         if (response.status() !== 200) return;
         await waitForPageStability(page);
-        if (await page.locator('.wpcf7-form, .wpcf7').isVisible()) detected.push('Contact Form 7');
-        if (await page.locator('.gform_wrapper').isVisible()) detected.push('Gravity Forms');
-        if (await page.locator('.wpforms-form').isVisible()) detected.push('WPForms');
-        const yoastMeta = await page.locator('meta[name="generator"][content*="Yoast"]').isVisible();
-        if (yoastMeta) detected.push('Yoast SEO');
+        if ((await page.locator('.wpcf7-form, .wpcf7').count()) > 0) detected.push('Contact Form 7');
+        if ((await page.locator('.gform_wrapper').count()) > 0) detected.push('Gravity Forms');
+        if ((await page.locator('.wpforms-form').count()) > 0) detected.push('WPForms');
+        const yoastMeta = await page.locator('meta[name="generator"][content*="Yoast"]').count();
+        if (yoastMeta > 0) detected.push('Yoast SEO');
       });
     }
     if (detected.length > 0) console.log(`📊 Detected plugins: ${detected.join(', ')}`);
@@ -60,4 +60,3 @@ test.describe('Functionality: WordPress Specific', () => {
     });
   });
 });
-

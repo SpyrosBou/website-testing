@@ -1,6 +1,6 @@
 {
   "name": "NFS Mediation (Local)",
-  "baseUrl": "https://nfsmediation.local",
+  "baseUrl": "https://nfs.ddev.site",
   "testPages": [
     "/",
     "/about-us/",

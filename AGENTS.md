@@ -13,6 +13,7 @@
 - `--responsive` / `--functionality` — filter suites (example: `node run-tests.js --site=daygroup-local --responsive`).
 - `--profile=smoke|full|nightly` — presets for common runs (smoke = responsive + Chrome + first page only).
 - `npm run allure-report` — generate and open Allure report.
+- Note: Allure requires Java. If Java is missing, use Playwright HTML report (`playwright-report/index.html`) or `npx playwright show-report`.
 - Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
 - For CI smoke runs, consider `sites/nfsmediation-smoke.json` (homepage only) or use `nfsmediation-live`.

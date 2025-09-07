@@ -141,6 +141,12 @@ open playwright-report/index.html
 📸 Screenshots and videos: ./test-results/
 ```
 
+Allure (optional)
+- Allure requires a Java runtime. If Java is installed:
+  - Generate and open: `npm run allure-report`
+  - Live server: `npm run allure-serve`
+- If Java is not installed, use Playwright HTML report (`playwright-report/index.html`) or `npx playwright show-report`.
+
 ## CI & Scheduling
 - GitHub Actions runs smoke tests on:
   - Pull requests and pushes to `main`.
