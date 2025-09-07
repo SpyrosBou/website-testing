@@ -12,36 +12,36 @@ Non-goals: destructive authoring flows, plugin unit tests, and large-scale load/
 ## 2) Architecture Snapshot (Current)
 - Stack: Node.js (CommonJS), Playwright, axe-core, Allure (allure-playwright plugin).
 - Key directories:
-  - `tests/` specs: `responsive.spec.js`, `functionality.spec.js`, `baseline-snapshots/`.
-  - `utils/` helpers: `test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`.
-  - `sites/` JSON configs per site (`*-local.json`, `*-live.json`).
-  - Reports/artifacts: `playwright-report/`, `test-results/`, `allure-results/`, `allure-report/`.
-- Entrypoints: `run-tests.js` (CLI); `playwright.config.js` (projects/reporters).
+  - `tests/` specs:
+    - Responsive: `responsive.structure.spec.js`, `responsive.visual.spec.js`, `responsive.a11y.spec.js`
+    - Functionality: `functionality.infrastructure.spec.js`, `functionality.links.spec.js`, `functionality.interactive.spec.js`, `functionality.accessibility.spec.js`, `functionality.wordpress.spec.js`
+    - `baseline-snapshots/` for visual baselines
+  - `utils/`: `test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`
+  - `sites/`: JSON configs per site (`*-local.json`, `*-live.json`, `*-smoke.json`)
+  - `scripts/`: `cleanup.js`, `allure.js`, `static-server.js`, `wait-url.js`
+  - `fixtures/static-site/`: deterministic static pages for smoke
+  - Reports/artifacts: `playwright-report/`, `test-results/`, `allure-results/`, `allure-report/`
+- Entrypoints: `run-tests.js` (CLI profiles/flags); `playwright.config.js` (projects/reporters)
 
 ## 3) Risks and Issues (Priority)
-1. Non-TTY runs default to interactive UI → CI hangs or exits without running tests.
-2. Script/behavior mismatches: interactive CLI references missing scripts and runner fields.
-3. Reporting/doc drift: printed paths don’t match actual output; lack of timestamped HTML reports.
-4. Fragile process management: `pkill` usage may kill unrelated processes and is non-portable.
-5. Allure CLI not guaranteed: `npx allure` requires global tool; not a devDependency.
-6. Default example site is a placeholder → out-of-the-box tests fail.
-7. No CI test gate; no lint/format enforcement.
+- Addressed: interactive mode removed; runner outputs aligned; safer process mgmt; docs synced; lockfile/CI setup; cross‑platform cleanup.
+- Allure requires Java: surfaced with a wrapper (`scripts/allure.js`) and fallback to Playwright HTML report when Java is absent.
+- Site-specific selectors and a11y: some themes may need selector tuning; WCAG tests may fail until violations are fixed.
 
 ## 4) Roadmap (Phased)
 
 Phase 0 — Stabilize (1–2 days)
-- Remove interactive mode; CLI only with flags. Default behavior runs tests for `example-site` when no `--site` provided.
-- Runner output: return and print actual report/artifact paths; remove dead fields.
-- Interactive menu: align to existing scripts or add missing ones; avoid dead links.
-- Process mgmt: remove/guard `pkill` (no-op on unsupported OS, scope to session/PID).
-- Allure: add `allure-commandline` devDependency; ensure `npm run allure-report` uses it.
+- Remove interactive mode; CLI only with flags. [DONE]
+- Runner output aligned; dead fields removed. [DONE]
+- Process management hardened; `pkill` removed. [DONE]
+- Allure wrapper added with Java check and fallback. [DONE]
 
 Acceptance: `npm test` and `node run-tests.js --site=<valid-site>` succeed locally and in a headless CI shell; Allure report generation works without global installs.
 
 Phase 1 — CI + Defaults (2–3 days)
-- CI: add GitHub Actions (Node 18/20) with steps: `npm ci`, `npm run setup`, smoke run (`--responsive`, `--project=Chrome`). Upload `playwright-report`.
-- Defaults: point `sites/example-site.json` to a stable public demo or provide a tiny mock/static server for CI; ensure non-destructive flows.
-- Cross-platform: replace `rm -rf`/`find` with Node APIs or `rimraf` in scripts.
+- CI (Node 18/20): `npm ci` → `npm run lint` → install browsers → optional static server → smoke run (`--profile=smoke`) → upload HTML report. [DONE]
+- Defaults: `sites/example-site.json` → https://example.com; added `sites/static-smoke.json` and static server for deterministic smoke. [DONE]
+- Cross‑platform cleanup via `scripts/cleanup.js`. [DONE]
 
 Acceptance: PRs run smoke tests in CI and produce an artifact. Repo is runnable with zero external prerequisites beyond Node + browsers.
 
@@ -52,6 +52,8 @@ Phase 2 — Maintainability (1–2 weeks)
 - Test hygiene: split monolithic specs into focused files (responsive + functionality). [DONE]
 - Shared assertions: use WordPress page objects for critical elements. [DONE]
 - Docs sync: reconcile README/AGENTS with new profiles and masking guidance. [DONE]
+- Per-page visuals: `visualOverrides` support (threshold/masks). [DONE]
+- Baseline helper: `--update-baselines` for responsive visuals. [DONE]
 
 Acceptance: CI enforces linting; repeated runs are stable on the demo site; README matches actual outputs and commands.
 
@@ -63,15 +65,16 @@ Phase 3 — Extensibility (Optional)
 Acceptance: type-safe helpers; clearer layering; optional advanced profiles.
 
 ## 5) CI/CD Plan (Sketch)
-- Triggers: PRs and `main` pushes; nightly (02:00 UTC) schedule; manual dispatch with site input.
-- Jobs: Node 18/20 matrix; install, setup browsers, run smoke tests (`--responsive --project=Chrome`), upload HTML report and traces.
-- Cache: npm cache and Playwright browsers where feasible.
+- Triggers: PRs and `main` pushes; nightly (02:00 UTC); manual dispatch with site input.
+- Jobs: Node 18/20; `npm ci` → `npm run lint` → `npx playwright install --with-deps` → (if SITE=static-smoke start server) → `node run-tests.js --site=$SITE --profile=smoke` → upload HTML report.
+- SITE source: manual input `site` or repo variable `SMOKE_SITE`.
 
 ## 6) Test Strategy
-- Smoke: responsive subset on homepage + 1–2 pages, single browser.
+- Smoke: responsive subset (first page only), Chrome, via profile; deterministic option `static-smoke`.
 - Full: responsive + functionality suites across configured pages and multiple projects.
-- Baselines: store under `tests/baseline-snapshots/`; update intentionally via `--update-snapshots` and review diffs.
-- Accessibility: axe-core scans limited to sample pages per run for speed; escalate serious/critical only.
+- Visuals: per-site thresholds (`visualThresholds`), global+per-page masks (`dynamicMasks`, `visualOverrides`).
+- Baselines: `tests/baseline-snapshots/`; update via runner (`--update-baselines`) or direct Playwright update.
+- Accessibility: axe-core scans; critical/serious currently fail tests.
 
 ## 7) Operating Norms
 - Style: CommonJS, 2-space indent, semicolons, single quotes.
@@ -93,5 +96,7 @@ Acceptance: type-safe helpers; clearer layering; optional advanced profiles.
 - Full run: `node run-tests.js --site=<name>`
 - Responsive only: `node run-tests.js --site=<name> --responsive`
 - Functionality only: `node run-tests.js --site=<name> --functionality`
-- Allure report: `npm run allure-report`
-- Update snapshots: `npx playwright test tests/responsive.spec.js --update-snapshots`
+- Smoke profile: `node run-tests.js --site=<name> --profile=smoke`
+- Deterministic smoke: set `SMOKE_SITE=static-smoke` in CI (auto-starts static server)
+- Baselines: `npm run update-baselines -- --site=<name>` (responsive visuals)
+- Allure report: `npm run allure-report` (requires Java; fallback is Playwright HTML report)
