@@ -123,3 +123,39 @@ Prioritized next steps
 
 If you want, I can apply these changes in a follow-up pass and validate CI.
 
+\n---
+
+Addendum — Review of latest changes after initial review
+
+Commits reviewed:
+- 574d50a feat: add static smoke fixture/server and `static-smoke` config
+- 15dce19 chore: restore tests/CLAUDE.md; remove stray review.md
+- d46b8c9 docs: streamline CLAUDE.md
+- cb0cf0e feat: per-page `visualOverrides` and baseline helper
+- 2893710 ci: run lint before installing browsers and tests (also addresses YAML structure)
+
+Findings
+- CI YAML structure fixed (2893710): Steps are correctly nested under `jobs.smoke.steps` and `concurrency` is at job level. Lint runs before installing browsers/tests, which is a sensible gate.
+- Deterministic smoke option (574d50a):
+  - Added `scripts/static-server.js` and `scripts/wait-url.js` with `sites/static-smoke.json`.
+  - CI can start this server when `SITE=static-smoke`. This is a strong addition for stable CI runs.
+- Visual overrides & baseline helper (cb0cf0e):
+  - `responsive.visual.spec.js` now supports per-page `visualOverrides` for thresholds/masks; this will reduce noisy diffs on specific pages.
+  - `run-tests.js` adds `--update-baselines`; `TestRunner.updateBaselines` targets `tests/responsive.visual.spec.js`. Package script `update-baselines` added. This resolves the earlier drift.
+- Docs updated: README and AGENTS.md now document `dynamicMasks`, `visualOverrides`, and the baseline helper; AGENTS includes deterministic smoke.
+
+Outstanding issues (still applicable)
+- Cross-platform cleanup: `utils/test-runner.js` still uses `execSync('rm -rf allure-results allure-report')`. Recommend switching to Node APIs or invoking the existing cleanup script.
+- Lint/format: Running `npm run lint` still reports many Prettier warnings and some `no-unused-vars` on catch bindings. Suggest running `npm run format` and `npm run lint:fix`, and consider adding `caughtErrorsIgnorePattern: '^_'` in `eslint.config.js` to suppress unused catch param warnings.
+- codex-plan.md drift: Architecture Snapshot and the “Update snapshots” line still reference monolithic `responsive.spec.js`. Consider updating to reflect split specs and the `responsive.visual.spec.js` update command.
+
+Nice improvements
+- CI cadence and step order improved; lint gate added earlier in the job.
+- Deterministic smoke flow is well integrated and optional.
+- Per-page visual overrides give fine-grained control without code edits in tests.
+
+Suggested next actions
+1) Replace `rm -rf` in `TestRunner.cleanAllureResults` with a cross-platform approach (Node fs.rmSync or `scripts/cleanup.js`).
+2) Apply formatting: `npm run format` then `npm run lint:fix`; adjust ESLint config for caught errors if desired.
+3) Update `codex-plan.md` references to the split specs and snapshot command.
+
