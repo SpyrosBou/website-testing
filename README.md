@@ -148,10 +148,9 @@ Allure (optional)
 - If Java is not installed, use Playwright HTML report (`playwright-report/index.html`) or `npx playwright show-report`.
 
 ## CI & Scheduling
-- GitHub Actions runs smoke tests on:
-  - Pull requests and pushes to `main`.
-  - Nightly at 02:00 UTC (cron).
-- Configure the site via repository Actions variable `SMOKE_SITE` (e.g., `nfsmediation-live`).
+- CI smoke tests no longer run automatically on PRs, pushes, or on a schedule.
+- Trigger the workflow manually from GitHub Actions (Run workflow) and optionally set `site` input.
+- You can also set repository Actions variable `SMOKE_SITE` (e.g., `nfsmediation-live`) to be used when running manually.
 - You can also trigger manually via the "Run workflow" button and provide a site input.
 
 ### Deterministic Smoke (optional)
@@ -168,11 +167,8 @@ Allure (optional)
 
 ### Managing Reports
 ```bash
-# Clean old HTML reports (older than 7 days)
-npm run clean-old-reports
-
-# Clean all HTML reports
-npm run clean-all-reports
+# Clean backup HTML report folder
+npm run clean-backup-html
 
 # Clean old test artifacts (older than 15 days) 
 npm run clean-old-results

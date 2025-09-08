@@ -44,7 +44,7 @@ Phase 1 — CI + Defaults (2–3 days)
 - Defaults: `sites/example-site.json` → https://example.com; added `sites/static-smoke.json` and static server for deterministic smoke. [DONE]
 - Cross‑platform cleanup via `scripts/cleanup.js`. [DONE]
 
-Acceptance: PRs run smoke tests in CI and produce an artifact. Repo is runnable with zero external prerequisites beyond Node + browsers.
+Acceptance: Manual CI smoke workflow produces an artifact on demand. Repo is runnable with zero external prerequisites beyond Node + browsers.
 
 Phase 2 — Maintainability (1–2 weeks)
 - Lint/format: add ESLint + Prettier, scripts (`lint`, `lint:fix`, `format`), wire into CI. [DONE]
@@ -66,10 +66,10 @@ Phase 3 — Extensibility (Optional)
 Acceptance: type-safe helpers; clearer layering; optional spec-driven generation behind a flag.
 
 ## 5) CI/CD Plan (Sketch)
-- Triggers: PRs and `main` pushes; nightly (02:00 UTC); manual dispatch with site input.
+- Triggers: Manual dispatch only (no automatic PR/push/nightly triggers).
 - Jobs: Node 18/20; `npm ci` → `npm run lint` → `npx playwright install --with-deps` → (if SITE=static-smoke start server) → `node run-tests.js --site=$SITE --profile=smoke` → upload HTML report.
 - SITE source: manual input `site` or repo variable `SMOKE_SITE`.
- - Deterministic smoke: workflow starts `scripts/static-server.js` and waits with `scripts/wait-url.js` when `SITE=static-smoke`.
+- Deterministic smoke: workflow starts `scripts/static-server.js` and waits with `scripts/wait-url.js` when `SITE=static-smoke`.
 
 ## 6) Test Strategy
 - Smoke: responsive subset (first page only), Chrome, via profile; deterministic option `static-smoke`.

@@ -231,11 +231,14 @@ class TestRunner {
   }
 
   static cleanAllureResults() {
-    const { execSync } = require('child_process');
     try {
-      execSync('rm -rf allure-results allure-report', { stdio: 'ignore' });
+      const cwd = process.cwd();
+      const results = path.join(cwd, 'allure-results');
+      const report = path.join(cwd, 'allure-report');
+      fs.rmSync(results, { recursive: true, force: true });
+      fs.rmSync(report, { recursive: true, force: true });
       console.log('🧹 Cleaned previous test results for fresh run');
-    } catch (error) {
+    } catch (_) {
       // Ignore if directories don't exist
     }
   }
