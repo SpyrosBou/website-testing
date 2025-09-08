@@ -16,10 +16,11 @@ Non-goals: destructive authoring flows, plugin unit tests, and large-scale load/
     - Responsive: `responsive.structure.spec.js`, `responsive.visual.spec.js`, `responsive.a11y.spec.js`
     - Functionality: `functionality.infrastructure.spec.js`, `functionality.links.spec.js`, `functionality.interactive.spec.js`, `functionality.accessibility.spec.js`, `functionality.wordpress.spec.js`
     - `baseline-snapshots/` for visual baselines
-  - `utils/`: `test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`
+  - `utils/`: `test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`, `site-loader.js`
   - `sites/`: JSON configs per site (`*-local.json`, `*-live.json`, `*-smoke.json`)
   - `scripts/`: `cleanup.js`, `allure.js`, `static-server.js`, `wait-url.js`
   - `fixtures/static-site/`: deterministic static pages for smoke
+  - `specs/` (experimental): YAML specifications + generator/loader utilities; not wired into the runner yet
   - Reports/artifacts: `playwright-report/`, `test-results/`, `allure-results/`, `allure-report/`
 - Entrypoints: `run-tests.js` (CLI profiles/flags); `playwright.config.js` (projects/reporters)
 
@@ -59,15 +60,16 @@ Acceptance: CI enforces linting; repeated runs are stable on the demo site; READ
 
 Phase 3 — Extensibility (Optional)
 - TypeScript for `utils/` and configuration types (gradual).
-- Add smoke/full/nightly profiles to CLI flags.
+- Integrate YAML spec generator (`specs/`) as opt-in pathway; keep hand-authored tests canonical.
 - Optional containerized local WP for deeper plugin/theme checks in isolation.
 
-Acceptance: type-safe helpers; clearer layering; optional advanced profiles.
+Acceptance: type-safe helpers; clearer layering; optional spec-driven generation behind a flag.
 
 ## 5) CI/CD Plan (Sketch)
 - Triggers: PRs and `main` pushes; nightly (02:00 UTC); manual dispatch with site input.
 - Jobs: Node 18/20; `npm ci` → `npm run lint` → `npx playwright install --with-deps` → (if SITE=static-smoke start server) → `node run-tests.js --site=$SITE --profile=smoke` → upload HTML report.
 - SITE source: manual input `site` or repo variable `SMOKE_SITE`.
+ - Deterministic smoke: workflow starts `scripts/static-server.js` and waits with `scripts/wait-url.js` when `SITE=static-smoke`.
 
 ## 6) Test Strategy
 - Smoke: responsive subset (first page only), Chrome, via profile; deterministic option `static-smoke`.
@@ -81,6 +83,7 @@ Acceptance: type-safe helpers; clearer layering; optional advanced profiles.
 - Naming: test files `*.spec.js`, site configs `*-local.json` / `*-live.json`.
 - Secrets: do not commit `.env`; live sites are read-only; avoid destructive paths.
 - Local preflight: for `.ddev.site` bases, optional `ENABLE_DDEV=true` with `DDEV_PROJECT_PATH` to auto-start and wait for the local site.
+ - Cleanup consistency: prefer `scripts/cleanup.js` (cross‑platform) over shell `rm -rf` in any future utilities.
 
 ## 8) Deliverables & Acceptance Criteria (Summary)
 - P0: Non-interactive reliability + Allure works locally and in CI.
@@ -100,3 +103,12 @@ Acceptance: type-safe helpers; clearer layering; optional advanced profiles.
 - Deterministic smoke: set `SMOKE_SITE=static-smoke` in CI (auto-starts static server)
 - Baselines: `npm run update-baselines -- --site=<name>` (responsive visuals)
 - Allure report: `npm run allure-report` (requires Java; fallback is Playwright HTML report)
+ - List sites: `node run-tests.js --list`
+ - Lint/format: `npm run lint`, `npm run lint:fix`, `npm run format`
+ - Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`, `npm run clean-backup-html`
+
+## 11) Open Items / Backlog
+- Replace shell `rm -rf` in `utils/test-runner.js::cleanAllureResults` with Node `fs.rmSync(..., { recursive: true, force: true })` or delegate to `scripts/cleanup.js` for cross‑platform behavior.
+- Align report-cleanup docs/scripts: repository exposes `clean-backup-html` (for `playwright-report`) and result cleaners; avoid referencing non-existent `clean-old-reports`/`clean-all-reports` in future docs.
+- ESLint ergonomics: consider `caughtErrorsIgnorePattern: '^_'` for `no-unused-vars` to quiet intentionally ignored catch params.
+- Document experimental `specs/` directory and integrate the generator behind a flag if adopted; update runner/CI accordingly.
