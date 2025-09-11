@@ -24,8 +24,8 @@ Non-goals: destructive authoring flows, plugin unit tests, and large-scale load/
   - Reports/artifacts: `playwright-report/`, `test-results/`, `allure-results/`, `allure-report/`
 - Entrypoints: `run-tests.js` (CLI profiles/flags); `playwright.config.js` (projects/reporters)
 
-## 3) Risks and Issues (Priority)
-- Addressed: interactive mode removed; runner outputs aligned; safer process mgmt; docs synced; lockfile/CI setup; cross‑platform cleanup.
+- ## 3) Risks and Issues (Priority)
+- Addressed: interactive mode removed; runner outputs aligned; safer process mgmt; docs synced; lockfile/CI setup; cross‑platform cleanup; Allure cleanup now uses Node `fs.rmSync` (no shell `rm -rf`); ESLint ergonomics improved (`no-unused-vars.caughtErrorsIgnorePattern: '^_'`).
 - Allure requires Java: surfaced with a wrapper (`scripts/allure.js`) and fallback to Playwright HTML report when Java is absent.
 - Site-specific selectors and a11y: some themes may need selector tuning; WCAG tests may fail until violations are fixed.
 
@@ -108,7 +108,5 @@ Acceptance: type-safe helpers; clearer layering; optional spec-driven generation
  - Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`, `npm run clean-backup-html`
 
 ## 11) Open Items / Backlog
-- Replace shell `rm -rf` in `utils/test-runner.js::cleanAllureResults` with Node `fs.rmSync(..., { recursive: true, force: true })` or delegate to `scripts/cleanup.js` for cross‑platform behavior.
 - Align report-cleanup docs/scripts: repository exposes `clean-backup-html` (for `playwright-report`) and result cleaners; avoid referencing non-existent `clean-old-reports`/`clean-all-reports` in future docs.
-- ESLint ergonomics: consider `caughtErrorsIgnorePattern: '^_'` for `no-unused-vars` to quiet intentionally ignored catch params.
 - Document experimental `specs/` directory and integrate the generator behind a flag if adopted; update runner/CI accordingly.

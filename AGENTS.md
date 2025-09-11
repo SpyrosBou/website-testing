@@ -14,7 +14,7 @@
 - `--profile=smoke|full|nightly` — presets for common runs (smoke = responsive + Chrome + first page only).
 - `npm run allure-report` — generate and open Allure report.
 - Note: Allure requires Java. If Java is missing, use Playwright HTML report (`playwright-report/index.html`) or `npx playwright show-report`.
-- Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`.
+- Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`, `npm run clean-backup-html`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
 - For CI smoke runs, consider `sites/nfsmediation-smoke.json` (homepage only) or use `nfsmediation-live`.
  - Deterministic CI option: set `SMOKE_SITE=static-smoke` to use the built-in static server (`scripts/static-server.js`) and `sites/static-smoke.json`.
