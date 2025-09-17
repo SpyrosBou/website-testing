@@ -360,14 +360,14 @@ async function safeElementInteraction(element, action, options = {}) {
   const interactionFunction = async () => {
     // Enhanced pre-interaction checks
     const checks = await Promise.allSettled([
-      element.isAttached(),
+      element.count(),
       element.isVisible(),
       element.isEnabled(),
     ]);
 
-    const [isAttached, isVisible, isEnabled] = checks.map((result) =>
-      result.status === 'fulfilled' ? result.value : false
-    );
+    const isAttached = checks[0].status === 'fulfilled' ? checks[0].value > 0 : false;
+    const isVisible = checks[1].status === 'fulfilled' ? checks[1].value : false;
+    const isEnabled = checks[2].status === 'fulfilled' ? checks[2].value : false;
 
     if (!isAttached) {
       throw new Error('Element is not attached to DOM');

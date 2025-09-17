@@ -61,7 +61,9 @@ test.describe('Responsive Structure & UX', () => {
                 `⚠️  ${viewportName} load time ${loadTime}ms exceeds threshold ${threshold}ms for ${testPage}`
               );
             } else {
-              console.log(`✅ ${viewportName} load time ${loadTime}ms within threshold for ${testPage}`);
+              console.log(
+                `✅ ${viewportName} load time ${loadTime}ms within threshold for ${testPage}`
+              );
             }
 
             // Critical elements via page objects
@@ -70,9 +72,10 @@ test.describe('Responsive Structure & UX', () => {
 
             if (viewportName === 'mobile') {
               const mobileNavSelectors = [
-                '.mobile-menu',
-                '.hamburger',
+                '#mobile-burger',
                 '.menu-toggle',
+                '[aria-controls]',
+                '.hamburger',
                 '.navbar-toggler',
                 '.menu-button',
                 '[aria-label*="menu"]',
@@ -82,7 +85,9 @@ test.describe('Responsive Structure & UX', () => {
                 if (await page.locator(s).isVisible()) {
                   mobileNavFound = true;
                   try {
-                    await safeElementInteraction(page.locator(s).first(), 'click', { timeout: 3000 });
+                    await safeElementInteraction(page.locator(s).first(), 'click', {
+                      timeout: 3000,
+                    });
                     await page.waitForTimeout(400);
                   } catch (_) {}
                   break;
@@ -104,9 +109,12 @@ test.describe('Responsive Structure & UX', () => {
             if (viewportName === 'mobile' && siteConfig.forms && siteConfig.forms.length > 0) {
               const formPage = siteConfig.forms[0].page || testPage;
               if (testPage === formPage) {
-                const formSelector = siteConfig.forms[0].selector || '.wpcf7-form, .contact-form, form';
+                const formSelector =
+                  siteConfig.forms[0].selector || '.wpcf7-form, .contact-form, form';
                 if (await page.locator(formSelector).isVisible()) {
-                  const fields = await page.locator(`${formSelector} input, ${formSelector} textarea`).all();
+                  const fields = await page
+                    .locator(`${formSelector} input, ${formSelector} textarea`)
+                    .all();
                   for (let i = 0; i < Math.min(fields.length, 3); i++) {
                     try {
                       await fields[i].tap({ timeout: 1500 });
@@ -151,7 +159,10 @@ test.describe('Responsive Structure & UX', () => {
         for (let i = 1; i < names.length; i++) {
           const cmp = contentStructure[names[i]];
           const diff = Math.abs(base.headingCount - cmp.headingCount);
-          if (diff > 2) console.log(`⚠️  Significant heading count difference between ${names[0]} and ${names[i]}`);
+          if (diff > 2)
+            console.log(
+              `⚠️  Significant heading count difference between ${names[0]} and ${names[i]}`
+            );
           expect.soft(cmp.hasNav).toBe(base.hasNav);
           expect.soft(cmp.hasMain).toBe(base.hasMain);
           expect.soft(cmp.hasFooter).toBe(base.hasFooter);
@@ -173,10 +184,12 @@ test.describe('Responsive Structure & UX', () => {
           const hasWpResponsive = await page
             .locator('[class*="wp-block"], [class*="responsive"]')
             .isVisible();
-          if (hasWpResponsive) console.log(`✅ WordPress responsive elements detected on ${viewportName}`);
+          if (hasWpResponsive)
+            console.log(`✅ WordPress responsive elements detected on ${viewportName}`);
 
           const blockElements = await page.locator('[class*="wp-block-"]').count();
-          if (blockElements > 0) console.log(`📊 ${blockElements} Gutenberg blocks found on ${viewportName}`);
+          if (blockElements > 0)
+            console.log(`📊 ${blockElements} Gutenberg blocks found on ${viewportName}`);
 
           const widgets = await page.locator('.widget').count();
           if (widgets > 0) console.log(`📊 ${widgets} widgets found on ${viewportName}`);

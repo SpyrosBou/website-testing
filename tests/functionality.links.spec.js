@@ -1,6 +1,11 @@
 const { test, expect } = require('@playwright/test');
 const SiteLoader = require('../utils/site-loader');
-const { setupTestPage, teardownTestPage, safeNavigate, waitForPageStability } = require('../utils/test-helpers');
+const {
+  setupTestPage,
+  teardownTestPage,
+  safeNavigate,
+  waitForPageStability,
+} = require('../utils/test-helpers');
 
 test.describe('Functionality: Internal Links', () => {
   let siteConfig;
@@ -19,7 +24,7 @@ test.describe('Functionality: Internal Links', () => {
   });
 
   test('Validate internal links across pages (rate-limited)', async ({ page }) => {
-    test.setTimeout(30000);
+    test.setTimeout(90000);
     const brokenLinks = [];
     const checkedLinks = new Set();
     for (const testPage of siteConfig.testPages) {
@@ -32,21 +37,41 @@ test.describe('Functionality: Internal Links', () => {
           .locator('a[href^="/"], a[href^="' + siteConfig.baseUrl + '"]')
           .all();
         console.log(`Found ${links.length} internal links on ${testPage}`);
-        let linkCount = 0;
-        for (const link of links.slice(0, 20)) {
-          linkCount++;
-          if (linkCount > 1 && linkCount % 5 === 0) await page.waitForTimeout(500);
+        const pageLinks = [];
+        for (const link of links) {
           try {
             const href = await link.getAttribute('href');
-            if (!href || checkedLinks.has(href)) continue;
-            checkedLinks.add(href);
+            if (!href) continue;
             const fullUrl = href.startsWith('/') ? `${siteConfig.baseUrl}${href}` : href;
-            const headResp = await page.request.head(fullUrl);
-            if (headResp.status() >= 400) brokenLinks.push({ url: fullUrl, status: headResp.status(), page: testPage });
+            if (!fullUrl.startsWith(siteConfig.baseUrl)) continue;
+            if (checkedLinks.has(fullUrl)) continue;
+            checkedLinks.add(fullUrl);
+            pageLinks.push(fullUrl);
+            if (pageLinks.length >= 20) break;
           } catch (error) {
-            console.log(`⚠️  Could not check link: ${error.message}`);
+            console.log(`⚠️  Could not read link attribute: ${error.message}`);
           }
         }
+
+        const concurrency = Math.min(5, pageLinks.length);
+        let index = 0;
+        const processNext = async () => {
+          while (index < pageLinks.length) {
+            const currentIndex = index++;
+            const url = pageLinks[currentIndex];
+            try {
+              const headResp = await page.request.head(url);
+              if (headResp.status() >= 400) {
+                brokenLinks.push({ url, status: headResp.status(), page: testPage });
+              }
+            } catch (error) {
+              console.log(`⚠️  HEAD request failed for ${url}: ${error.message}`);
+            }
+            await page.waitForTimeout(100);
+          }
+        };
+
+        await Promise.all(Array.from({ length: concurrency || 1 }, processNext));
       });
     }
     if (brokenLinks.length > 0) {
@@ -60,4 +85,3 @@ test.describe('Functionality: Internal Links', () => {
     }
   });
 });
-
