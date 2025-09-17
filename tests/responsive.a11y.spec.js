@@ -1,7 +1,19 @@
 const { test, expect } = require('@playwright/test');
 const { AxeBuilder } = require('@axe-core/playwright');
+const { allure } = require('allure-playwright');
 const SiteLoader = require('../utils/site-loader');
-const { setupTestPage, teardownTestPage, safeNavigate, waitForPageStability } = require('../utils/test-helpers');
+const {
+  setupTestPage,
+  teardownTestPage,
+  safeNavigate,
+  waitForPageStability,
+} = require('../utils/test-helpers');
+
+async function attachAllureText(name, content) {
+  if (allure && typeof allure.attachment === 'function') {
+    await allure.attachment(name, content, 'text/plain');
+  }
+}
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
@@ -44,23 +56,46 @@ test.describe('Responsive Accessibility', () => {
             const results = await new AxeBuilder({ page })
               .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
               .analyze();
-            const critical = results.violations.filter(
-              (v) => v.impact === 'critical' || v.impact === 'serious'
-            );
-            if (critical.length > 0) {
+
+            const failOn = Array.isArray(siteConfig.a11yFailOn)
+              ? siteConfig.a11yFailOn
+              : ['critical', 'serious'];
+            const ignoreRules = Array.isArray(siteConfig.a11yIgnoreRules)
+              ? siteConfig.a11yIgnoreRules
+              : [];
+
+            const filtered = (results.violations || [])
+              .filter((v) => failOn.includes(v.impact))
+              .filter((v) => !ignoreRules.includes(v.id));
+
+            if (filtered.length > 0) {
+              const lines = filtered.map((v) => {
+                const nodes = (v.nodes || [])
+                  .slice(0, 5)
+                  .map((n) => (n.target && n.target[0]) || n.html || 'node')
+                  .join('\n  - ');
+                return `• ${v.id} [${v.impact}]\n  Help: ${v.helpUrl}\n  Nodes: ${v.nodes?.length || 0}\n  Sample targets:\n  - ${nodes}`;
+              });
+              const report =
+                `Accessibility Violations for ${testPage} (${viewportName})\n\n` +
+                lines.join('\n\n');
+              await attachAllureText(`a11y-${viewportName}-${testPage}-violations`, report);
               console.error(
-                `❌ ${critical.length} critical accessibility violations on ${testPage} (${viewportName})`
+                `❌ ${filtered.length} accessibility violations (fail-on: ${failOn.join(', ')}) on ${testPage} (${viewportName})`
               );
-              expect.soft(critical.length).toBe(0);
+              expect.soft(filtered.length).toBe(0);
             } else {
-              console.log(`✅ No critical accessibility violations on ${testPage} (${viewportName})`);
+              console.log(
+                `✅ No ${failOn.join('/')} accessibility violations on ${testPage} (${viewportName})`
+              );
             }
           } catch (error) {
-            console.error(`⚠️  Accessibility scan failed for ${testPage} (${viewportName}): ${error.message}`);
+            console.error(
+              `⚠️  Accessibility scan failed for ${testPage} (${viewportName}): ${error.message}`
+            );
           }
         });
       }
     });
   });
 });
-

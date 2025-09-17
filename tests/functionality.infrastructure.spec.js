@@ -1,12 +1,10 @@
 const { test, expect } = require('@playwright/test');
-const { AxeBuilder } = require('@axe-core/playwright');
 const SiteLoader = require('../utils/site-loader');
 const {
   setupTestPage,
   teardownTestPage,
   safeNavigate,
   waitForPageStability,
-  ErrorContext,
 } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
 
@@ -39,15 +37,18 @@ test.describe('Functionality: Core Infrastructure', () => {
         errorContext.setPage(testPage);
         errorContext.setAction('navigating to page');
 
-        const response = await wpPageObjects.navigate(`${siteConfig.baseUrl}${testPage}`);
+        const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
+        await wpPageObjects.basePage.waitForWordPressReady();
         const is404 = await wpPageObjects.is404Page();
         if (is404) {
           console.log(`⚠️  Page not found: ${testPage}`);
           await page.screenshot({ path: `test-results/404-${testPage.replace(/\//g, '-')}.png` });
           return;
         }
-        if (response.status() >= 500) throw new Error(`Server error on ${testPage}: ${response.status()}`);
-        if (response.status() >= 400) console.log(`⚠️  Client error on ${testPage}: ${response.status()}`);
+        if (response.status() >= 500)
+          throw new Error(`Server error on ${testPage}: ${response.status()}`);
+        if (response.status() >= 400)
+          console.log(`⚠️  Client error on ${testPage}: ${response.status()}`);
 
         if (response.status() >= 200 && response.status() < 300) {
           const elements = await wpPageObjects.verifyCriticalElements();
@@ -66,12 +67,14 @@ test.describe('Functionality: Core Infrastructure', () => {
       await test.step(`Validating response for: ${testPage}`, async () => {
         errorContext.setPage(testPage);
         const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
-        expect([200, 301, 302, 404]).toContain(response.status());
+        expect([200, 301, 302]).toContain(response.status());
         if (response.status() === 200) {
           const contentType = response.headers()['content-type'];
           expect(contentType).toContain('text/html');
           await expect(page.locator('html[lang]')).toBeAttached();
-          await expect(page.locator('meta[charset], meta[http-equiv="Content-Type"]')).toBeAttached();
+          await expect(
+            page.locator('meta[charset], meta[http-equiv="Content-Type"]')
+          ).toBeAttached();
           await expect(page.locator('meta[name="viewport"]')).toBeAttached();
           const bodyText = await page.locator('body').textContent();
           expect(bodyText).not.toContain('Fatal error');
@@ -100,7 +103,9 @@ test.describe('Functionality: Core Infrastructure', () => {
           return {
             domContentLoaded: navigation.domContentLoadedEventEnd - navigation.navigationStart,
             loadComplete: navigation.loadEventEnd - navigation.navigationStart,
-            firstPaint: performance.getEntriesByType('paint').find(p => p.name === 'first-paint')?.startTime || 0,
+            firstPaint:
+              performance.getEntriesByType('paint').find((p) => p.name === 'first-paint')
+                ?.startTime || 0,
           };
         });
         performanceData.push({ page: testPage, loadTime, ...metrics });
@@ -114,4 +119,3 @@ test.describe('Functionality: Core Infrastructure', () => {
     }
   });
 });
-

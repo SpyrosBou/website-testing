@@ -2,7 +2,7 @@
 /* global window, navigator */
 /**
  * Enhanced Test Helpers for Playwright WordPress Testing Suite
- * 
+ *
  * This module provides comprehensive utilities for better error reporting,
  * debugging, browser lifecycle management, and industry-standard retry strategies
  * following Playwright and testing-library best practices.
@@ -16,7 +16,7 @@ const ErrorTypes = {
   BROWSER_CRASH: 'browser_crash',
   NAVIGATION: 'navigation',
   ASSERTION: 'assertion',
-  UNKNOWN: 'unknown'
+  UNKNOWN: 'unknown',
 };
 
 // Retry configurations for different operation types
@@ -24,7 +24,7 @@ const RetryConfig = {
   NETWORK_OPERATION: { maxRetries: 3, baseDelay: 1000, backoffMultiplier: 2 },
   ELEMENT_INTERACTION: { maxRetries: 2, baseDelay: 500, backoffMultiplier: 1.5 },
   NAVIGATION: { maxRetries: 2, baseDelay: 2000, backoffMultiplier: 2 },
-  ASSERTION: { maxRetries: 1, baseDelay: 1000, backoffMultiplier: 1 }
+  ASSERTION: { maxRetries: 1, baseDelay: 1000, backoffMultiplier: 1 },
 };
 
 /**
@@ -34,7 +34,7 @@ const RetryConfig = {
  */
 function classifyError(error) {
   const message = error.message.toLowerCase();
-  
+
   if (message.includes('net::') || message.includes('network') || message.includes('connection')) {
     return ErrorTypes.NETWORK;
   }
@@ -44,7 +44,11 @@ function classifyError(error) {
   if (message.includes('element') || message.includes('locator') || message.includes('selector')) {
     return ErrorTypes.ELEMENT_NOT_FOUND;
   }
-  if (message.includes('target closed') || message.includes('browser') || message.includes('context')) {
+  if (
+    message.includes('target closed') ||
+    message.includes('browser') ||
+    message.includes('context')
+  ) {
     return ErrorTypes.BROWSER_CRASH;
   }
   if (message.includes('navigation') || message.includes('goto') || message.includes('page.goto')) {
@@ -53,7 +57,7 @@ function classifyError(error) {
   if (message.includes('expect') || message.includes('assertion')) {
     return ErrorTypes.ASSERTION;
   }
-  
+
   return ErrorTypes.UNKNOWN;
 }
 
@@ -67,32 +71,32 @@ function classifyError(error) {
 function isRetryableError(error, attemptNumber, context = {}) {
   const errorType = classifyError(error);
   const { maxRetries = 3, operation = 'generic' } = context;
-  
+
   // Don't retry if we've exceeded max attempts
   if (attemptNumber >= maxRetries) {
     return false;
   }
-  
+
   // Don't retry assertion errors (they indicate actual test failures)
   if (errorType === ErrorTypes.ASSERTION) {
     return false;
   }
-  
+
   // Don't retry browser crashes (need fresh context)
   if (errorType === ErrorTypes.BROWSER_CRASH) {
     return false;
   }
-  
+
   // Network and timeout errors are usually retryable
   if ([ErrorTypes.NETWORK, ErrorTypes.TIMEOUT, ErrorTypes.NAVIGATION].includes(errorType)) {
     return true;
   }
-  
+
   // Element interaction errors may be retryable if page is still responsive
   if (errorType === ErrorTypes.ELEMENT_NOT_FOUND && operation === 'element_interaction') {
     return true;
   }
-  
+
   return false;
 }
 
@@ -104,21 +108,26 @@ async function debugBrowserState(page, context, testName) {
     pageState: {
       isClosed: page.isClosed(),
       url: 'unknown',
-      title: 'unknown'
+      title: 'unknown',
     },
     browserState: {
       isConnected: false,
-      version: 'unknown'
+      version: 'unknown',
     },
     memoryUsage: process.memoryUsage(),
     environmentInfo: {
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
-      userAgent: context ? await context.newPage().then(p => p.evaluate(() => navigator.userAgent)).catch(() => 'unknown') : 'unknown'
-    }
+      userAgent: context
+        ? await context
+            .newPage()
+            .then((p) => p.evaluate(() => navigator.userAgent))
+            .catch(() => 'unknown')
+        : 'unknown',
+    },
   };
-  
+
   try {
     if (!page.isClosed()) {
       debugInfo.pageState.url = page.url();
@@ -127,7 +136,7 @@ async function debugBrowserState(page, context, testName) {
   } catch (error) {
     debugInfo.pageState.error = error.message;
   }
-  
+
   try {
     if (context) {
       const browser = context.browser();
@@ -139,7 +148,7 @@ async function debugBrowserState(page, context, testName) {
   } catch (error) {
     debugInfo.browserState.error = error.message;
   }
-  
+
   console.log('🔍 Browser State Debug Info:', JSON.stringify(debugInfo, null, 2));
   return debugInfo;
 }
@@ -156,7 +165,7 @@ async function retryOperation(operation, operationName, options = {}) {
     options = {
       maxRetries: options,
       baseDelay: arguments[3] || 1000,
-      operation: 'generic'
+      operation: 'generic',
     };
   }
 
@@ -165,17 +174,19 @@ async function retryOperation(operation, operationName, options = {}) {
     baseDelay = 1000,
     backoffMultiplier = 2,
     operation: operationType = 'generic',
-    context = {}
+    context = {},
   } = options;
 
   let lastError;
   let errorHistory = [];
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const result = await operation();
       if (attempt > 1) {
-        console.log(`✅ ${operationName} succeeded on attempt ${attempt} (error types: ${errorHistory.map(e => classifyError(e)).join(', ')})`);
+        console.log(
+          `✅ ${operationName} succeeded on attempt ${attempt} (error types: ${errorHistory.map((e) => classifyError(e)).join(', ')})`
+        );
       }
       return result;
     } catch (error) {
@@ -183,35 +194,39 @@ async function retryOperation(operation, operationName, options = {}) {
       errorHistory.push(error);
       const errorType = classifyError(error);
       const isLastAttempt = attempt === maxRetries;
-      
-      console.log(`⚠️  ${operationName} attempt ${attempt}/${maxRetries} failed [${errorType}]: ${error.message.substring(0, 100)}...`);
-      
+
+      console.log(
+        `⚠️  ${operationName} attempt ${attempt}/${maxRetries} failed [${errorType}]: ${error.message.substring(0, 100)}...`
+      );
+
       // Check if error is retryable
       if (!isRetryableError(error, attempt, { maxRetries, operation: operationType, ...context })) {
         console.error(`💥 ${operationName} failed with non-retryable error: ${errorType}`);
         throw error;
       }
-      
+
       if (isLastAttempt) {
         console.error(`💥 ${operationName} failed after ${maxRetries} attempts`);
-        console.error(`Error types encountered: ${errorHistory.map(e => classifyError(e)).join(', ')}`);
+        console.error(
+          `Error types encountered: ${errorHistory.map((e) => classifyError(e)).join(', ')}`
+        );
         console.error(`Final error: ${error.message}`);
         break;
       }
-      
+
       // Calculate delay with jitter to prevent thundering herd
       const baseDelayForAttempt = baseDelay * Math.pow(backoffMultiplier, attempt - 1);
       const jitter = Math.random() * 0.1 * baseDelayForAttempt; // 10% jitter
       const delay = Math.round(baseDelayForAttempt + jitter);
-      
+
       console.log(`   Waiting ${delay}ms before retry (error type: ${errorType})...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
       // Additional recovery actions based on error type
       await performErrorRecovery(error, errorType, context);
     }
   }
-  
+
   throw lastError;
 }
 
@@ -223,33 +238,33 @@ async function retryOperation(operation, operationName, options = {}) {
  */
 async function performErrorRecovery(error, errorType, context = {}) {
   const { page } = context;
-  
+
   if (!page) return;
-  
+
   try {
     switch (errorType) {
       case ErrorTypes.TIMEOUT:
         // Clear any pending operations
         await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
         break;
-        
+
       case ErrorTypes.ELEMENT_NOT_FOUND:
         // Wait for potential animations to complete
         await page.waitForTimeout(500);
         break;
-        
+
       case ErrorTypes.NAVIGATION:
         // Ensure page is in a good state for navigation
         if (!page.isClosed()) {
           await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
         }
         break;
-        
+
       case ErrorTypes.NETWORK:
         // Wait for network to stabilize
         await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
         break;
-        
+
       default:
         // Generic recovery - just wait a bit
         await page.waitForTimeout(200);
@@ -270,53 +285,54 @@ async function safeNavigate(page, url, options = {}) {
   const defaultOptions = {
     timeout: 20000,
     waitUntil: 'domcontentloaded',
-    ...options
+    ...options,
   };
-  
+
   if (page.isClosed()) {
     throw new Error(`Cannot navigate to ${url}: page is closed`);
   }
-  
+
   return await retryOperation(
     async () => {
       console.log(`🧭 Navigating to: ${url}`);
       const response = await page.goto(url, defaultOptions);
-      
+
       if (!response) {
         throw new Error(`Navigation to ${url} returned null response`);
       }
-      
+
       // Check for common error pages
       if (response.status() >= 400) {
-        const errorType = response.status() === 404 ? 'Page not found' : 
-                         response.status() >= 500 ? 'Server error' : 'Client error';
+        const errorType =
+          response.status() === 404
+            ? 'Page not found'
+            : response.status() >= 500
+              ? 'Server error'
+              : 'Client error';
         throw new Error(`${errorType}: ${url} (Status: ${response.status()})`);
       }
-      
+
       return response;
     },
     `Navigate to ${url}`,
     {
       ...RetryConfig.NAVIGATION,
       operation: 'navigation',
-      context: { page, url }
+      context: { page, url },
     }
   );
 }
 
 // Wait for page stability with multiple strategies
 async function waitForPageStability(page, options = {}) {
-  const {
-    timeout = 10000,
-    strategies = ['networkidle', 'domcontentloaded', 'load']
-  } = options;
-  
+  const { timeout = 10000, strategies = ['networkidle', 'domcontentloaded', 'load'] } = options;
+
   if (page.isClosed()) {
     throw new Error('Cannot wait for page stability: page is closed');
   }
-  
+
   const errors = [];
-  
+
   for (const strategy of strategies) {
     try {
       await page.waitForLoadState(strategy, { timeout });
@@ -327,7 +343,7 @@ async function waitForPageStability(page, options = {}) {
       console.log(`⚠️  ${strategy} strategy failed: ${error.message.substring(0, 50)}...`);
     }
   }
-  
+
   console.log(`⚠️  All stability strategies failed: ${errors.join('; ')}`);
   return false; // Don't throw, let tests continue
 }
@@ -339,30 +355,24 @@ async function waitForPageStability(page, options = {}) {
  * @param {Object} options - Action options including retry configuration
  */
 async function safeElementInteraction(element, action, options = {}) {
-  const {
-    timeout = 5000,
-    retries = true,
-    text,
-    force = false,
-    ...actionOptions
-  } = options;
+  const { timeout = 5000, retries = true, text, force = false, ...actionOptions } = options;
 
   const interactionFunction = async () => {
     // Enhanced pre-interaction checks
     const checks = await Promise.allSettled([
       element.isAttached(),
       element.isVisible(),
-      element.isEnabled()
+      element.isEnabled(),
     ]);
 
-    const [isAttached, isVisible, isEnabled] = checks.map(result => 
+    const [isAttached, isVisible, isEnabled] = checks.map((result) =>
       result.status === 'fulfilled' ? result.value : false
     );
 
     if (!isAttached) {
       throw new Error('Element is not attached to DOM');
     }
-    
+
     if (!isVisible && !force) {
       throw new Error('Element is not visible');
     }
@@ -380,7 +390,7 @@ async function safeElementInteraction(element, action, options = {}) {
 
     // Perform the action with enhanced options
     const actionOptionsWithTimeout = { timeout, ...actionOptions };
-    
+
     switch (action) {
       case 'click':
         await element.click(actionOptionsWithTimeout);
@@ -416,15 +426,11 @@ async function safeElementInteraction(element, action, options = {}) {
   };
 
   if (retries) {
-    return await retryOperation(
-      interactionFunction,
-      `Element ${action} interaction`,
-      {
-        ...RetryConfig.ELEMENT_INTERACTION,
-        operation: 'element_interaction',
-        context: { element, action }
-      }
-    );
+    return await retryOperation(interactionFunction, `Element ${action} interaction`, {
+      ...RetryConfig.ELEMENT_INTERACTION,
+      operation: 'element_interaction',
+      context: { element, action },
+    });
   } else {
     try {
       return await interactionFunction();
@@ -440,7 +446,7 @@ async function cleanupPage(page) {
   if (page.isClosed()) {
     return;
   }
-  
+
   try {
     await page.evaluate(() => {
       // Stop any running timers or animations
@@ -451,7 +457,7 @@ async function cleanupPage(page) {
           clearTimeout(i);
           clearInterval(i);
         }
-        
+
         // Cancel any ongoing network requests if possible
         if (window.stop) {
           window.stop();
@@ -471,42 +477,42 @@ class ErrorContext {
       currentPage: null,
       currentAction: 'initialization',
       startTime: Date.now(),
-      actions: []
+      actions: [],
     };
   }
-  
+
   setTest(testName) {
     this.context.currentTest = testName;
     this.context.startTime = Date.now();
   }
-  
+
   setPage(pageName) {
     this.context.currentPage = pageName;
   }
-  
+
   setAction(actionName) {
     this.context.currentAction = actionName;
     this.context.actions.push({
       action: actionName,
       timestamp: Date.now(),
-      duration: Date.now() - this.context.startTime
+      duration: Date.now() - this.context.startTime,
     });
   }
-  
+
   getContextInfo() {
     return {
       ...this.context,
-      totalDuration: Date.now() - this.context.startTime
+      totalDuration: Date.now() - this.context.startTime,
     };
   }
-  
+
   logError(error, additionalInfo = {}) {
     console.error('❌ Test Error Context:', {
       error: error.message,
       stack: error.stack?.substring(0, 300),
       context: this.getContextInfo(),
       additional: additionalInfo,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 }
@@ -518,22 +524,22 @@ async function setupTestPage(page, context) {
     console.error('💥 Page crashed - this indicates a serious browser issue');
     await debugBrowserState(page, context, 'page-crash');
   });
-  
+
   page.on('close', () => {
     console.log('📝 Page closed event triggered');
   });
-  
+
   // Monitor browser disconnection
   if (context.browser()) {
     context.browser().on('disconnected', () => {
       console.error('💥 Browser disconnected unexpectedly');
     });
   }
-  
+
   // Set generous timeouts for stability
   page.setDefaultNavigationTimeout(30000);
   page.setDefaultTimeout(20000);
-  
+
   return new ErrorContext();
 }
 
@@ -569,5 +575,5 @@ module.exports = {
   cleanupPage,
   ErrorContext,
   setupTestPage,
-  teardownTestPage
+  teardownTestPage,
 };

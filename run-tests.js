@@ -33,14 +33,13 @@ Examples:
 `);
 }
 
-
 async function runTests() {
   // Handle help and list commands
   if (argv.help || argv.h) {
     showUsage();
     return;
   }
-  
+
   if (argv.list || argv.l) {
     TestRunner.displaySites();
     return;
@@ -50,10 +49,10 @@ async function runTests() {
     await TestRunner.updateBaselines(siteName);
     return;
   }
-  
+
   // Determine site to test
   const siteName = argv.site || argv.s || 'example-site';
-  
+
   // Build options from CLI arguments and profile
   const profile = argv.profile;
   const options = {
@@ -62,19 +61,20 @@ async function runTests() {
     headed: argv.headed,
     debug: argv.debug,
     project: argv.project,
-    profile
+    profile,
   };
 
   if (profile === 'smoke') {
     options.responsive = true;
     options.functionality = false;
     options.project = options.project || 'Chrome';
+    process.env.SMOKE = '1';
   }
-  
+
   try {
     const result = await TestRunner.runTestsForSite(siteName, options);
     process.exit(result.code);
-  } catch (error) {
+  } catch (_error) {
     process.exit(1);
   }
 }

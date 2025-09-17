@@ -59,7 +59,9 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
     {"name": "Navigation", "selector": ".main-navigation"},
     {"name": "Header", "selector": "header"},
     {"name": "Footer", "selector": "footer"}
-  ]
+  ],
+  "a11yFailOn": ["critical", "serious"],
+  "a11yIgnoreRules": ["color-contrast"]
 }
 ```
 
@@ -197,3 +199,10 @@ Tests run on:
 **JavaScript errors**: Review console output for specific error details
 
 **Visual regression failures**: Run `npx playwright test --update-snapshots` to update baselines after intentional design changes
+
+## Accessibility Configuration
+
+- `a11yFailOn`: array of axe impact levels to gate on. Default: `["critical","serious"]`.
+- `a11yIgnoreRules`: array of axe rule IDs to ignore when evaluating failures (e.g., `"color-contrast"`).
+
+These fields are optional. When present, they control how the a11y tests in `tests/functionality.accessibility.spec.js` and `tests/responsive.a11y.spec.js` decide which violations trigger failures. The tests also attach a per-page summary as an Allure text attachment when violations are present.

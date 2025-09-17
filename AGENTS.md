@@ -46,6 +46,12 @@
   - Runner helper: `node run-tests.js --update-baselines --site=<name>` or `npm run update-baselines -- --site=<name>`
 - Generate reports: `npm run allure-report`. Artifacts per site in `test-results/<site>/`.
 
+### Accessibility Configuration (Optional)
+- Add to your site config to control gating and ignores:
+  - `a11yFailOn`: array of impacts to fail on (default `['critical','serious']`).
+  - `a11yIgnoreRules`: array of axe rule IDs to ignore (e.g., `"color-contrast"`).
+- When violations occur, tests attach an Allure text report per page/viewport summarizing rule IDs, help URLs, and node counts.
+
 ## Commit & Pull Request Guidelines
 - Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`) as seen in history.
 - PRs should include: clear description, linked issue (if any), how to run/reproduce, and relevant report paths/screenshot diffs.
