@@ -4,21 +4,21 @@
   "testPages": [
     "/",
     "/about-us/",
-    "/award-recognition-for-excellence-in-conflict-resolution/",
-    "/block-playground/",
+    "/meet-the-team/",
     "/contact-us/",
     "/cookie-settings/",
-    "/flexi-page/",
     "/get-involved/",
-    "/new-mediation-services-available/",
-    "/new-mediation-services-launching-soon/",
-    "/notice-2/",
-    "/notices/",
     "/our-services/",
-    "/privacy-policy-2/",
-    "/services/",
-    "/terms-of-use/",
-    "/working-with-us/"
+    "/services/mediation-services/",
+    "/services/workplace-mediation-services/",
+    "/services/coaching-plus-service/",
+    "/services/asb-assessment-service/",
+    "/services/cpd-accredited-training-services/",
+    "/services/hoarding-psychological-support-service/",
+    "/services/community-mediation/",
+    "/notices/",
+    "/working-with-us/",
+    "/privacy-policy-2/"
   ],
   "forms": [
     {
