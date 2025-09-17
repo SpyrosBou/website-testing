@@ -52,6 +52,8 @@
   - `a11yIgnoreRules`: array of axe rule IDs to ignore (e.g., `"color-contrast"`).
 - `a11yMode`: set to `"gate"` (default) to aggregate violations and fail after the full run, or `"audit"` to log summaries without failing. Suites run in the selected Playwright project (Chrome by default); omit `--project` to execute across all configured browsers/devices.
 - When violations occur, tests attach an Allure text report per page/viewport summarizing rule IDs, help URLs, and node counts.
+- `ignoreConsoleErrors`: substrings/regex patterns to filter known console noise during interactive scans.
+- `resourceErrorBudget`: number of failed network requests tolerated before the interactive spec soft-fails (default 0).
 - `testPages`: keep this array tightly aligned with the content that should stay live. Functionality/accessibility specs treat 4xx/5xx as failures, so update the JSON whenever URLs are removed or slugs change. A sitemap-driven discovery mode will come later; for now it’s curated list or manual updates.
 
 ## Commit & Pull Request Guidelines

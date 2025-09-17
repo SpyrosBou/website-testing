@@ -30,9 +30,26 @@ test.describe('Functionality: Interactive Elements', () => {
   test('JavaScript error detection during interactions', async ({ page, context }) => {
     test.setTimeout(45000);
     const consoleErrors = [];
-    const ignoredPatterns = ['analytics', 'google-analytics', 'gtag', 'facebook', 'twitter'];
+    const resourceErrors = [];
+    const defaultIgnored = ['analytics', 'google-analytics', 'gtag', 'facebook', 'twitter'];
+    const siteIgnored = Array.isArray(siteConfig.ignoreConsoleErrors)
+      ? siteConfig.ignoreConsoleErrors
+      : [];
+    const ignoreMatchers = [...defaultIgnored, ...siteIgnored].map((pattern) => {
+      try {
+        return new RegExp(pattern, 'i');
+      } catch (error) {
+        const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(escaped, 'i');
+      }
+    });
+
     const pagesToTest = siteConfig.testPages.slice(0, 3);
     let currentPage = page;
+
+    const recordResourceError = (type, url, extra = {}) => {
+      resourceErrors.push({ type, url, ...extra });
+    };
 
     for (const testPage of pagesToTest) {
       await test.step(`JS errors on: ${testPage}`, async () => {
@@ -43,10 +60,29 @@ test.describe('Functionality: Interactive Elements', () => {
         const listener = (msg) => {
           if (msg.type() !== 'error') return;
           const text = msg.text();
-          if (ignoredPatterns.some((p) => text.toLowerCase().includes(p))) return;
+          if (ignoreMatchers.some((re) => re.test(text))) return;
           pageErrors.push({ message: text, url: currentPage.url() });
         };
         currentPage.on('console', listener);
+
+        const requestFailedListener = (request) => {
+          recordResourceError('requestfailed', request.url(), {
+            failure: request.failure()?.errorText || 'unknown',
+            page: currentPage.url(),
+          });
+        };
+        const responseListener = (response) => {
+          const status = response.status();
+          if (status >= 400) {
+            recordResourceError('response', response.url(), {
+              status,
+              method: response.request().method(),
+              page: currentPage.url(),
+            });
+          }
+        };
+        currentPage.on('requestfailed', requestFailedListener);
+        currentPage.on('response', responseListener);
 
         try {
           const response = await safeNavigate(currentPage, `${siteConfig.baseUrl}${testPage}`);
@@ -79,6 +115,8 @@ test.describe('Functionality: Interactive Elements', () => {
           }
         } finally {
           currentPage.off('console', listener);
+          currentPage.off('requestfailed', requestFailedListener);
+          currentPage.off('response', responseListener);
         }
       });
     }
@@ -89,6 +127,23 @@ test.describe('Functionality: Interactive Elements', () => {
     } else {
       console.log('✅ No JavaScript errors detected during interactions');
     }
+
+    const resourceBudget =
+      typeof siteConfig.resourceErrorBudget === 'number' ? siteConfig.resourceErrorBudget : 0;
+    if (resourceErrors.length > 0) {
+      const summary = resourceErrors
+        .slice(0, 5)
+        .map((entry) =>
+          entry.type === 'requestfailed'
+            ? `requestfailed ${entry.url} (${entry.failure})`
+            : `response ${entry.status} ${entry.url}`
+        )
+        .join('\n');
+      console.error(
+        `❌ Resource load issues detected: ${resourceErrors.length} (showing up to 5)\n${summary}`
+      );
+    }
+    expect.soft(resourceErrors.length).toBeLessThanOrEqual(resourceBudget);
   });
 
   test('Form interactions and validation (if configured)', async ({ page }) => {

@@ -62,7 +62,9 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
   ],
   "a11yFailOn": ["critical", "serious"],
   "a11yIgnoreRules": ["color-contrast"],
-  "a11yMode": "gate"
+  "a11yMode": "gate",
+  "ignoreConsoleErrors": ["vendor-script", "MarketingPixel"],
+  "resourceErrorBudget": 0
 }
 ```
 
@@ -208,5 +210,7 @@ Tests run on:
 - `a11yFailOn`: array of axe impact levels to gate on. Default: `["critical","serious"]`.
 - `a11yIgnoreRules`: array of axe rule IDs to ignore when evaluating failures (e.g., `"color-contrast"`).
 - `a11yMode`: how accessibility specs behave. `"gate"` (default) aggregates violations across all pages/viewports and fails once at the end; `"audit"` logs the summary without failing so you can review issues without blocking the pipeline.
+- `ignoreConsoleErrors`: array of substrings or regex patterns (string form) to suppress known console noise during interactive scans.
+- `resourceErrorBudget`: maximum number of failed network requests (request failures or 4xx/5xx responses) tolerated before the interactive spec soft-fails. Default: `0`.
 
 These fields are optional. When present, they control how the a11y tests in `tests/functionality.accessibility.spec.js` and `tests/responsive.a11y.spec.js` decide which violations trigger failures. The tests also attach a per-page summary as an Allure text attachment when violations are present. Functionality/accessibility suites default to the Playwright project you pass (we typically run Chrome). Omit `--project` if you want Playwright to execute the same checks across every configured browser/device profile.
