@@ -27,8 +27,8 @@ test.describe('Functionality: Interactive Elements', () => {
     await teardownTestPage(page, context, errorContext);
   });
 
-  test('JavaScript error detection during interactions', async ({ page, context }) => {
-    test.setTimeout(45000);
+  test('JavaScript error detection during interactions', async ({ context }) => {
+    test.setTimeout(60000);
     const consoleErrors = [];
     const resourceErrors = [];
     const defaultIgnored = ['analytics', 'google-analytics', 'gtag', 'facebook', 'twitter'];
@@ -44,79 +44,87 @@ test.describe('Functionality: Interactive Elements', () => {
       }
     });
 
-    const pagesToTest = siteConfig.testPages.slice(0, 3);
-    let currentPage = page;
-
     const recordResourceError = (type, url, extra = {}) => {
       resourceErrors.push({ type, url, ...extra });
     };
 
-    for (const testPage of pagesToTest) {
+    for (const testPage of siteConfig.testPages) {
       await test.step(`JS errors on: ${testPage}`, async () => {
-        if (currentPage.isClosed()) {
-          currentPage = await context.newPage();
-        }
-        const pageErrors = [];
-        const listener = (msg) => {
-          if (msg.type() !== 'error') return;
-          const text = msg.text();
-          if (ignoreMatchers.some((re) => re.test(text))) return;
-          pageErrors.push({ message: text, url: currentPage.url() });
-        };
-        currentPage.on('console', listener);
+        let attempts = 0;
+        while (attempts < 2) {
+          const activePage = await context.newPage();
+          const pageErrors = [];
+          const listener = (msg) => {
+            if (msg.type() !== 'error') return;
+            const text = msg.text();
+            if (ignoreMatchers.some((re) => re.test(text))) return;
+            pageErrors.push({ message: text, url: activePage.url() });
+          };
+          activePage.on('console', listener);
 
-        const requestFailedListener = (request) => {
-          recordResourceError('requestfailed', request.url(), {
-            failure: request.failure()?.errorText || 'unknown',
-            page: currentPage.url(),
-          });
-        };
-        const responseListener = (response) => {
-          const status = response.status();
-          if (status >= 400) {
-            recordResourceError('response', response.url(), {
-              status,
-              method: response.request().method(),
-              page: currentPage.url(),
+          const requestFailedListener = (request) => {
+            recordResourceError('requestfailed', request.url(), {
+              failure: request.failure()?.errorText || 'unknown',
+              page: activePage.url(),
             });
-          }
-        };
-        currentPage.on('requestfailed', requestFailedListener);
-        currentPage.on('response', responseListener);
+          };
+          const responseListener = (response) => {
+            const status = response.status();
+            if (status >= 400) {
+              recordResourceError('response', response.url(), {
+                status,
+                method: response.request().method(),
+                page: activePage.url(),
+              });
+            }
+          };
+          activePage.on('requestfailed', requestFailedListener);
+          activePage.on('response', responseListener);
 
-        try {
-          const response = await safeNavigate(currentPage, `${siteConfig.baseUrl}${testPage}`);
-          if (response.status() !== 200) return;
-          await waitForPageStability(currentPage);
-          const interactiveSelectors = ['button', 'a', 'input', 'select', 'textarea'];
-          for (const s of interactiveSelectors) {
-            const loc = currentPage.locator(s);
-            for (let i = 0; i < 3; i++) {
-              let element;
-              try {
-                element = loc.nth(i);
-                await element.waitFor({ state: 'attached', timeout: 1500 });
-              } catch {
-                break;
-              }
-              try {
-                await element.scrollIntoViewIfNeeded({ timeout: 1500 });
-                if (s === 'a') await element.hover({ timeout: 1500 });
-                else await element.dispatchEvent('focus');
-              } catch (error) {
-                console.log(
-                  `⚠️  Interaction skipped for ${s} #${i} on ${testPage}: ${error.message}`
-                );
+          try {
+            const response = await safeNavigate(activePage, `${siteConfig.baseUrl}${testPage}`);
+            if (response.status() !== 200) return;
+            await waitForPageStability(activePage);
+            const interactiveSelectors = ['button', 'a', 'input', 'select', 'textarea'];
+            for (const s of interactiveSelectors) {
+              const loc = activePage.locator(s);
+              for (let i = 0; i < 3; i++) {
+                let element;
+                try {
+                  element = loc.nth(i);
+                  await element.waitFor({ state: 'attached', timeout: 1500 });
+                } catch {
+                  break;
+                }
+                try {
+                  await element.scrollIntoViewIfNeeded({ timeout: 1500 });
+                  if (s === 'a') await element.hover({ timeout: 1500 });
+                  else await element.dispatchEvent('focus');
+                } catch (error) {
+                  console.log(
+                    `⚠️  Interaction skipped for ${s} #${i} on ${testPage}: ${error.message}`
+                  );
+                }
               }
             }
+            if (pageErrors.length > 0) {
+              consoleErrors.push(...pageErrors);
+            }
+            await activePage.close();
+            return;
+          } catch (error) {
+            attempts += 1;
+            await activePage.close();
+            if (/page is closed/i.test(error.message) && attempts < 2) {
+              console.log(`⚠️  Retrying JS interaction scan for ${testPage}: ${error.message}`);
+              continue;
+            }
+            throw error;
+          } finally {
+            activePage.off('console', listener);
+            activePage.off('requestfailed', requestFailedListener);
+            activePage.off('response', responseListener);
           }
-          if (pageErrors.length > 0) {
-            consoleErrors.push(...pageErrors);
-          }
-        } finally {
-          currentPage.off('console', listener);
-          currentPage.off('requestfailed', requestFailedListener);
-          currentPage.off('response', responseListener);
         }
       });
     }
