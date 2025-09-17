@@ -59,6 +59,10 @@ All shared suites traverse the full `testPages` list. The interactive audit is i
 - `resourceErrorBudget`: number of failed network requests tolerated before the interactive spec soft-fails (default 0).
 - `testPages`: keep this array tightly aligned with the content that should stay live. Functionality/accessibility specs treat 4xx/5xx as failures, so update the JSON whenever URLs are removed or slugs change. A sitemap-driven discovery mode will come later; for now it’s curated list or manual updates.
 
+### Link & Performance Configuration (Optional)
+- `linkCheck`: `{ maxPerPage?: number, timeoutMs?: number, followRedirects?: boolean, methodFallback?: boolean }` tunes the internal link audit. Defaults are `20`, `5000`, `true`, `true`, respectively.
+- `performanceBudgets`: `{ domContentLoaded?: number, loadComplete?: number, firstContentfulPaint?: number }` sets per-page (ms) soft gates surfaced by `functionality.infrastructure.spec.js`.
+
 ## Commit & Pull Request Guidelines
 - Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`) as seen in history.
 - PRs should include: clear description, linked issue (if any), how to run/reproduce, and relevant report paths/screenshot diffs.

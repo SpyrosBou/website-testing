@@ -72,13 +72,26 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
     {"name": "Header", "selector": "header"},
     {"name": "Footer", "selector": "footer"}
   ],
+  "linkCheck": {
+    "maxPerPage": 20,
+    "timeoutMs": 5000,
+    "followRedirects": true,
+    "methodFallback": true
+  },
   "a11yFailOn": ["critical", "serious"],
   "a11yIgnoreRules": ["color-contrast"],
   "a11yMode": "gate",
   "ignoreConsoleErrors": ["vendor-script", "MarketingPixel"],
-  "resourceErrorBudget": 0
+  "resourceErrorBudget": 0,
+  "performanceBudgets": {
+    "domContentLoaded": 2500,
+    "loadComplete": 4000,
+    "firstContentfulPaint": 2000
+  }
 }
 ```
+
+`linkCheck` lets you tune how aggressively the internal link audit runs. Defaults are `maxPerPage: 20`, `timeoutMs: 5000`, `followRedirects: true`, and `methodFallback: true` (retry with GET when servers reject HEAD). `performanceBudgets` soft-fail the run when `domContentLoaded`, `loadComplete`, or `firstContentfulPaint` timings exceed the provided millisecond thresholds. If omitted, the suite uses the conservative defaults baked into the specs (`linkCheck`) and skips the performance gating entirely.
 
 `testPages` should list the exact paths you expect to remain available. The functionality and accessibility suites will fail as soon as they encounter a 4xx/5xx response, so keep this array in sync with the live site (or enable sitemap discovery as described below).
 
@@ -161,10 +174,10 @@ node run-tests.js --site=my-site --project="Safari"  # WebKit engine
 - **Real Mobile Testing**: For actual device testing, use cloud services (not covered by this suite)
 
 ### Functionality Testing
-- ✅ No broken internal links (rate-limited HEAD checks across `testPages`)
-- ✅ JavaScript & resource error smoke: light focus/hover on buttons/links/inputs with console logging and failed-request tracking
+- ✅ No broken internal links (per-page sampling honours `linkCheck` config, retries with GET when HEAD is unsupported)
+- ✅ JavaScript & resource error smoke: light focus/hover on buttons/links/inputs with console logging, failed-request tracking, and per-site ignore/budget controls
 - ✅ Form validation and submission (for forms listed in site config)
-- ✅ Page load times (per-page DOM timing with soft warnings)
+- ✅ Page load times (per-page DOM timing with optional `performanceBudgets` soft gates)
 - ✅ HTTP status codes & content-type assertions
 
 The interactive audit still walks every entry in `testPages`, but it only performs lightweight focus/hover taps while watching for console errors and failed network requests. That keeps the shared harness stable across very different client sites. When you need multi-step user journeys, flows behind logins, or bespoke form handling, layer client-specific Playwright specs on top of the shared suite.

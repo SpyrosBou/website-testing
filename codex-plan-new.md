@@ -74,7 +74,7 @@ Out of Scope
 - No additional site config fields; no Allure work here.
 
 ## Track 3 — Functionality & Performance: Link Checker, Resource Errors, Budgets
-Status: In progress — link coverage aligned with live site; resource error surfacing and perf budgets still outstanding. Sitemap-driven discovery (hybrid mode) queued for future work.
+Status: Completed — link coverage aligned with live site, resource error surfacing wired into the interactive audit, and performance budgets enforced. Sitemap-driven discovery (hybrid mode) queued for future work.
 
 Scope
 - Improve internal-link reliability; track resource errors; add site-level performance budgets with assertions and reporting.
@@ -86,7 +86,7 @@ Changes
   - `ignoreConsoleErrors`: string[] of substrings/regex sources to suppress known vendor noise.
   - `performanceBudgets`: `{ loadComplete?: number, domContentLoaded?: number, firstContentfulPaint?: number }` with reasonable defaults (e.g., 4000/2500/2000 ms) applied only if provided.
 - Internal links:
-  - `tests/functionality.links.spec.js`: Normalize hrefs (strip hash/query for dedupe), honor `maxPerPage` and `timeoutMs`. (HEAD fallback still TODO once budgeted.)
+  - `tests/functionality.links.spec.js`: Normalize hrefs (strip hash/query for dedupe), honor `maxPerPage` and `timeoutMs`, and fall back to GET when HEAD is unsupported.
 - Resource errors:
   - In `tests/functionality.interactive.spec.js` collect `page.on('requestfailed')` and 4xx/5xx `response` events; report count and soft-fail unless it exceeds a threshold (default 0). _(DONE)_
   - Expand console error ignore list to use `siteConfig.ignoreConsoleErrors` in addition to built-ins. _(DONE)_
@@ -96,9 +96,9 @@ Changes
   - `tests/functionality.infrastructure.spec.js`: After metrics collection, assert against any provided `performanceBudgets` (soft‑fail by default). Attach per‑page metrics to console; optional Allure text attachment is OK.
 
  Acceptance Criteria
-- Link test produces fewer false positives (deduped, fallback applied) and remains bounded by `maxPerPage` with a clear report. _(Dedupe done; fallback still open.)_
-- Resource failures are surfaced in logs and soft-gated; console errors honor per-site ignores. _(Partially DONE – harness limited to first three pages pending redesign)_
-- When budgets are present, any exceedance is reported clearly and soft-failed; absent budgets leave behavior unchanged. _(Open)_
+- Link test produces fewer false positives (deduped, fallback applied) and remains bounded by `maxPerPage` with a clear report. _(DONE)_
+- Resource failures are surfaced in logs and soft-gated; console errors honor per-site ignores. _(DONE)_
+- When budgets are present, any exceedance is reported clearly and soft-failed; absent budgets leave behavior unchanged. _(DONE)_
 
 - Lighthouse or third-party perf tooling; keep within Playwright APIs.
 - Arbitrary crawling; discovery is limited to curated lists and sitemap parsing when implemented.

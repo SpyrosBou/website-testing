@@ -70,6 +70,7 @@ Each WordPress site requires a JSON configuration in `sites/` directory:
 - Naming convention: `sitename-local.json` (local dev) and `sitename-live.json` (production)
 - Configuration drives all test behavior and site-specific selectors
 - The `SITE_NAME` environment variable is set automatically by the test runner
+- Optional knobs: `linkCheck` (per-page link sampling controls), `ignoreConsoleErrors`/`resourceErrorBudget` (interactive audit filters), and `performanceBudgets` (soft gates for DOM timings)
 
 ### Test Runner Architecture
 The `run-tests.js` orchestrates test execution:

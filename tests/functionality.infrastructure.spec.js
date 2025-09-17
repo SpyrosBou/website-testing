@@ -90,6 +90,12 @@ test.describe('Functionality: Core Infrastructure', () => {
     test.setTimeout(45000);
     errorContext.setTest('Performance Monitoring');
     const performanceData = [];
+    const perfBudgets =
+      typeof siteConfig.performanceBudgets === 'object' &&
+      siteConfig.performanceBudgets !== null
+        ? siteConfig.performanceBudgets
+        : null;
+    const performanceBreaches = [];
     for (const testPage of siteConfig.testPages.slice(0, 5)) {
       await test.step(`Measuring performance for: ${testPage}`, async () => {
         errorContext.setPage(testPage);
@@ -100,22 +106,63 @@ test.describe('Functionality: Core Infrastructure', () => {
         const loadTime = Date.now() - startTime;
         const metrics = await page.evaluate(() => {
           const navigation = performance.getEntriesByType('navigation')[0];
+          const paints = performance.getEntriesByType('paint');
           return {
             domContentLoaded: navigation.domContentLoadedEventEnd - navigation.navigationStart,
             loadComplete: navigation.loadEventEnd - navigation.navigationStart,
-            firstPaint:
-              performance.getEntriesByType('paint').find((p) => p.name === 'first-paint')
-                ?.startTime || 0,
+            firstPaint: paints.find((p) => p.name === 'first-paint')?.startTime || 0,
+            firstContentfulPaint:
+              paints.find((p) => p.name === 'first-contentful-paint')?.startTime || 0,
           };
         });
         performanceData.push({ page: testPage, loadTime, ...metrics });
         if (loadTime > 3000) console.log(`⚠️  ${testPage} took ${loadTime}ms (>3s)`);
         else console.log(`✅ ${testPage} loaded in ${loadTime}ms`);
+
+        if (perfBudgets) {
+          const budgetChecks = {
+            domContentLoaded: metrics.domContentLoaded,
+            loadComplete: metrics.loadComplete,
+            firstContentfulPaint: metrics.firstContentfulPaint,
+          };
+
+          for (const [budgetKey, value] of Object.entries(budgetChecks)) {
+            if (!Object.prototype.hasOwnProperty.call(perfBudgets, budgetKey)) continue;
+            const budget = Number(perfBudgets[budgetKey]);
+            if (!Number.isFinite(budget) || budget <= 0) continue;
+            if (!Number.isFinite(value) || value <= 0) {
+              console.log(
+                `ℹ️  ${budgetKey} metric unavailable on ${testPage}; skipping budget comparison`
+              );
+              continue;
+            }
+            if (value > budget) {
+              console.log(
+                `❌  ${budgetKey} for ${testPage} exceeded budget: ${Math.round(value)}ms > ${budget}ms`
+              );
+              performanceBreaches.push({ page: testPage, metric: budgetKey, value, budget });
+              expect.soft(value).toBeLessThanOrEqual(budget);
+            } else {
+              console.log(
+                `✅  ${budgetKey} for ${testPage} within budget (${Math.round(value)}ms <= ${budget}ms)`
+              );
+            }
+          }
+        }
       });
     }
     if (performanceData.length > 0) {
       const avg = performanceData.reduce((s, d) => s + d.loadTime, 0) / performanceData.length;
       console.log(`📊 Average load time: ${Math.round(avg)}ms`);
+      if (performanceBreaches.length > 0) {
+        const details = performanceBreaches
+          .map(
+            (entry) =>
+              `${entry.metric} on ${entry.page}: ${Math.round(entry.value)}ms (budget ${entry.budget}ms)`
+          )
+          .join('\n');
+        console.error(`⚠️  Performance budgets exceeded:\n${details}`);
+      }
     }
   });
 });
