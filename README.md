@@ -68,7 +68,28 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
 }
 ```
 
-`testPages` should list the exact paths you expect to remain available. The functionality and accessibility suites will fail as soon as they encounter a 4xx/5xx response, so keep this array in sync with the live site (or switch to the sitemap-based discovery mode when we wire it in).
+`testPages` should list the exact paths you expect to remain available. The functionality and accessibility suites will fail as soon as they encounter a 4xx/5xx response, so keep this array in sync with the live site (or enable sitemap discovery as described below).
+
+## Optional Page Discovery
+
+You can ask the runner to supplement `testPages` by parsing a sitemap:
+
+```json
+{
+  "name": "My WordPress Site",
+  "baseUrl": "https://mywordpresssite.com",
+  "testPages": ["/", "/about", "/contact"],
+  "discover": {
+    "strategy": "sitemap",
+    "sitemapUrl": "https://mywordpresssite.com/sitemap_index.xml",
+    "maxPages": 25,
+    "include": ["^/services"],
+    "exclude": ["^/tag/"]
+  }
+}
+```
+
+When `strategy` is `sitemap`, the runner fetches the sitemap (default `baseUrl/sitemap.xml`), walks child sitemaps up to two levels, normalises URLs to paths, filters them with the optional `include`/`exclude` patterns, and merges up to `maxPages` new entries into `testPages` (without removing the curated list).
 
 ## Commands
 

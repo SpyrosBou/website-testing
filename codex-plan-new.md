@@ -78,7 +78,7 @@ Status: In progress — link coverage aligned with live site; resource error sur
 
 Scope
 - Improve internal-link reliability; track resource errors; add site-level performance budgets with assertions and reporting.
-- Introduce optional sitemap-based page discovery: parse primary sitemap, merge with curated `testPages`, respect max-page limits. No free-form crawling.
+- Introduce optional sitemap-based page discovery: parse primary sitemap, merge with curated `testPages`, respect max-page limits. No free-form crawling. _(DONE)_
 
 Changes
 - Site config (new optional fields):

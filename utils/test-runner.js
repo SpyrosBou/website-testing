@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
+const { discoverFromSitemap } = require('./sitemap-loader');
 
 class TestRunner {
   static listSites() {
@@ -78,6 +79,32 @@ class TestRunner {
     try {
       const siteConfig = SiteLoader.loadSite(siteName);
       SiteLoader.validateSiteConfig(siteConfig);
+
+      if (siteConfig.discover && siteConfig.discover.strategy === 'sitemap') {
+        try {
+          const discovered = await discoverFromSitemap(siteConfig, siteConfig.discover);
+          if (discovered.length > 0) {
+            const existing = new Set(siteConfig.testPages);
+            const merged = [...siteConfig.testPages];
+            discovered.forEach((path) => {
+              if (!existing.has(path)) {
+                merged.push(path);
+                existing.add(path);
+              }
+            });
+            const addedCount = merged.length - siteConfig.testPages.length;
+            siteConfig.testPages = merged;
+            console.log(
+              `🔍 Sitemap discovery added ${addedCount} page(s) (total ${merged.length}).`
+            );
+          } else {
+            console.log('ℹ️  Sitemap discovery returned no additional pages.');
+          }
+        } catch (error) {
+          console.log(`⚠️  Sitemap discovery skipped: ${error.message}`);
+        }
+      }
+
       console.log(`Running tests for: ${siteConfig.name}`);
       console.log(`Base URL: ${siteConfig.baseUrl}`);
       console.log(`Pages to test: ${siteConfig.testPages.join(', ')}`);

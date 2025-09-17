@@ -25,6 +25,7 @@
 - Tests live in `tests/` and end with `*.spec.js` using `test.describe` / `test`.
 - Site configs: one file per site in `sites/`; prefer `my-site-local.json` and `my-site-live.json` naming.
 - Keep helpers cohesive in `utils/`; avoid ad-hoc scripts elsewhere.
+- Optional discovery: when `discover.strategy` is `sitemap`, the runner fetches the sitemap, merges up to `maxPages` paths, and applies optional `include`/`exclude` filters. Always keep `testPages` aligned with critical routes even when discovery is enabled.
 
 ## Testing Guidelines
 - Frameworks: `@playwright/test` + `@axe-core/playwright`; reporting via `allure-playwright`.
