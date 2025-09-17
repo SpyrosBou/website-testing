@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { allure } = require('allure-playwright');
 const SiteLoader = require('../utils/site-loader');
 const {
   setupTestPage,
@@ -7,6 +8,109 @@ const {
   waitForPageStability,
 } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
+
+const attachAllureText = async (name, content, type = 'text/plain') => {
+  if (allure && typeof allure.attachment === 'function') {
+    await allure.attachment(name, content, type);
+  }
+};
+
+const escapeHtml = (value) =>
+  String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const statusClassName = (status) => {
+  if (status >= 400) return 'status-error';
+  if (status >= 300) return 'status-redirect';
+  return 'status-ok';
+};
+
+const formatHttpSummaryHtml = (results) => {
+  const rows = results
+    .map((entry) => {
+      const className = statusClassName(entry.status);
+      const checksHtml = entry.checks
+        .map(
+          (check) =>
+            `<li class="${check.passed ? 'check-pass' : 'check-fail'}">${escapeHtml(check.label)}${
+              check.details ? ` <span class="details">(${escapeHtml(check.details)})</span>` : ''
+            }</li>`
+        )
+        .join('');
+      const redirectNote =
+        entry.status >= 300 && entry.status < 400 && entry.location
+          ? `<div class="note">Location: <code>${escapeHtml(entry.location)}</code></div>`
+          : '';
+      return `
+        <tr class="${className}">
+          <td><code>${escapeHtml(entry.page)}</code></td>
+          <td>${entry.status}${entry.statusText ? ` ${escapeHtml(entry.statusText)}` : ''}</td>
+          <td>
+            <ul class="checks">${checksHtml || '<li>No 200 OK validation run</li>'}</ul>
+            ${redirectNote}
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+    <style>
+      .http-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .http-report table { border-collapse: collapse; width: 100%; margin: 0.75rem 0; }
+      .http-report th, .http-report td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
+      .http-report th { background: #f6f8fa; }
+      .http-report tr.status-ok td { background: #edf7ed; }
+      .http-report tr.status-redirect td { background: #fff4ce; }
+      .http-report tr.status-error td { background: #ffe5e5; }
+      .http-report ul.checks { margin: 0; padding-left: 1.2rem; }
+      .http-report ul.checks li { margin: 0.15rem 0; }
+      .http-report li.check-pass::marker { color: #137333; }
+      .http-report li.check-fail::marker { color: #d93025; }
+      .http-report .details { color: #4e5969; }
+      .http-report .legend { margin: 0.5rem 0; }
+      .http-report .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
+      .http-report .badge.ok { background: #edf7ed; }
+      .http-report .badge.redirect { background: #fff4ce; }
+      .http-report .badge.error { background: #ffe5e5; }
+      .http-report .note { margin-top: 0.25rem; font-size: 0.85rem; color: #344054; }
+      .http-report code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+    </style>
+    <section class="http-report">
+      <h2>HTTP response &amp; content integrity summary</h2>
+      <p class="legend">
+        <span class="badge ok">200 OK</span>
+        <span class="badge redirect">3xx redirect</span>
+        <span class="badge error">4xx/5xx</span>
+      </p>
+      <table>
+        <thead>
+          <tr><th>Path</th><th>Status</th><th>Checks</th></tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </section>
+  `;
+};
+
+const formatHttpSummaryMarkdown = (results) =>
+  ['# HTTP response & content integrity summary', '', '| Path | Status | Notes |', '| --- | --- | --- |']
+    .concat(
+      results.map((entry) => {
+        const notes = entry.checks
+          .map((check) => `${check.passed ? '✅' : '⚠️'} ${check.label}${check.details ? ` (${check.details})` : ''}`)
+          .join('<br />');
+        const statusLabel = entry.statusText ? `${entry.status} ${entry.statusText}` : `${entry.status}`;
+        return `| \`${entry.page}\` | ${statusLabel} | ${notes || 'No 200 OK validation run'} |`;
+      })
+    )
+    .join('\n');
 
 test.describe('Functionality: Core Infrastructure', () => {
   let siteConfig;
@@ -63,26 +167,67 @@ test.describe('Functionality: Core Infrastructure', () => {
   test('HTTP response and content integrity', async ({ page }) => {
     test.setTimeout(20000);
     errorContext.setTest('HTTP Response Validation');
+    const responseResults = [];
     for (const testPage of siteConfig.testPages) {
       await test.step(`Validating response for: ${testPage}`, async () => {
         errorContext.setPage(testPage);
         const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
-        expect([200, 301, 302]).toContain(response.status());
-        if (response.status() === 200) {
-          const contentType = response.headers()['content-type'];
+        const status = response.status();
+        const statusText = response.statusText ? response.statusText() : '';
+        const checks = [];
+
+        expect([200, 301, 302]).toContain(status);
+        if (status === 200) {
+          const contentType = response.headers()['content-type'] || '';
+          const hasContentType = contentType.includes('text/html');
+          checks.push({
+            label: 'Content-Type includes text/html',
+            passed: hasContentType,
+            details: contentType || 'missing',
+          });
           expect(contentType).toContain('text/html');
+
           await expect(page.locator('html[lang]')).toBeAttached();
-          await expect(
-            page.locator('meta[charset], meta[http-equiv="Content-Type"]')
-          ).toBeAttached();
+          checks.push({ label: 'html[lang] attribute present', passed: true });
+
+          await expect(page.locator('meta[charset], meta[http-equiv="Content-Type"]')).toBeAttached();
+          checks.push({ label: 'charset meta tag present', passed: true });
+
           await expect(page.locator('meta[name="viewport"]')).toBeAttached();
+          checks.push({ label: 'viewport meta tag present', passed: true });
+
           const bodyText = await page.locator('body').textContent();
-          expect(bodyText).not.toContain('Fatal error');
-          expect(bodyText).not.toContain('Warning:');
-          expect(bodyText).not.toContain('Notice:');
+          const fatalErrorPresent = /Fatal error/i.test(bodyText || '');
+          const warningPresent = /Warning:/i.test(bodyText || '');
+          const noticePresent = /Notice:/i.test(bodyText || '');
+          expect(fatalErrorPresent).toBe(false);
+          expect(warningPresent).toBe(false);
+          expect(noticePresent).toBe(false);
+          checks.push({ label: 'No PHP fatal/warning/notice text', passed: true });
           console.log(`✅ Response validation passed for ${testPage}`);
         }
+
+        const entry = {
+          page: testPage,
+          status,
+          statusText,
+          checks,
+        };
+        if (status >= 300 && status < 400) {
+          entry.location = response.headers()['location'] || '';
+        }
+        responseResults.push(entry);
       });
+    }
+
+    if (responseResults.length > 0) {
+      const summaryHtml = formatHttpSummaryHtml(responseResults);
+      const summaryMarkdown = formatHttpSummaryMarkdown(responseResults);
+      await attachAllureText('http-response-summary.html', summaryHtml, 'text/html');
+      await attachAllureText('http-response-summary.md', summaryMarkdown, 'text/markdown');
+      if (typeof allure?.descriptionHtml === 'function') {
+        allure.descriptionHtml(summaryHtml);
+      }
     }
   });
 
