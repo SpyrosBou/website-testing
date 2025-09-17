@@ -74,10 +74,11 @@ Out of Scope
 - No additional site config fields; no Allure work here.
 
 ## Track 3 — Functionality & Performance: Link Checker, Resource Errors, Budgets
-Status: In progress — link coverage aligned with live site; resource error surfacing and perf budgets still outstanding.
+Status: In progress — link coverage aligned with live site; resource error surfacing and perf budgets still outstanding. Sitemap-driven discovery (hybrid mode) queued for future work.
 
 Scope
-- Improve internal-link reliability; track resource errors; add site‑level performance budgets with assertions and reporting.
+- Improve internal-link reliability; track resource errors; add site-level performance budgets with assertions and reporting.
+- Introduce optional sitemap-based page discovery: parse primary sitemap, merge with curated `testPages`, respect max-page limits. No free-form crawling.
 
 Changes
 - Site config (new optional fields):
@@ -97,8 +98,8 @@ Changes
 - Resource failures are surfaced in logs and soft-gated; console errors honor per-site ignores. _(Open)_
 - When budgets are present, any exceedance is reported clearly and soft-failed; absent budgets leave behavior unchanged. _(Open)_
 
-Out of Scope
-- Lighthouse or third‑party perf tooling; keep within Playwright APIs.
+- Lighthouse or third-party perf tooling; keep within Playwright APIs.
+- Arbitrary crawling; discovery is limited to curated lists and sitemap parsing when implemented.
 
 ---
 
