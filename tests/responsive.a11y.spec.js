@@ -24,6 +24,7 @@ const VIEWPORTS = {
 test.describe('Responsive Accessibility', () => {
   let siteConfig;
   let errorContext;
+  let a11yMode;
 
   test.beforeEach(async ({ page, context }) => {
     const siteName = process.env.SITE_NAME;
@@ -31,6 +32,7 @@ test.describe('Responsive Accessibility', () => {
     siteConfig = SiteLoader.loadSite(siteName);
     SiteLoader.validateSiteConfig(siteConfig);
     errorContext = await setupTestPage(page, context);
+    a11yMode = siteConfig.a11yMode === 'audit' ? 'audit' : 'gate';
   });
 
   test.afterEach(async ({ page, context }) => {
@@ -46,6 +48,7 @@ test.describe('Responsive Accessibility', () => {
         ? siteConfig.testPages.slice(0, 1)
         : siteConfig.testPages.slice(0, 3);
 
+      const aggregatedViolations = [];
       for (const testPage of samplesToTest) {
         await test.step(`Accessibility ${viewportName}: ${testPage}`, async () => {
           const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
@@ -80,10 +83,21 @@ test.describe('Responsive Accessibility', () => {
                 `Accessibility Violations for ${testPage} (${viewportName})\n\n` +
                 lines.join('\n\n');
               await attachAllureText(`a11y-${viewportName}-${testPage}-violations`, report);
-              console.error(
-                `❌ ${filtered.length} accessibility violations (fail-on: ${failOn.join(', ')}) on ${testPage} (${viewportName})`
-              );
-              expect.soft(filtered.length).toBe(0);
+              aggregatedViolations.push({
+                page: testPage,
+                viewport: viewportName,
+                count: filtered.length,
+                failOn,
+                report,
+              });
+              const message = `❌ ${filtered.length} accessibility violations (fail-on: ${failOn.join(
+                ', '
+              )}) on ${testPage} (${viewportName})`;
+              if (a11yMode === 'audit') {
+                console.warn(message);
+              } else {
+                console.error(message);
+              }
             } else {
               console.log(
                 `✅ No ${failOn.join('/')} accessibility violations on ${testPage} (${viewportName})`
@@ -95,6 +109,20 @@ test.describe('Responsive Accessibility', () => {
             );
           }
         });
+      }
+
+      if (aggregatedViolations.length > 0) {
+        const summary = aggregatedViolations
+          .map(
+            (entry) =>
+              `Page: ${entry.page} (${entry.viewport})\nViolations: ${entry.count}\n${entry.report}`
+          )
+          .join('\n\n');
+        if (a11yMode === 'audit') {
+          console.warn(`ℹ️ Accessibility audit summary (no failure):\n\n${summary}`);
+        } else {
+          expect(aggregatedViolations.length, `Accessibility violations detected:\n\n${summary}`).toBe(0);
+        }
       }
     });
   });

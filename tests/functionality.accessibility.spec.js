@@ -18,6 +18,7 @@ async function attachAllureText(name, content) {
 test.describe('Functionality: Accessibility (WCAG)', () => {
   let siteConfig;
   let errorContext;
+  let a11yMode;
 
   test.beforeEach(async ({ page, context }) => {
     const siteName = process.env.SITE_NAME;
@@ -25,6 +26,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
     siteConfig = SiteLoader.loadSite(siteName);
     SiteLoader.validateSiteConfig(siteConfig);
     errorContext = await setupTestPage(page, context);
+    a11yMode = siteConfig.a11yMode === 'audit' ? 'audit' : 'gate';
   });
 
   test.afterEach(async ({ page, context }) => {
@@ -34,6 +36,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
   test('WCAG 2.1 A/AA scans', async ({ page }) => {
     test.setTimeout(45000);
     const pages = siteConfig.testPages;
+    const aggregatedViolations = [];
     for (const testPage of pages) {
       await test.step(`Accessibility scan: ${testPage}`, async () => {
         const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
@@ -65,10 +68,20 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             });
             const report = `Accessibility Violations for ${testPage}\n\n` + lines.join('\n\n');
             await attachAllureText(`a11y-${testPage}-violations`, report);
-            console.error(
-              `❌ ${filtered.length} accessibility violations (fail-on: ${failOn.join(', ')}) on ${testPage}`
-            );
-            expect.soft(filtered.length).toBe(0);
+            aggregatedViolations.push({
+              page: testPage,
+              count: filtered.length,
+              failOn,
+              report,
+            });
+            const message = `❌ ${filtered.length} accessibility violations (fail-on: ${failOn.join(
+              ', '
+            )}) on ${testPage}`;
+            if (a11yMode === 'audit') {
+              console.warn(message);
+            } else {
+              console.error(message);
+            }
           } else {
             console.log(`✅ No ${failOn.join('/')} accessibility violations on ${testPage}`);
           }
@@ -76,6 +89,17 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
           console.error(`⚠️  Accessibility scan failed for ${testPage}: ${error.message}`);
         }
       });
+    }
+
+    if (aggregatedViolations.length > 0) {
+      const summary = aggregatedViolations
+        .map((entry) => `Page: ${entry.page}\nViolations: ${entry.count}\n${entry.report}`)
+        .join('\n\n');
+      if (a11yMode === 'audit') {
+        console.warn(`ℹ️ Accessibility audit summary (no failure):\n\n${summary}`);
+      } else {
+        expect(aggregatedViolations.length, `Accessibility violations detected:\n\n${summary}`).toBe(0);
+      }
     }
   });
 });

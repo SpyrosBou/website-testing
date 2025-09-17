@@ -29,6 +29,7 @@ Changes
 - Site config (new optional fields):
   - `a11yFailOn`: array of impacts, default `['critical','serious']`.
   - `a11yIgnoreRules`: array of rule IDs to ignore.
+  - `a11yMode`: `'gate'` (default) fails after full run; `'audit'` logs without failing.
 - Tests:
   - `tests/functionality.accessibility.spec.js`
   - `tests/responsive.a11y.spec.js`

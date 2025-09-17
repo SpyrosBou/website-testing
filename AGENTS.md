@@ -50,6 +50,7 @@
 - Add to your site config to control gating and ignores:
   - `a11yFailOn`: array of impacts to fail on (default `['critical','serious']`).
   - `a11yIgnoreRules`: array of axe rule IDs to ignore (e.g., `"color-contrast"`).
+- `a11yMode`: set to `"gate"` (default) to aggregate violations and fail after the full run, or `"audit"` to log summaries without failing.
 - When violations occur, tests attach an Allure text report per page/viewport summarizing rule IDs, help URLs, and node counts.
 
 ## Commit & Pull Request Guidelines
