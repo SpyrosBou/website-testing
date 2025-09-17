@@ -173,16 +173,16 @@ node run-tests.js --site=my-site --project="Safari"  # WebKit engine
 - **Why This Works**: Matches real-world responsive development and testing workflows
 - **Real Mobile Testing**: For actual device testing, use cloud services (not covered by this suite)
 
-### Functionality Testing
-- ✅ No broken internal links (per-page sampling honours `linkCheck` config, retries with GET when HEAD is unsupported)
-- ✅ JavaScript & resource error smoke: light focus/hover on buttons/links/inputs with console logging, failed-request tracking, and per-site ignore/budget controls
+-### Functionality Testing
+- ✅ No broken internal links (per-page sampling honours `linkCheck` config, retries with GET when HEAD is unsupported, and publishes an Allure table of checked/broken URLs)
+- ✅ JavaScript & resource error smoke: light focus/hover on buttons/links/inputs with console logging, failed-request tracking, per-site ignore/budget controls, and an Allure summary per page
 - ✅ Form validation and submission (for forms listed in site config)
-- ✅ Page load times (per-page DOM timing with optional `performanceBudgets` soft gates)
+- ✅ Page load times (per-page DOM timing with optional `performanceBudgets` soft gates; Allure tables highlight any budget breaches)
 - ✅ HTTP status codes & content-type assertions
 
 The interactive audit still walks every entry in `testPages`, but it only performs lightweight focus/hover taps while watching for console errors and failed network requests. That keeps the shared harness stable across very different client sites. When you need multi-step user journeys, flows behind logins, or bespoke form handling, layer client-specific Playwright specs on top of the shared suite.
 
-All other shared suites (infrastructure, links, accessibility, responsive structure/visual) execute their full assertions across every `testPages` URL without these limitations.
+All other shared suites (infrastructure, links, accessibility, responsive structure/visual) execute their full assertions across every `testPages` URL without these limitations. Each spec drops an HTML + Markdown attachment into Allure via helpers in `utils/allure-utils.js`, so passing tests now explain exactly what was validated instead of surfacing a bare green tick.
 
 ## Test Results
 
@@ -203,6 +203,7 @@ Allure (optional)
   - Generate and open: `npm run allure-report`
   - Live server: `npm run allure-serve`
 - If Java is not installed, use Playwright HTML report (`playwright-report/index.html`) or `npx playwright show-report`.
+- Functional specs attach structured HTML + Markdown summaries (stored under `test-results/<suite>`) so the Allure "Overview" pane spells out which checks passed, which pages were scanned, and any warnings logged.
 
 ## CI & Scheduling
 - CI smoke tests no longer run automatically on PRs, pushes, or on a schedule.

@@ -71,6 +71,7 @@ Each WordPress site requires a JSON configuration in `sites/` directory:
 - Configuration drives all test behavior and site-specific selectors
 - The `SITE_NAME` environment variable is set automatically by the test runner
 - Optional knobs: `linkCheck` (per-page link sampling controls), `ignoreConsoleErrors`/`resourceErrorBudget` (interactive audit filters), and `performanceBudgets` (soft gates for DOM timings)
+- Functionality specs read these settings and surface structured summaries in Allure via helpers in `utils/allure-utils.js` (HTTP response tables, link coverage, interactive console/resource breakdowns, etc.).
 
 ### Test Runner Architecture
 The `run-tests.js` orchestrates test execution:

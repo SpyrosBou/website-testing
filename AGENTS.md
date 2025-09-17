@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 - `tests/` Playwright specs: responsive (`responsive.*.spec.js`), functionality (`functionality.*.spec.js`), and `baseline-snapshots/` for visual baselines.
 - `sites/` JSON site configs (e.g., `example-site.json`, `*-local.json`, `*-live.json`).
-- `utils/` helpers (`test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`).
+- `utils/` helpers (`test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`, `allure-utils.js`).
 - Reports/artifacts: `allure-results/`, `allure-report/`, `playwright-report/`, `test-results/` (git-ignored).
 
 ## Build, Test, and Development Commands
@@ -41,6 +41,7 @@
   - `functionality.interactive.spec.js` (touches every `testPages` URL with lightweight focus/hover taps while capturing console/resource failures; add client-specific specs when you need real user journeys)
   - `functionality.wordpress.spec.js` (plugins, theme)
   - `functionality.accessibility.spec.js` (WCAG scans)
+- Each functionality spec publishes HTML + Markdown attachments via `utils/allure-utils.js`, so Allure reports include readable tables (availability, HTTP responses, link coverage, interactive errors, plugin/theme detection) instead of bare pass/fail icons.
 
 All shared suites traverse the full `testPages` list. The interactive audit is intentionally light-touch—focus/hover taps plus console and network monitoring—so it remains stable across sites. Build site-specific interactive specs when you need deep journeys, logins, or bespoke flows.
 - Snapshot baselines go in `tests/baseline-snapshots/`.

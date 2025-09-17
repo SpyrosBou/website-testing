@@ -86,12 +86,13 @@ Changes
   - `ignoreConsoleErrors`: string[] of substrings/regex sources to suppress known vendor noise.
   - `performanceBudgets`: `{ loadComplete?: number, domContentLoaded?: number, firstContentfulPaint?: number }` with reasonable defaults (e.g., 4000/2500/2000 ms) applied only if provided.
 - Internal links:
-  - `tests/functionality.links.spec.js`: Normalize hrefs (strip hash/query for dedupe), honor `maxPerPage` and `timeoutMs`, and fall back to GET when HEAD is unsupported.
+  - `tests/functionality.links.spec.js`: Normalize hrefs (strip hash/query for dedupe), honor `maxPerPage` and `timeoutMs`, fall back to GET when HEAD is unsupported, and attach coverage summaries to Allure.
 - Resource errors:
   - In `tests/functionality.interactive.spec.js` collect `page.on('requestfailed')` and 4xx/5xx `response` events; report count and soft-fail unless it exceeds a threshold (default 0). _(DONE)_
   - Expand console error ignore list to use `siteConfig.ignoreConsoleErrors` in addition to built-ins. _(DONE)_
   - The interactive spec now opens a fresh Playwright page per slug (with a retry on browser-closed errors) so all `testPages` participate. Deeper user journeys still require client-specific specs.
-- Docs: `README.md`, `AGENTS.md`, `CLAUDE.md` highlight the light-touch interactive audit and when to add client-specific journeys for deeper coverage.
+- All functionality specs now share summary helpers in `utils/allure-utils.js`. Each run publishes colour-coded HTML + Markdown attachments in Allure (availability, HTTP responses, link coverage, interactive console/resource results, plugin/theme detection) so passing tests describe what was validated.
+- Docs: `README.md`, `AGENTS.md`, `CLAUDE.md` highlight the light-touch interactive audit, Allure summaries, and when to add client-specific journeys for deeper coverage.
 - Performance budgets:
   - `tests/functionality.infrastructure.spec.js`: After metrics collection, assert against any provided `performanceBudgets` (soft‑fail by default). Attach per‑page metrics to console; optional Allure text attachment is OK.
 
@@ -109,6 +110,10 @@ Changes
 - 1: `feat/track-1-a11y-policy`
 - 2: `fix/track-2-navigation-404-smoke`
 - 3: `feat/track-3-links-perf-budgets`
+
+## Next Focus / Open Questions
+- Review WordPress-specific functionality tests for purpose, usefulness, and potential expansion (or removal) so we capture test-worthy behaviour beyond plugin/theme presence.
+- Investigate Lighthouse integration: define which metrics would add value on top of the current Playwright + axe stack, and which we can safely skip to avoid noise.
 
 ## Submission Checklist (Each Track)
 - Run: `npm run lint` and a representative test command (e.g., smoke/full for a local site or `static-smoke`).
