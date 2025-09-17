@@ -66,6 +66,8 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
 }
 ```
 
+`testPages` should list the exact paths you expect to remain available. The functionality and accessibility suites will fail as soon as they encounter a 4xx/5xx response, so keep this array in sync with the live site (or switch to the sitemap-based discovery mode when we wire it in).
+
 ## Commands
 
 ```bash
@@ -207,4 +209,4 @@ Tests run on:
 - `a11yIgnoreRules`: array of axe rule IDs to ignore when evaluating failures (e.g., `"color-contrast"`).
 - `a11yMode`: how accessibility specs behave. `"gate"` (default) aggregates violations across all pages/viewports and fails once at the end; `"audit"` logs the summary without failing so you can review issues without blocking the pipeline.
 
-These fields are optional. When present, they control how the a11y tests in `tests/functionality.accessibility.spec.js` and `tests/responsive.a11y.spec.js` decide which violations trigger failures. The tests also attach a per-page summary as an Allure text attachment when violations are present.
+These fields are optional. When present, they control how the a11y tests in `tests/functionality.accessibility.spec.js` and `tests/responsive.a11y.spec.js` decide which violations trigger failures. The tests also attach a per-page summary as an Allure text attachment when violations are present. Functionality/accessibility suites default to the Playwright project you pass (we typically run Chrome). Omit `--project` if you want Playwright to execute the same checks across every configured browser/device profile.
