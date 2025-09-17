@@ -18,6 +18,7 @@ This plan splits the remaining fundamentals into three isolated tracks to be exe
 - Artifacts: Do not commit `playwright-report/`, `allure-results/`, `allure-report/`, `test-results/`.
 - Docs: Update only the sections/files listed in your track. Do not rewrite unrelated docs.
 - DDEV note: If a target site uses `.ddev.site`, follow README’s optional preflight. Use `ddev` only when explicitly required for that site; this repo’s scripts run locally.
+- Site configs: keep `testPages` aligned with live content; functionality/accessibility suites treat 4xx/5xx as failures. A sitemap-driven helper will be introduced separately when we need broader discovery.
 
 ## Track 1 — Accessibility Policy, Fail Gates, Allure Artifacts
 Status: Completed
@@ -73,6 +74,8 @@ Out of Scope
 - No additional site config fields; no Allure work here.
 
 ## Track 3 — Functionality & Performance: Link Checker, Resource Errors, Budgets
+Status: In progress — link coverage aligned with live site; resource error surfacing and perf budgets still outstanding.
+
 Scope
 - Improve internal-link reliability; track resource errors; add site‑level performance budgets with assertions and reporting.
 
@@ -82,17 +85,17 @@ Changes
   - `ignoreConsoleErrors`: string[] of substrings/regex sources to suppress known vendor noise.
   - `performanceBudgets`: `{ loadComplete?: number, domContentLoaded?: number, firstContentfulPaint?: number }` with reasonable defaults (e.g., 4000/2500/2000 ms) applied only if provided.
 - Internal links:
-  - `tests/functionality.links.spec.js`: Normalize hrefs (strip hash/query for dedupe), HEAD→GET fallback on non‑200/405/501, honor `maxPerPage` and `timeoutMs`.
+  - `tests/functionality.links.spec.js`: Normalize hrefs (strip hash/query for dedupe), honor `maxPerPage` and `timeoutMs`. (HEAD fallback still TODO once budgeted.)
 - Resource errors:
   - In `tests/functionality.interactive.spec.js` or a small new spec, collect `page.on('requestfailed')` and 4xx/5xx `response` events; report count and soft‑fail unless it exceeds a threshold (e.g., >0 images/css/js failures → soft‑fail, configurable later).
   - Expand console error ignore list to use `siteConfig.ignoreConsoleErrors` in addition to built‑ins.
 - Performance budgets:
   - `tests/functionality.infrastructure.spec.js`: After metrics collection, assert against any provided `performanceBudgets` (soft‑fail by default). Attach per‑page metrics to console; optional Allure text attachment is OK.
 
-Acceptance Criteria
-- Link test produces fewer false positives (deduped, fallback applied) and remains bounded by `maxPerPage` with a clear report.
-- Resource failures are surfaced in logs and soft‑gated; console errors honor per‑site ignores.
-- When budgets are present, any exceedance is reported clearly and soft‑failed; absent budgets leave behavior unchanged.
+ Acceptance Criteria
+- Link test produces fewer false positives (deduped, fallback applied) and remains bounded by `maxPerPage` with a clear report. _(Dedupe done; fallback still open.)_
+- Resource failures are surfaced in logs and soft-gated; console errors honor per-site ignores. _(Open)_
+- When budgets are present, any exceedance is reported clearly and soft-failed; absent budgets leave behavior unchanged. _(Open)_
 
 Out of Scope
 - Lighthouse or third‑party perf tooling; keep within Playwright APIs.
