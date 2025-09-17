@@ -8,6 +8,101 @@ const {
 } = require('../utils/test-helpers');
 const { TestDataFactory, createTestData } = require('../utils/test-data-factory');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
+const { attachSummary, escapeHtml } = require('../utils/allure-utils');
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'root';
+
+const formatInteractiveSummaryHtml = (summaries, resourceBudget) => {
+  const rows = summaries
+    .map((entry) => {
+      const hasErrors = entry.consoleErrors.length > 0 || entry.resourceErrors.length > 0;
+      const statusClass = hasErrors || (entry.status && entry.status !== 200) ? 'status-error' : 'status-ok';
+      const statusLabel = entry.status === null ? 'n/a' : entry.status;
+
+      const consoleList =
+        entry.consoleErrors.length === 0
+          ? '<li class="check-pass">No console errors</li>'
+          : entry.consoleErrors
+              .slice(0, 3)
+              .map((err) => `<li class="check-fail">${escapeHtml(err.message)}</li>`)
+              .join('');
+
+      const resourceList =
+        entry.resourceErrors.length === 0
+          ? '<li class="check-pass">No failed requests</li>'
+          : entry.resourceErrors
+              .slice(0, 3)
+              .map((err) => {
+                if (err.type === 'requestfailed') {
+                  return `<li class="check-fail">${escapeHtml(err.type)} &mdash; <code>${escapeHtml(err.url)}</code> (${escapeHtml(err.failure || 'unknown')})</li>`;
+                }
+                return `<li class="check-fail">${escapeHtml(err.type)} ${err.status} ${escapeHtml(err.method || '')} &mdash; <code>${escapeHtml(err.url)}</code></li>`;
+              })
+              .join('');
+
+      const notesHtml = entry.notes.length
+        ? `<ul class="checks">${entry.notes
+            .map((note) => `<li class="${note.type === 'info' ? 'check-pass' : 'check-fail'}">${escapeHtml(note.message)}</li>`)
+            .join('')}</ul>`
+        : '';
+
+      return `
+        <tr class="${statusClass}">
+          <td><code>${escapeHtml(entry.page)}</code></td>
+          <td>${statusLabel}</td>
+          <td><ul class="checks">${consoleList}</ul></td>
+          <td><ul class="checks">${resourceList}</ul></td>
+          <td>${notesHtml}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+    <section class="summary-report summary-interactive">
+      <h3>JavaScript &amp; resource monitoring</h3>
+      <p>Resource error budget: <strong>${resourceBudget}</strong></p>
+      <table>
+        <thead>
+          <tr><th>Page</th><th>Status</th><th>Console</th><th>Resources</th><th>Notes</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>
+  `;
+};
+
+const formatInteractiveSummaryMarkdown = (summaries, resourceBudget) => {
+  const header = ['# JavaScript & resource monitoring summary', '', `Resource error budget: **${resourceBudget}**`, '', '| Page | Status | Console | Resources | Notes |', '| --- | --- | --- | --- | --- |'];
+  const rows = summaries.map((entry) => {
+    const statusLabel = entry.status === null ? 'n/a' : entry.status;
+    const consoleText =
+      entry.consoleErrors.length === 0
+        ? '✅ None'
+        : entry.consoleErrors
+            .slice(0, 3)
+            .map((err) => `⚠️ ${err.message}`)
+            .join('<br />');
+    const resourceText =
+      entry.resourceErrors.length === 0
+        ? '✅ None'
+        : entry.resourceErrors
+            .slice(0, 3)
+            .map((err) =>
+              err.type === 'requestfailed'
+                ? `⚠️ requestfailed ${err.url} (${err.failure || 'unknown'})`
+                : `⚠️ ${err.type} ${err.status} ${err.method || ''} ${err.url}`
+            )
+            .join('<br />');
+    const notesText = entry.notes.map((note) => `${note.type === 'info' ? 'ℹ️' : '⚠️'} ${note.message}`).join('<br />');
+    return `| \`${entry.page}\` | ${statusLabel} | ${consoleText || '—'} | ${resourceText || '—'} | ${notesText || '—'} |`;
+  });
+  return header.concat(rows).join('\n');
+};
 
 test.describe('Functionality: Interactive Elements', () => {
   let siteConfig;
@@ -31,6 +126,7 @@ test.describe('Functionality: Interactive Elements', () => {
     test.setTimeout(60000);
     const consoleErrors = [];
     const resourceErrors = [];
+    const pageSummaries = [];
     const defaultIgnored = ['analytics', 'google-analytics', 'gtag', 'facebook', 'twitter'];
     const siteIgnored = Array.isArray(siteConfig.ignoreConsoleErrors)
       ? siteConfig.ignoreConsoleErrors
@@ -44,28 +140,37 @@ test.describe('Functionality: Interactive Elements', () => {
       }
     });
 
-    const recordResourceError = (type, url, extra = {}) => {
-      resourceErrors.push({ type, url, ...extra });
-    };
-
     for (const testPage of siteConfig.testPages) {
       await test.step(`JS errors on: ${testPage}`, async () => {
+        const perPage = {
+          page: testPage,
+          status: null,
+          consoleErrors: [],
+          resourceErrors: [],
+          notes: [],
+        };
         let attempts = 0;
         while (attempts < 2) {
           const activePage = await context.newPage();
-          const pageErrors = [];
           const listener = (msg) => {
             if (msg.type() !== 'error') return;
             const text = msg.text();
             if (ignoreMatchers.some((re) => re.test(text))) return;
-            pageErrors.push({ message: text, url: activePage.url() });
+            const entry = { message: text, url: activePage.url() };
+            perPage.consoleErrors.push(entry);
+            consoleErrors.push(entry);
           };
           activePage.on('console', listener);
+
+          const recordResourceError = (type, url, extra = {}) => {
+            const entry = { type, url, ...extra };
+            perPage.resourceErrors.push(entry);
+            resourceErrors.push(entry);
+          };
 
           const requestFailedListener = (request) => {
             recordResourceError('requestfailed', request.url(), {
               failure: request.failure()?.errorText || 'unknown',
-              page: activePage.url(),
             });
           };
           const responseListener = (response) => {
@@ -74,7 +179,6 @@ test.describe('Functionality: Interactive Elements', () => {
               recordResourceError('response', response.url(), {
                 status,
                 method: response.request().method(),
-                page: activePage.url(),
               });
             }
           };
@@ -83,7 +187,12 @@ test.describe('Functionality: Interactive Elements', () => {
 
           try {
             const response = await safeNavigate(activePage, `${siteConfig.baseUrl}${testPage}`);
-            if (response.status() !== 200) return;
+            perPage.status = response.status();
+            if (perPage.status !== 200) {
+              perPage.notes.push({ type: 'warning', message: `Navigation returned ${perPage.status}` });
+              await activePage.close();
+              break;
+            }
             await waitForPageStability(activePage);
             const interactiveSelectors = ['button', 'a', 'input', 'select', 'textarea'];
             for (const s of interactiveSelectors) {
@@ -101,22 +210,22 @@ test.describe('Functionality: Interactive Elements', () => {
                   if (s === 'a') await element.hover({ timeout: 1500 });
                   else await element.dispatchEvent('focus');
                 } catch (error) {
-                  console.log(
-                    `⚠️  Interaction skipped for ${s} #${i} on ${testPage}: ${error.message}`
-                  );
+                  const message = `Interaction skipped for ${s} #${i}: ${error.message}`;
+                  console.log(`⚠️  ${message}`);
+                  perPage.notes.push({ type: 'warning', message });
                 }
               }
             }
-            if (pageErrors.length > 0) {
-              consoleErrors.push(...pageErrors);
-            }
+            perPage.notes.push({ type: 'info', message: 'Interaction cycle executed' });
             await activePage.close();
-            return;
+            break;
           } catch (error) {
             attempts += 1;
             await activePage.close();
             if (/page is closed/i.test(error.message) && attempts < 2) {
-              console.log(`⚠️  Retrying JS interaction scan for ${testPage}: ${error.message}`);
+              const note = `Retry due to closed page (${error.message})`;
+              console.log(`⚠️  ${note}`);
+              perPage.notes.push({ type: 'warning', message: note });
               continue;
             }
             throw error;
@@ -126,6 +235,12 @@ test.describe('Functionality: Interactive Elements', () => {
             activePage.off('response', responseListener);
           }
         }
+        if (perPage.status === null) {
+          perPage.notes.push({ type: 'warning', message: 'Navigation did not complete' });
+        } else if (perPage.status === 200 && perPage.consoleErrors.length === 0) {
+          perPage.notes.push({ type: 'info', message: 'No console errors detected' });
+        }
+        pageSummaries.push(perPage);
       });
     }
 
@@ -152,6 +267,15 @@ test.describe('Functionality: Interactive Elements', () => {
       );
     }
     expect.soft(resourceErrors.length).toBeLessThanOrEqual(resourceBudget);
+
+    const summaryHtml = formatInteractiveSummaryHtml(pageSummaries, resourceBudget);
+    const summaryMarkdown = formatInteractiveSummaryMarkdown(pageSummaries, resourceBudget);
+    await attachSummary({
+      baseName: 'interactive-summary',
+      htmlBody: summaryHtml,
+      markdown: summaryMarkdown,
+      setDescription: true,
+    });
   });
 
   test('Form interactions and validation (if configured)', async ({ page }) => {

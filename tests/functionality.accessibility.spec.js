@@ -1,6 +1,5 @@
 const { test, expect } = require('@playwright/test');
 const { AxeBuilder } = require('@axe-core/playwright');
-const { allure } = require('allure-playwright');
 const SiteLoader = require('../utils/site-loader');
 const {
   setupTestPage,
@@ -8,20 +7,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-
-async function attachAllureText(name, content, type = 'text/plain') {
-  if (allure && typeof allure.attachment === 'function') {
-    await allure.attachment(name, content, type);
-  }
-}
-
-const escapeHtml = (value) =>
-  String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+const { attachSummary, escapeHtml } = require('../utils/allure-utils');
 
 const formatRuleSummary = (violations) => {
   const aggregate = new Map();
@@ -77,6 +63,12 @@ const formatPageMarkdown = (page, violations) => {
   );
 };
 
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'root';
+
 const formatRuleSummaryHtml = (violations) => {
   const aggregate = new Map();
   for (const { page, entries } of violations) {
@@ -102,23 +94,26 @@ const formatRuleSummaryHtml = (violations) => {
   const rows = Array.from(aggregate.values())
     .map((item) => {
       const impact = item.impact || 'unknown';
-      const className = impactClassName(impact);
-      return `<tr class="${className}"><td>${escapeHtml(impact)}</td><td>${escapeHtml(item.id)}</td><td>${item.pages.size}</td><td>${item.totalNodes}</td><td><a href="${escapeHtml(
-        item.helpUrl || '#'
-      )}" target="_blank" rel="noopener noreferrer">rule docs</a></td></tr>`;
+      return `
+        <tr class="impact-${impact.toLowerCase()}">
+          <td>${escapeHtml(impact)}</td>
+          <td>${escapeHtml(item.id)}</td>
+          <td>${item.pages.size}</td>
+          <td>${item.totalNodes}</td>
+          <td><a href="${escapeHtml(item.helpUrl || '#')}" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+        </tr>
+      `;
     })
     .join('');
 
   return `
-    <section>
+    <section class="summary-report summary-a11y">
       <h3>Rule summary (${aggregate.size} unique rules)</h3>
-      <table class="a11y-summary">
+      <table>
         <thead>
           <tr><th>Impact</th><th>Rule</th><th>Pages</th><th>Nodes</th><th>Help</th></tr>
         </thead>
-        <tbody>
-          ${rows}
-        </tbody>
+        <tbody>${rows}</tbody>
       </table>
     </section>
   `;
@@ -135,9 +130,8 @@ const formatPageHtml = (page, violations) => {
         )
         .join('<br />');
       const impact = violation.impact || 'unknown';
-      const className = impactClassName(impact);
       return `
-        <tr class="${className}">
+        <tr class="impact-${impact.toLowerCase()}">
           <td>${escapeHtml(impact)}</td>
           <td>${escapeHtml(violation.id)}</td>
           <td>${violation.nodes?.length || 0}</td>
@@ -149,30 +143,18 @@ const formatPageHtml = (page, violations) => {
     .join('');
 
   return `
-    <style>
-      table.a11y-summary { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-      table.a11y-summary th, table.a11y-summary td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; }
-      table.a11y-summary th { background: #f6f8fa; }
-      tr.impact-critical td { background: #ffe5e5; }
-      tr.impact-serious td { background: #fff4ce; }
-    </style>
-    <details open>
-      <summary><strong>${escapeHtml(page)}</strong> &mdash; ${violations.length} issue(s)</summary>
-      <table class="a11y-summary">
-        <thead>
-          <tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>Sample targets</th></tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    </details>
+    <section class="summary-report summary-a11y">
+      <details open>
+        <summary><strong>${escapeHtml(page)}</strong> &mdash; ${violations.length} issue(s)</summary>
+        <table>
+          <thead>
+            <tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>Sample targets</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </details>
+    </section>
   `;
-};
-
-const impactClassName = (impact) => {
-  if (!impact) return 'impact-unknown';
-  return `impact-${impact.toLowerCase()}`;
 };
 
 test.describe('Functionality: Accessibility (WCAG)', () => {
@@ -220,13 +202,20 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
 
           if (filtered.length > 0) {
             const htmlReport = formatPageHtml(testPage, filtered);
-            await attachAllureText(`a11y-${testPage}-violations`, htmlReport, 'text/html');
+            const markdown = formatPageMarkdown(testPage, filtered);
+            const pageSlug = slugify(testPage);
+            await attachSummary({
+              baseName: `a11y-${pageSlug}`,
+              htmlBody: htmlReport,
+              markdown,
+            });
             aggregatedViolations.push({
               page: testPage,
               count: filtered.length,
               failOn,
               entries: filtered,
               html: htmlReport,
+              markdown,
             });
             const message = `❌ ${filtered.length} accessibility violations (fail-on: ${failOn.join(
               ', '
@@ -251,46 +240,29 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
         '# Accessibility violations summary\n\n' +
         rollupMarkdown +
         aggregatedViolations
-          .map((entry) => formatPageMarkdown(entry.page, entry.entries))
+          .map((entry) => entry.markdown || formatPageMarkdown(entry.page, entry.entries))
           .join('\n');
 
-      const ruleSummaryHtml = formatRuleSummaryHtml(aggregatedViolations);
       const pagesHtml = aggregatedViolations.map((entry) => entry.html).join('\n');
       const summaryHtml = `
-        <style>
-          .a11y-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-          .a11y-report h2 { margin-bottom: 0.25rem; }
-          .a11y-report section { margin: 0.75rem 0; }
-          table.a11y-summary { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
-          table.a11y-summary th, table.a11y-summary td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; }
-          table.a11y-summary th { background: #f6f8fa; }
-          tr.impact-critical td { background: #ffe5e5; }
-          tr.impact-serious td { background: #fff4ce; }
-          details { margin: 0.5rem 0; }
-          details > summary { cursor: pointer; }
-          .legend { margin: 0.5rem 0; }
-          .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
-          .badge-critical { background: #ffe5e5; }
-          .badge-serious { background: #fff4ce; }
-        </style>
-        <section class="a11y-report">
+        <section class="summary-report summary-a11y">
           <h2>Accessibility violations summary</h2>
           <p>Detected across <strong>${aggregatedViolations.length}</strong> page(s). Review the tables below for the impacted rules and sample targets.</p>
           <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span></p>
-          ${ruleSummaryHtml}
-          <section>
-            <h3>Per-page breakdown</h3>
-            ${pagesHtml}
-          </section>
         </section>
+        ${formatRuleSummaryHtml(aggregatedViolations)}
+        <section class="summary-report summary-a11y">
+          <h3>Per-page breakdown</h3>
+        </section>
+        ${pagesHtml}
       `;
 
-      await attachAllureText('a11y-summary.html', summaryHtml, 'text/html');
-      await attachAllureText('a11y-summary.md', summaryMarkdown, 'text/markdown');
-
-      if (typeof allure?.descriptionHtml === 'function') {
-        allure.descriptionHtml(summaryHtml);
-      }
+      await attachSummary({
+        baseName: 'a11y-summary',
+        htmlBody: summaryHtml,
+        markdown: summaryMarkdown,
+        setDescription: true,
+      });
 
       if (a11yMode === 'audit') {
         console.warn('ℹ️ Accessibility audit summary available in Allure report (description pane).');

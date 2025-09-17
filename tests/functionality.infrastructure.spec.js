@@ -1,5 +1,4 @@
 const { test, expect } = require('@playwright/test');
-const { allure } = require('allure-playwright');
 const SiteLoader = require('../utils/site-loader');
 const {
   setupTestPage,
@@ -8,20 +7,7 @@ const {
   waitForPageStability,
 } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
-
-const attachAllureText = async (name, content, type = 'text/plain') => {
-  if (allure && typeof allure.attachment === 'function') {
-    await allure.attachment(name, content, type);
-  }
-};
-
-const escapeHtml = (value) =>
-  String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+const { attachSummary, escapeHtml } = require('../utils/allure-utils');
 
 const statusClassName = (status) => {
   if (status >= 400) return 'status-error';
@@ -59,29 +45,8 @@ const formatHttpSummaryHtml = (results) => {
     .join('');
 
   return `
-    <style>
-      .http-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-      .http-report table { border-collapse: collapse; width: 100%; margin: 0.75rem 0; }
-      .http-report th, .http-report td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
-      .http-report th { background: #f6f8fa; }
-      .http-report tr.status-ok td { background: #edf7ed; }
-      .http-report tr.status-redirect td { background: #fff4ce; }
-      .http-report tr.status-error td { background: #ffe5e5; }
-      .http-report ul.checks { margin: 0; padding-left: 1.2rem; }
-      .http-report ul.checks li { margin: 0.15rem 0; }
-      .http-report li.check-pass::marker { color: #137333; }
-      .http-report li.check-fail::marker { color: #d93025; }
-      .http-report .details { color: #4e5969; }
-      .http-report .legend { margin: 0.5rem 0; }
-      .http-report .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
-      .http-report .badge.ok { background: #edf7ed; }
-      .http-report .badge.redirect { background: #fff4ce; }
-      .http-report .badge.error { background: #ffe5e5; }
-      .http-report .note { margin-top: 0.25rem; font-size: 0.85rem; color: #344054; }
-      .http-report code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
-    </style>
-    <section class="http-report">
-      <h2>HTTP response &amp; content integrity summary</h2>
+    <section class="summary-report summary-http">
+      <h3>HTTP response &amp; content integrity</h3>
       <p class="legend">
         <span class="badge ok">200 OK</span>
         <span class="badge redirect">3xx redirect</span>
@@ -91,9 +56,7 @@ const formatHttpSummaryHtml = (results) => {
         <thead>
           <tr><th>Path</th><th>Status</th><th>Checks</th></tr>
         </thead>
-        <tbody>
-          ${rows}
-        </tbody>
+        <tbody>${rows}</tbody>
       </table>
     </section>
   `;
@@ -111,6 +74,127 @@ const formatHttpSummaryMarkdown = (results) =>
       })
     )
     .join('\n');
+
+const renderElementCheck = (value) => (value ? '✅' : '⚠️');
+
+const formatAvailabilitySummaryHtml = (results) => {
+  const rows = results
+    .map((entry) => {
+      const className = statusClassName(entry.status ?? 0);
+      const headerCell = entry.elements ? renderElementCheck(entry.elements.header) : '—';
+      const navCell = entry.elements ? renderElementCheck(entry.elements.navigation) : '—';
+      const contentCell = entry.elements ? renderElementCheck(entry.elements.content) : '—';
+      const footerCell = entry.elements ? renderElementCheck(entry.elements.footer) : '—';
+      const notesHtml = entry.notes.length
+        ? `<ul class="checks">${entry.notes
+            .map((note) => `<li class="${note.type === 'info' ? 'check-pass' : 'check-fail'}">${escapeHtml(note.message)}</li>`)
+            .join('')}</ul>`
+        : '<ul class="checks"><li class="check-pass">OK</li></ul>';
+      const statusLabel = entry.status === null ? 'n/a' : entry.status;
+      return `
+        <tr class="${className}">
+          <td><code>${escapeHtml(entry.page)}</code></td>
+          <td>${statusLabel}</td>
+          <td>${headerCell}</td>
+          <td>${navCell}</td>
+          <td>${contentCell}</td>
+          <td>${footerCell}</td>
+          <td>${notesHtml}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+    <section class="summary-report summary-availability">
+      <h3>Page availability &amp; structure</h3>
+      <table>
+        <thead><tr><th>Page</th><th>Status</th><th>Header</th><th>Navigation</th><th>Content</th><th>Footer</th><th>Notes</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>
+  `;
+};
+
+const formatAvailabilitySummaryMarkdown = (results) => {
+  const header = ['# Page availability summary', '', '| Page | Status | Header | Navigation | Content | Footer | Notes |', '| --- | --- | --- | --- | --- | --- | --- |'];
+  const rows = results.map((entry) => {
+    const statusLabel = entry.status === null ? 'n/a' : entry.status;
+    const notes = entry.notes.map((note) => `${note.type === 'info' ? 'ℹ️' : '⚠️'} ${note.message}`).join('<br />') || 'OK';
+    const headerCell = entry.elements ? renderElementCheck(entry.elements.header) : '—';
+    const navCell = entry.elements ? renderElementCheck(entry.elements.navigation) : '—';
+    const contentCell = entry.elements ? renderElementCheck(entry.elements.content) : '—';
+    const footerCell = entry.elements ? renderElementCheck(entry.elements.footer) : '—';
+    return `| \`${entry.page}\` | ${statusLabel} | ${headerCell} | ${navCell} | ${contentCell} | ${footerCell} | ${notes} |`;
+  });
+  return header.concat(rows).join('\n');
+};
+
+const formatPerformanceSummaryHtml = (data, breaches) => {
+  const breachMap = new Map();
+  breaches.forEach((entry) => {
+    if (!breachMap.has(entry.page)) breachMap.set(entry.page, []);
+    breachMap.get(entry.page).push(entry);
+  });
+
+  const rows = data
+    .map((entry) => {
+      const pageBreaches = breachMap.get(entry.page) || [];
+      const className = pageBreaches.length > 0 ? 'status-error' : 'status-ok';
+      const breachNotes = pageBreaches
+        .map(
+          (breach) =>
+            `<li class="check-fail">${escapeHtml(breach.metric)} ${Math.round(breach.value)}ms (budget ${breach.budget}ms)</li>`
+        )
+        .join('');
+      const notesHtml = pageBreaches.length
+        ? `<ul class="checks">${breachNotes}</ul>`
+        : '<ul class="checks"><li class="check-pass">Within budgets</li></ul>';
+      return `
+        <tr class="${className}">
+          <td><code>${escapeHtml(entry.page)}</code></td>
+          <td>${Math.round(entry.loadTime)}ms</td>
+          <td>${Math.round(entry.domContentLoaded)}ms</td>
+          <td>${Math.round(entry.loadComplete)}ms</td>
+          <td>${Math.round(entry.firstContentfulPaint)}ms</td>
+          <td>${notesHtml}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+    <section class="summary-report summary-performance">
+      <h3>Performance metrics (sample pages)</h3>
+      <table>
+        <thead><tr><th>Page</th><th>Load time</th><th>DOM content loaded</th><th>Load complete</th><th>FCP</th><th>Budget notes</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>
+  `;
+};
+
+const formatPerformanceSummaryMarkdown = (data, breaches) => {
+  const breachMap = new Map();
+  breaches.forEach((entry) => {
+    if (!breachMap.has(entry.page)) breachMap.set(entry.page, []);
+    breachMap.get(entry.page).push(entry);
+  });
+  const header = ['# Performance metrics summary', '', '| Page | Load time | DOMContentLoaded | Load complete | FCP | Notes |', '| --- | --- | --- | --- | --- | --- |'];
+  const rows = data.map((entry) => {
+    const pageBreaches = breachMap.get(entry.page) || [];
+    const notes =
+      pageBreaches.length === 0
+        ? 'Within budgets'
+        : pageBreaches
+            .map(
+              (breach) => `${breach.metric}: ${Math.round(breach.value)}ms (budget ${breach.budget}ms)`
+            )
+            .join('<br />');
+    return `| \`${entry.page}\` | ${Math.round(entry.loadTime)}ms | ${Math.round(entry.domContentLoaded)}ms | ${Math.round(entry.loadComplete)}ms | ${Math.round(entry.firstContentfulPaint)}ms | ${notes} |`;
+  });
+  return header.concat(rows).join('\n');
+};
 
 test.describe('Functionality: Core Infrastructure', () => {
   let siteConfig;
@@ -135,6 +219,7 @@ test.describe('Functionality: Core Infrastructure', () => {
   test('Page availability across configured pages', async ({ page }) => {
     test.setTimeout(30000);
     errorContext.setTest('Page Availability Check');
+    const availabilityResults = [];
 
     for (const testPage of siteConfig.testPages) {
       await test.step(`Checking page availability: ${testPage}`, async () => {
@@ -142,24 +227,51 @@ test.describe('Functionality: Core Infrastructure', () => {
         errorContext.setAction('navigating to page');
 
         const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
+        const entry = {
+          page: testPage,
+          status: response ? response.status() : null,
+          elements: null,
+          notes: [],
+        };
         await wpPageObjects.basePage.waitForWordPressReady();
         const is404 = await wpPageObjects.is404Page();
         if (is404) {
+          entry.notes.push({ type: 'warning', message: '404 page detected' });
           console.log(`⚠️  Page not found: ${testPage}`);
           await page.screenshot({ path: `test-results/404-${testPage.replace(/\//g, '-')}.png` });
+          availabilityResults.push(entry);
           return;
         }
-        if (response.status() >= 500)
-          throw new Error(`Server error on ${testPage}: ${response.status()}`);
-        if (response.status() >= 400)
-          console.log(`⚠️  Client error on ${testPage}: ${response.status()}`);
+        if (entry.status >= 500)
+          throw new Error(`Server error on ${testPage}: ${entry.status}`);
+        if (entry.status >= 400) {
+          console.log(`⚠️  Client error on ${testPage}: ${entry.status}`);
+          entry.notes.push({ type: 'warning', message: `Client error ${entry.status}` });
+        }
 
-        if (response.status() >= 200 && response.status() < 300) {
+        if (entry.status >= 200 && entry.status < 300) {
           const elements = await wpPageObjects.verifyCriticalElements();
           console.log(`✅ Page structure check for ${testPage}:`, elements);
           const title = await wpPageObjects.getTitle();
           expect(title).toBeTruthy();
+          entry.elements = elements;
+          entry.notes.push({ type: 'info', message: `Title present: ${Boolean(title)}` });
+          Object.entries(elements).forEach(([key, value]) => {
+            if (!value) entry.notes.push({ type: 'warning', message: `${key} missing` });
+          });
         }
+        availabilityResults.push(entry);
+      });
+    }
+
+    if (availabilityResults.length > 0) {
+      const summaryHtml = formatAvailabilitySummaryHtml(availabilityResults);
+      const summaryMarkdown = formatAvailabilitySummaryMarkdown(availabilityResults);
+      await attachSummary({
+        baseName: 'availability-summary',
+        htmlBody: summaryHtml,
+        markdown: summaryMarkdown,
+        setDescription: true,
       });
     }
   });
@@ -223,11 +335,12 @@ test.describe('Functionality: Core Infrastructure', () => {
     if (responseResults.length > 0) {
       const summaryHtml = formatHttpSummaryHtml(responseResults);
       const summaryMarkdown = formatHttpSummaryMarkdown(responseResults);
-      await attachAllureText('http-response-summary.html', summaryHtml, 'text/html');
-      await attachAllureText('http-response-summary.md', summaryMarkdown, 'text/markdown');
-      if (typeof allure?.descriptionHtml === 'function') {
-        allure.descriptionHtml(summaryHtml);
-      }
+      await attachSummary({
+        baseName: 'http-response-summary',
+        htmlBody: summaryHtml,
+        markdown: summaryMarkdown,
+        setDescription: true,
+      });
     }
   });
 
@@ -308,6 +421,14 @@ test.describe('Functionality: Core Infrastructure', () => {
           .join('\n');
         console.error(`⚠️  Performance budgets exceeded:\n${details}`);
       }
+      const summaryHtml = formatPerformanceSummaryHtml(performanceData, performanceBreaches);
+      const summaryMarkdown = formatPerformanceSummaryMarkdown(performanceData, performanceBreaches);
+      await attachSummary({
+        baseName: 'performance-summary',
+        htmlBody: summaryHtml,
+        markdown: summaryMarkdown,
+        setDescription: true,
+      });
     }
   });
 });

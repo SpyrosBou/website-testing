@@ -6,6 +6,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
+const { attachSummary, escapeHtml } = require('../utils/allure-utils');
 
 const LINK_CHECK_DEFAULTS = {
   maxPerPage: 20,
@@ -65,6 +66,94 @@ const checkLink = async (page, url, config) => {
   return { ok: false, ...lastFailure };
 };
 
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'root';
+
+const statusClassName = (status) => {
+  if (status >= 400) return 'status-error';
+  if (status >= 300) return 'status-redirect';
+  return 'status-ok';
+};
+
+const formatLinksSummaryHtml = (pages, brokenLinks) => {
+  const pageRows = pages
+    .map((entry) => {
+      const className = entry.broken.length > 0 ? 'status-error' : 'status-ok';
+      return `
+        <tr class="${className}">
+          <td><code>${escapeHtml(entry.page)}</code></td>
+          <td>${entry.totalLinks}</td>
+          <td>${entry.uniqueChecked}</td>
+          <td>${entry.broken.length}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  const brokenRows = brokenLinks
+    .map((link) => `
+      <tr class="status-error">
+        <td><code>${escapeHtml(link.page)}</code></td>
+        <td><code>${escapeHtml(link.url)}</code></td>
+        <td>${link.status ? escapeHtml(String(link.status)) : escapeHtml(link.error || 'error')}</td>
+        <td>${escapeHtml(link.method || 'HEAD')}</td>
+      </tr>
+    `)
+    .join('');
+
+  const brokenSection = brokenLinks.length
+    ? `
+        <section class="summary-report summary-links">
+          <h3>Broken links (${brokenLinks.length})</h3>
+          <table>
+            <thead><tr><th>Source page</th><th>URL</th><th>Status / Error</th><th>Method</th></tr></thead>
+            <tbody>${brokenRows}</tbody>
+          </table>
+        </section>
+      `
+    : `
+        <section class="summary-report summary-links">
+          <h3>Broken links</h3>
+          <p>None detected 🎉</p>
+        </section>
+      `;
+
+  return `
+    <section class="summary-report summary-links">
+      <h3>Internal link coverage</h3>
+      <table>
+        <thead><tr><th>Page</th><th>Links found</th><th>Checked</th><th>Broken</th></tr></thead>
+        <tbody>${pageRows}</tbody>
+      </table>
+    </section>
+    ${brokenSection}
+  `;
+};
+
+const formatLinksSummaryMarkdown = (pages, brokenLinks) => {
+  const header = [
+    '# Internal link coverage summary',
+    '',
+    '| Page | Links found | Checked | Broken |',
+    '| --- | --- | --- | --- |',
+  ];
+  const pageRows = pages.map(
+    (entry) => `| \`${entry.page}\` | ${entry.totalLinks} | ${entry.uniqueChecked} | ${entry.broken.length} |`
+  );
+  const brokenSection =
+    brokenLinks.length === 0
+      ? ['', '## Broken links', '', 'None 🎉']
+      : ['', '## Broken links', '', '| Page | URL | Status | Method |', '| --- | --- | --- | --- |'].concat(
+          brokenLinks.map((link) =>
+            `| \`${link.page}\` | ${link.url} | ${link.status ? link.status : link.error || 'error'} | ${link.method || 'HEAD'} |`
+          )
+        );
+  return header.concat(pageRows).concat(brokenSection).join('\n');
+};
+
 test.describe('Functionality: Internal Links', () => {
   let siteConfig;
   let errorContext;
@@ -85,6 +174,7 @@ test.describe('Functionality: Internal Links', () => {
     test.setTimeout(90000);
     const brokenLinks = [];
     const checkedLinks = new Set();
+    const pageSummaries = [];
     const linkCheckConfig = {
       ...LINK_CHECK_DEFAULTS,
       ...(typeof siteConfig.linkCheck === 'object' && siteConfig.linkCheck !== null
@@ -113,6 +203,12 @@ test.describe('Functionality: Internal Links', () => {
           .locator('a[href]:visible')
           .all();
         console.log(`Found ${links.length} internal links on ${testPage}`);
+        const perPage = {
+          page: testPage,
+          totalLinks: links.length,
+          uniqueChecked: 0,
+          broken: [],
+        };
         const pageLinks = [];
         for (const link of links) {
           try {
@@ -146,13 +242,15 @@ test.describe('Functionality: Internal Links', () => {
             try {
               const result = await checkLink(page, url, linkCheckConfig);
               if (!result.ok) {
-                brokenLinks.push({
+                const brokenEntry = {
                   url,
                   status: result.status,
                   page: testPage,
                   method: result.method,
                   error: result.error,
-                });
+                };
+                brokenLinks.push(brokenEntry);
+                perPage.broken.push(brokenEntry);
               }
             } catch (error) {
               console.log(`⚠️  Link probe failed for ${url}: ${error.message}`);
@@ -162,6 +260,8 @@ test.describe('Functionality: Internal Links', () => {
         };
 
         await Promise.all(Array.from({ length: concurrency || 1 }, processNext));
+        perPage.uniqueChecked = pageLinks.length;
+        pageSummaries.push(perPage);
       });
     }
     if (brokenLinks.length > 0) {
@@ -176,5 +276,14 @@ test.describe('Functionality: Internal Links', () => {
     } else {
       console.log('✅ All internal links are functional');
     }
+
+    const summaryHtml = formatLinksSummaryHtml(pageSummaries, brokenLinks);
+    const summaryMarkdown = formatLinksSummaryMarkdown(pageSummaries, brokenLinks);
+    await attachSummary({
+      baseName: 'internal-links-summary',
+      htmlBody: summaryHtml,
+      markdown: summaryMarkdown,
+      setDescription: true,
+    });
   });
 });
