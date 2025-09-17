@@ -11,26 +11,29 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
-    ['allure-playwright', { 
-      resultsDir: 'allure-results',
-      suiteTitle: 'WordPress Testing Suite',
-      detail: true,
-      outputFolder: 'allure-report',
-      environmentInfo: {
-        framework: 'playwright',
-        language: 'javascript',
-        project_type: 'wordpress_testing'
-      }
-    }],
-    ['html', { open: 'never' }],  // Lightweight backup HTML report
-    ['list']  // Console output
+    [
+      'allure-playwright',
+      {
+        resultsDir: 'allure-results',
+        suiteTitle: 'WordPress Testing Suite',
+        detail: true,
+        outputFolder: 'allure-report',
+        environmentInfo: {
+          framework: 'playwright',
+          language: 'javascript',
+          project_type: 'wordpress_testing',
+        },
+      },
+    ],
+    ['html', { open: 'never' }], // Lightweight backup HTML report
+    ['list'], // Console output
   ],
   // Test timeout increased for better stability
   timeout: 60000,
   expect: {
     timeout: 15000,
   },
-  
+
   // Industry-standard snapshot organization following Playwright best practices
   // Organize by test file, then test name, with browser-specific suffixes
   snapshotPathTemplate: '{testDir}/baseline-snapshots/{testFileDir}/{testFileName}/{arg}{ext}',
@@ -55,20 +58,24 @@ module.exports = defineConfig({
       use: { ...devices['Desktop Firefox'] },
     },
     // Add Safari project only on macOS
-    ...(isMacOS ? [{
-      name: 'Safari',
-      use: { 
-        ...devices['Desktop Safari'],
-        // Ensure we use the real Safari browser
-        browserName: 'webkit',
-        channel: undefined // Use system Safari, not Playwright's bundled webkit
-      },
-    }] : []),
+    ...(isMacOS
+      ? [
+          {
+            name: 'Safari',
+            use: {
+              ...devices['Desktop Safari'],
+              // Ensure we use the real Safari browser
+              browserName: 'webkit',
+              channel: undefined, // Use system Safari, not Playwright's bundled webkit
+            },
+          },
+        ]
+      : []),
 
     // Mobile viewport testing (Chrome only for performance)
     {
       name: 'Chrome Mobile',
-      use: { 
+      use: {
         ...devices['iPhone 12'],
         viewport: { width: 375, height: 667 }, // Standard mobile viewport
       },
@@ -77,7 +84,7 @@ module.exports = defineConfig({
     // Tablet viewport testing (Chrome only for performance)
     {
       name: 'Chrome Tablet',
-      use: { 
+      use: {
         ...devices['iPad Pro'],
         viewport: { width: 768, height: 1024 }, // Standard tablet viewport
       },
@@ -86,7 +93,7 @@ module.exports = defineConfig({
     // Large desktop testing (Chrome only)
     {
       name: 'Chrome Desktop Large',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1920, height: 1080 }, // Large desktop viewport
       },

@@ -10,9 +10,13 @@ function rmrf(targetPath) {
     for (const entry of fs.readdirSync(targetPath)) {
       rmrf(path.join(targetPath, entry));
     }
-    try { fs.rmdirSync(targetPath); } catch (_) {}
+    try {
+      fs.rmdirSync(targetPath);
+    } catch (_) {}
   } else {
-    try { fs.unlinkSync(targetPath); } catch (_) {}
+    try {
+      fs.unlinkSync(targetPath);
+    } catch (_) {}
   }
 }
 
@@ -25,10 +29,14 @@ function deleteOlderThan(dir, days) {
     if (st.isDirectory()) {
       for (const e of fs.readdirSync(p)) walk(path.join(p, e));
       if (fs.readdirSync(p).length === 0) {
-        try { fs.rmdirSync(p); } catch (_) {}
+        try {
+          fs.rmdirSync(p);
+        } catch (_) {}
       }
     } else if (st.mtimeMs < cutoff) {
-      try { fs.unlinkSync(p); } catch (_) {}
+      try {
+        fs.unlinkSync(p);
+      } catch (_) {}
     }
   };
   walk(dir);
@@ -36,13 +44,16 @@ function deleteOlderThan(dir, days) {
 
 function deleteByGlob(dir, patterns) {
   if (!fs.existsSync(dir)) return;
-  const match = (name) => patterns.some((p) => new RegExp(p.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$').test(name));
+  const match = (name) =>
+    patterns.some((p) => new RegExp(p.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$').test(name));
   const walk = (p) => {
     const st = fs.statSync(p);
     if (st.isDirectory()) {
       for (const e of fs.readdirSync(p)) walk(path.join(p, e));
     } else if (match(p)) {
-      try { fs.unlinkSync(p); } catch (_) {}
+      try {
+        fs.unlinkSync(p);
+      } catch (_) {}
     }
   };
   walk(dir);

@@ -6,22 +6,21 @@ const http = require('http');
 const https = require('https');
 
 class TestRunner {
-  
   static listSites() {
     const sites = SiteLoader.listAvailableSites();
-    
+
     if (sites.length === 0) {
       console.log('No site configurations found in ./sites/ directory');
       console.log('Create a .json file in ./sites/ directory with your site configuration');
       return { localSites: [], liveSites: [], otherSites: [] };
     }
-    
+
     // Group by site type (local vs live)
     const localSites = [];
     const liveSites = [];
     const otherSites = [];
-    
-    sites.forEach(site => {
+
+    sites.forEach((site) => {
       try {
         const config = SiteLoader.loadSite(site);
         if (site.includes('-local')) {
@@ -31,36 +30,36 @@ class TestRunner {
         } else {
           otherSites.push({ name: site, config });
         }
-      } catch (error) {
+      } catch (_error) {
         otherSites.push({ name: site, config: null });
       }
     });
-    
+
     return { localSites, liveSites, otherSites };
   }
 
   static displaySites() {
     const { localSites, liveSites, otherSites } = this.listSites();
-    
+
     console.log('Available site configurations:');
-    
+
     if (localSites.length > 0) {
       console.log('\n  🏠 Local Development Sites:');
-      localSites.forEach(site => {
+      localSites.forEach((site) => {
         console.log(`    ${site.name}: ${site.config.name} (${site.config.baseUrl})`);
       });
     }
-    
+
     if (liveSites.length > 0) {
       console.log('\n  🌐 Live Production Sites:');
-      liveSites.forEach(site => {
+      liveSites.forEach((site) => {
         console.log(`    ${site.name}: ${site.config.name} (${site.config.baseUrl})`);
       });
     }
-    
+
     if (otherSites.length > 0) {
       console.log('\n  📝 Other Sites:');
-      otherSites.forEach(site => {
+      otherSites.forEach((site) => {
         if (site.config) {
           console.log(`    ${site.name}: ${site.config.name} (${site.config.baseUrl})`);
         } else {
@@ -68,7 +67,7 @@ class TestRunner {
         }
       });
     }
-    
+
     console.log('\nTesting examples:');
     console.log('  node run-tests.js --site=daygroup-local      # Test local development');
     console.log('  node run-tests.js --site=daygroup-live       # Test live production');
@@ -95,46 +94,63 @@ class TestRunner {
 
     // Clean previous Allure results for fresh run
     this.cleanAllureResults();
-    
+
     // Create test-results directory
     const resultsDir = path.join(process.cwd(), 'test-results', 'screenshots');
     if (!fs.existsSync(resultsDir)) {
       fs.mkdirSync(resultsDir, { recursive: true });
     }
-    
-    // Determine which tests to run
-    let testPattern = './tests/*.spec.js';
+
+    // Determine which tests to run (avoid relying on shell glob expansion)
+    const testsDir = path.join(process.cwd(), 'tests');
+    const testEntries = fs
+      .readdirSync(testsDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.spec.js'))
+      .map((entry) => path.join('tests', entry.name));
+
+    const selectedTests = new Set();
     if (options.responsive) {
-      testPattern = './tests/responsive.*.spec.js';
-    } else if (options.functionality) {
-      testPattern = './tests/functionality.*.spec.js';
+      for (const file of testEntries) {
+        if (path.basename(file).startsWith('responsive.')) {
+          selectedTests.add(file);
+        }
+      }
     }
-    
+    if (options.functionality) {
+      for (const file of testEntries) {
+        if (path.basename(file).startsWith('functionality.')) {
+          selectedTests.add(file);
+        }
+      }
+    }
+
+    const testTargets = selectedTests.size > 0 ? Array.from(selectedTests) : ['tests'];
+
     // Set environment variables for test execution
     process.env.SITE_NAME = siteName;
-    
+
     // Run Playwright tests
-    const playwrightArgs = ['test', testPattern];
-    
+    const playwrightArgs = ['test', ...testTargets];
+
     // Add additional args
     if (options.headed) playwrightArgs.push('--headed');
     if (options.debug) playwrightArgs.push('--debug');
     if (options.project) playwrightArgs.push(`--project=${options.project}`);
-    
+
     console.log(`Starting tests...`);
     console.log(`Command: npx playwright ${playwrightArgs.join(' ')}`);
     console.log('');
-    
+
     return new Promise((resolve, reject) => {
       const playwright = spawn('npx', ['playwright', ...playwrightArgs], {
         stdio: 'inherit',
-        env: { 
-          ...process.env, 
+        env: {
+          ...process.env,
           SITE_NAME: siteName,
-          SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || ''
-        }
+          SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || '',
+        },
       });
-      
+
       playwright.on('close', (code) => {
         console.log('');
         if (code === 0) {
@@ -145,10 +161,10 @@ class TestRunner {
         console.log('📊 Generate Allure report: npm run allure-report');
         console.log('🧭 HTML report: ./playwright-report/index.html');
         console.log('📸 Test artifacts: ./test-results/');
-        
+
         resolve({ code, siteName });
       });
-      
+
       playwright.on('error', (error) => {
         console.error('Error running tests:', error.message);
         reject(error);
@@ -161,14 +177,22 @@ class TestRunner {
       try {
         const url = new URL(urlString);
         const lib = url.protocol === 'https:' ? https : http;
-        const req = lib.request({
+        const allowInsecure =
+          /\.ddev\.site$/.test(url.hostname) ||
+          url.hostname === 'localhost' ||
+          url.hostname === '127.0.0.1';
+        const requestOptions = {
           method: 'GET',
           protocol: url.protocol,
           hostname: url.hostname,
           port: url.port || (url.protocol === 'https:' ? 443 : 80),
           path: url.pathname || '/',
           timeout: timeoutMs,
-        }, (res) => {
+        };
+        if (url.protocol === 'https:' && allowInsecure) {
+          requestOptions.agent = new https.Agent({ rejectUnauthorized: false });
+        }
+        const req = lib.request(requestOptions, (res) => {
           resolve(res.statusCode && res.statusCode < 500);
         });
         req.on('error', () => resolve(false));
@@ -177,7 +201,7 @@ class TestRunner {
           resolve(false);
         });
         req.end();
-      } catch (e) {
+      } catch (_error) {
         resolve(false);
       }
     });
@@ -188,7 +212,7 @@ class TestRunner {
     while (Date.now() - start < timeoutMs) {
       const ok = await this.requestReachable(url, Math.min(intervalMs, 5000));
       if (ok) return true;
-      await new Promise(r => setTimeout(r, intervalMs));
+      await new Promise((r) => setTimeout(r, intervalMs));
     }
     return false;
   }
@@ -205,7 +229,9 @@ class TestRunner {
     const ddevPath = process.env.DDEV_PROJECT_PATH;
 
     if (!enableDdev || !ddevPath) {
-      console.log('ℹ️ Local site appears unreachable. Set ENABLE_DDEV=true and DDEV_PROJECT_PATH to auto-start ddev.');
+      console.log(
+        'ℹ️ Local site appears unreachable. Set ENABLE_DDEV=true and DDEV_PROJECT_PATH to auto-start ddev.'
+      );
       return;
     }
 
@@ -213,7 +239,9 @@ class TestRunner {
     try {
       await new Promise((resolve, reject) => {
         const child = spawn('ddev', ['start'], { cwd: ddevPath, stdio: 'inherit' });
-        child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`ddev start exited with ${code}`)));
+        child.on('close', (code) =>
+          code === 0 ? resolve() : reject(new Error(`ddev start exited with ${code}`))
+        );
         child.on('error', reject);
       });
     } catch (err) {
@@ -244,17 +272,23 @@ class TestRunner {
   }
 
   // Removed unsafe process cleanup; no-op retained for compatibility
-  static killOrphanedReportServers() { /* no-op */ }
+  static killOrphanedReportServers() {
+    /* no-op */
+  }
 
   static async updateBaselines(siteName) {
     console.log(`Updating visual baselines for: ${siteName}`);
-    
+
     return new Promise((resolve, reject) => {
-      const playwright = spawn('npx', ['playwright', 'test', 'tests/responsive.visual.spec.js', '--update-snapshots', 'all'], {
-        stdio: 'inherit',
-        env: { ...process.env, SITE_NAME: siteName }
-      });
-      
+      const playwright = spawn(
+        'npx',
+        ['playwright', 'test', 'tests/responsive.visual.spec.js', '--update-snapshots', 'all'],
+        {
+          stdio: 'inherit',
+          env: { ...process.env, SITE_NAME: siteName },
+        }
+      );
+
       playwright.on('close', (code) => {
         console.log('');
         if (code === 0) {
@@ -264,7 +298,7 @@ class TestRunner {
         }
         resolve(code);
       });
-      
+
       playwright.on('error', (error) => {
         console.error('Error updating baselines:', error.message);
         reject(error);

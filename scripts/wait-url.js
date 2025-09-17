@@ -19,9 +19,14 @@ function reachable(u) {
         resolve(res.statusCode && res.statusCode < 500);
       });
       req.on('error', () => resolve(false));
-      req.on('timeout', () => { req.destroy(); resolve(false); });
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(false);
+      });
       req.end();
-    } catch (_) { resolve(false); }
+    } catch (_) {
+      resolve(false);
+    }
   });
 }
 
@@ -37,4 +42,3 @@ function reachable(u) {
   console.error('Timed out waiting for', urlString);
   process.exit(1);
 })();
-

@@ -39,7 +39,14 @@ async function main() {
   }
 
   // Default: generate static report then open it
-  const generated = await run('npx', ['allure', 'generate', 'allure-results', '-o', 'allure-report', '--clean']);
+  const generated = await run('npx', [
+    'allure',
+    'generate',
+    'allure-results',
+    '-o',
+    'allure-report',
+    '--clean',
+  ]);
   if (!generated) {
     console.error('Failed to generate Allure report.');
     process.exit(1);
@@ -49,4 +56,3 @@ async function main() {
 }
 
 main();
-

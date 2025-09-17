@@ -31,4 +31,3 @@ const server = http.createServer((req, res) => {
 server.listen(port, () => {
   console.log(`Static smoke server listening on http://127.0.0.1:${port}`);
 });
-
