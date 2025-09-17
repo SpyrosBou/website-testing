@@ -38,9 +38,11 @@
 - Functionality specs are split into:
   - `functionality.infrastructure.spec.js` (availability, responses, performance)
   - `functionality.links.spec.js` (internal links)
-  - `functionality.interactive.spec.js` (console/resource smoke via focus/hover; extend with client-specific journeys when deeper coverage is needed)
+  - `functionality.interactive.spec.js` (touches every `testPages` URL with lightweight focus/hover taps while capturing console/resource failures; add client-specific specs when you need real user journeys)
   - `functionality.wordpress.spec.js` (plugins, theme)
   - `functionality.accessibility.spec.js` (WCAG scans)
+
+All shared suites traverse the full `testPages` list. The interactive audit is intentionally light-touch—focus/hover taps plus console and network monitoring—so it remains stable across sites. Build site-specific interactive specs when you need deep journeys, logins, or bespoke flows.
 - Snapshot baselines go in `tests/baseline-snapshots/`.
 - Update visual baselines after intentional UI changes:
   - CLI: `npx playwright test tests/responsive.visual.spec.js --update-snapshots`

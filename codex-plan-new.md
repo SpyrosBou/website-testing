@@ -91,6 +91,7 @@ Changes
   - In `tests/functionality.interactive.spec.js` collect `page.on('requestfailed')` and 4xx/5xx `response` events; report count and soft-fail unless it exceeds a threshold (default 0). _(DONE)_
   - Expand console error ignore list to use `siteConfig.ignoreConsoleErrors` in addition to built-ins. _(DONE)_
   - The interactive spec now opens a fresh Playwright page per slug (with a retry on browser-closed errors) so all `testPages` participate. Deeper user journeys still require client-specific specs.
+- Docs: `README.md`, `AGENTS.md`, `CLAUDE.md` highlight the light-touch interactive audit and when to add client-specific journeys for deeper coverage.
 - Performance budgets:
   - `tests/functionality.infrastructure.spec.js`: After metrics collection, assert against any provided `performanceBudgets` (soft‑fail by default). Attach per‑page metrics to console; optional Allure text attachment is OK.
 

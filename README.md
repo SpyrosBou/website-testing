@@ -162,10 +162,14 @@ node run-tests.js --site=my-site --project="Safari"  # WebKit engine
 
 ### Functionality Testing
 - ✅ No broken internal links (rate-limited HEAD checks across `testPages`)
-- ✅ JavaScript & resource error smoke: light focus/hover on buttons/links/inputs with console logging and failed-request tracking (add client-specific specs for deeper flows)
+- ✅ JavaScript & resource error smoke: light focus/hover on buttons/links/inputs with console logging and failed-request tracking
 - ✅ Form validation and submission (for forms listed in site config)
 - ✅ Page load times (per-page DOM timing with soft warnings)
 - ✅ HTTP status codes & content-type assertions
+
+The interactive audit still walks every entry in `testPages`, but it only performs lightweight focus/hover taps while watching for console errors and failed network requests. That keeps the shared harness stable across very different client sites. When you need multi-step user journeys, flows behind logins, or bespoke form handling, layer client-specific Playwright specs on top of the shared suite.
+
+All other shared suites (infrastructure, links, accessibility, responsive structure/visual) execute their full assertions across every `testPages` URL without these limitations.
 
 ## Test Results
 

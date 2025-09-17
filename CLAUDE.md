@@ -59,9 +59,11 @@ The test suite is split into modular spec files for better maintainability and p
 **Functionality Tests** (Core behavior):
 - `functionality.infrastructure.spec.js` - Page availability, HTTP responses, performance
 - `functionality.links.spec.js` - Internal link validation
-- `functionality.interactive.spec.js` - JavaScript errors and form testing
+- `functionality.interactive.spec.js` - Lightweight focus/hover audit across every `testPages` URL that logs console and network issues; add site-specific specs for real user journeys or form workflows
 - `functionality.wordpress.spec.js` - WordPress-specific plugin and theme testing
 - `functionality.accessibility.spec.js` - Comprehensive WCAG scanning
+
+Shared suites (infrastructure, links, accessibility, responsive) assert against every `testPages` entry. Only the interactive audit stays intentionally light-touch so it remains stable across clients; reach for site-specific interactive specs when you need deep user journeys or authenticated flows.
 
 ### Site Configuration System
 Each WordPress site requires a JSON configuration in `sites/` directory:
