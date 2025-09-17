@@ -38,7 +38,7 @@
 - Functionality specs are split into:
   - `functionality.infrastructure.spec.js` (availability, responses, performance)
   - `functionality.links.spec.js` (internal links)
-  - `functionality.interactive.spec.js` (JS errors, forms)
+  - `functionality.interactive.spec.js` (console/resource smoke via focus/hover; extend with client-specific journeys when deeper coverage is needed)
   - `functionality.wordpress.spec.js` (plugins, theme)
   - `functionality.accessibility.spec.js` (WCAG scans)
 - Snapshot baselines go in `tests/baseline-snapshots/`.

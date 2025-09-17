@@ -88,9 +88,9 @@ Changes
 - Internal links:
   - `tests/functionality.links.spec.js`: Normalize hrefs (strip hash/query for dedupe), honor `maxPerPage` and `timeoutMs`. (HEAD fallback still TODO once budgeted.)
 - Resource errors:
-  - In `tests/functionality.interactive.spec.js` collect `page.on('requestfailed')` and 4xx/5xx `response` events; report count and soft-fail unless it exceeds a threshold (default 0).
+  - In `tests/functionality.interactive.spec.js` collect `page.on('requestfailed')` and 4xx/5xx `response` events; report count and soft-fail unless it exceeds a threshold (default 0). _(DONE)_
   - Expand console error ignore list to use `siteConfig.ignoreConsoleErrors` in addition to built-ins. _(DONE)_
-  - Current stopgap: interactive spec only exercises the first three `testPages` to avoid Playwright context churn; restore full coverage once the harness collects console/resource failures without hitting browser-context limits.
+  - The interactive spec now opens a fresh Playwright page per slug (with a retry on browser-closed errors) so all `testPages` participate. Deeper user journeys still require client-specific specs.
 - Performance budgets:
   - `tests/functionality.infrastructure.spec.js`: After metrics collection, assert against any provided `performanceBudgets` (soft‑fail by default). Attach per‑page metrics to console; optional Allure text attachment is OK.
 

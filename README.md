@@ -2,6 +2,18 @@
 
 Automated testing suite for WordPress websites with responsive design, functionality testing, and visual regression detection.
 
+## What This Project Does (Beginner Friendly)
+
+Think of this suite as an automated QA teammate for WordPress sites. You give it a small JSON config in `sites/` that lists the URLs you care about, and it drives real browsers (via Playwright) to make sure those pages still look and behave correctly.
+
+On every run (`node run-tests.js --site=your-site`):
+- The suite loads the config, opens each page, and checks the layout on mobile, tablet, and desktop sizes.
+- It makes sure critical pieces like headers, menus, and footers are visible, and it compares screenshots to catch visual regressions.
+- It looks for broken links, slow or failing responses, JavaScript errors, and accessibility issues using axe-core.
+- It saves easy-to-read reports under `playwright-report/` (HTML) and, if Java is installed, `allure-report/`.
+
+To try it locally: run `npm run setup`, copy `sites/example-site.json` to your own file, update the URLs, then execute `node run-tests.js --site=<your-site>`. The HTML report will show you exactly what passed and what needs attention before users notice.
+
 ## Quick Start
 
 1. **Setup**
@@ -149,11 +161,11 @@ node run-tests.js --site=my-site --project="Safari"  # WebKit engine
 - **Real Mobile Testing**: For actual device testing, use cloud services (not covered by this suite)
 
 ### Functionality Testing
-- ✅ No broken internal links
-- ✅ JavaScript errors detection
-- ✅ Form validation and submission
-- ✅ Page load times
-- ✅ HTTP status codes
+- ✅ No broken internal links (rate-limited HEAD checks across `testPages`)
+- ✅ JavaScript & resource error smoke: light focus/hover on buttons/links/inputs with console logging and failed-request tracking (add client-specific specs for deeper flows)
+- ✅ Form validation and submission (for forms listed in site config)
+- ✅ Page load times (per-page DOM timing with soft warnings)
+- ✅ HTTP status codes & content-type assertions
 
 ## Test Results
 
