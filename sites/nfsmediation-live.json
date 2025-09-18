@@ -4,22 +4,36 @@
   "testPages": [
     "/",
     "/about-us/",
-    "/meet-the-team/",
+    "/category/notices/highlights/",
+    "/category/notices/updates/",
+    "/category/uncategorised/",
     "/contact-us/",
     "/cookie-settings/",
     "/get-involved/",
-    "/our-services/",
-    "/services/mediation-services/",
-    "/services/workplace-mediation-services/",
-    "/services/coaching-plus-service/",
-    "/services/asb-assessment-service/",
-    "/services/cpd-accredited-training-services/",
-    "/services/hoarding-psychological-support-service/",
-    "/services/community-mediation/",
+    "/meet-the-team/",
     "/notices/",
-    "/working-with-us/",
-    "/privacy-policy-2/"
+    "/our-services/",
+    "/our-services/asb-assessment-service/",
+    "/our-services/coaching-plus-service/",
+    "/our-services/cpd-accredited-training-services/",
+    "/our-services/hoarding-psychological-support-service/",
+    "/our-services/mediation-services/",
+    "/our-services/workplace-mediation-services/",
+    "/privacy-policy-2/",
+    "/sample-page/",
+    "/terms-of-use/",
+    "/the-team/",
+    "/working-with-us/"
   ],
+  "discover": {
+    "strategy": "sitemap",
+    "sitemapUrl": "https://nfs.atelierdev.uk/wp-sitemap.xml",
+    "maxPages": 60,
+    "maxDepth": 3,
+    "include": [
+      "^/"
+    ]
+  },
   "forms": [
     {
       "name": "Contact Form",
