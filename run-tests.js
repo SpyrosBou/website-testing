@@ -13,6 +13,7 @@ WordPress Testing Suite Usage:
   npm test                          # Run tests for example-site
   node run-tests.js --site=my-site  # Run for specific site
   node run-tests.js --list          # List available sites
+  node run-tests.js --discover      # Refresh sitemap-backed test pages then run
   node run-tests.js --help          # Show this help
 
 Available options:
@@ -21,6 +22,7 @@ Available options:
   --responsive        Run only responsive tests
   --functionality     Run only functionality tests  
   --update-baselines  Update visual baselines for responsive visual tests
+  --discover          Refresh the site's testPages from its sitemap before running
   --list              List all available site configurations
   --help              Show this help message
 
@@ -62,6 +64,7 @@ async function runTests() {
     debug: argv.debug,
     project: argv.project,
     profile,
+    discover: Boolean(argv.discover),
   };
 
   if (profile === 'smoke') {

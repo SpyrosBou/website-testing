@@ -80,29 +80,53 @@ class TestRunner {
       const siteConfig = SiteLoader.loadSite(siteName);
       SiteLoader.validateSiteConfig(siteConfig);
 
-      if (siteConfig.discover && siteConfig.discover.strategy === 'sitemap') {
-        try {
-          const discovered = await discoverFromSitemap(siteConfig, siteConfig.discover);
-          if (discovered.length > 0) {
-            const existing = new Set(siteConfig.testPages);
-            const merged = [...siteConfig.testPages];
-            discovered.forEach((path) => {
-              if (!existing.has(path)) {
-                merged.push(path);
-                existing.add(path);
+      if (options.discover) {
+        if (siteConfig.discover && siteConfig.discover.strategy === 'sitemap') {
+          try {
+            const discovered = await discoverFromSitemap(siteConfig, siteConfig.discover);
+            if (discovered.length === 0) {
+              console.log('ℹ️  Sitemap discovery returned no pages. Test list unchanged.');
+            } else {
+              const previous = Array.isArray(siteConfig.testPages)
+                ? [...siteConfig.testPages]
+                : [];
+              const discoveredSet = new Set(discovered);
+              const updated = [...discoveredSet].sort((a, b) => a.localeCompare(b));
+
+              const added = updated.filter((pathItem) => !previous.includes(pathItem));
+              const removed = previous.filter((pathItem) => !discoveredSet.has(pathItem));
+
+              siteConfig.testPages = updated;
+
+              if (added.length === 0 && removed.length === 0) {
+                console.log(`ℹ️  Sitemap discovery found ${updated.length} page(s); no changes.`);
+              } else {
+                const parts = [];
+                if (added.length > 0) parts.push(`${added.length} added`);
+                if (removed.length > 0) parts.push(`${removed.length} removed`);
+                console.log(`🔍 Sitemap discovery updated test pages (${parts.join(', ')}).`);
               }
-            });
-            const addedCount = merged.length - siteConfig.testPages.length;
-            siteConfig.testPages = merged;
-            console.log(
-              `🔍 Sitemap discovery added ${addedCount} page(s) (total ${merged.length}).`
-            );
-          } else {
-            console.log('ℹ️  Sitemap discovery returned no additional pages.');
+
+              try {
+                const sitePath = path.join(process.cwd(), 'sites', `${siteName}.json`);
+                const raw = fs.readFileSync(sitePath, 'utf8');
+                const parsed = JSON.parse(raw);
+                parsed.testPages = updated;
+                fs.writeFileSync(sitePath, `${JSON.stringify(parsed, null, 2)}\n`);
+                console.log(`📄 Updated sites/${siteName}.json with ${updated.length} test page(s).`);
+              } catch (writeError) {
+                console.log(`⚠️  Unable to persist sitemap results: ${writeError.message}`);
+              }
+            }
+
+          } catch (error) {
+            console.log(`⚠️  Sitemap discovery skipped: ${error.message}`);
           }
-        } catch (error) {
-          console.log(`⚠️  Sitemap discovery skipped: ${error.message}`);
+        } else {
+          console.log('ℹ️  --discover requested but site config has no sitemap strategy.');
         }
+      } else if (siteConfig.discover && siteConfig.discover.strategy === 'sitemap') {
+        console.log('ℹ️  Sitemap discovery disabled (run with --discover to refresh testPages).');
       }
 
       console.log(`Running tests for: ${siteConfig.name}`);
