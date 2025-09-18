@@ -5,6 +5,7 @@ const os = require('os');
 const isMacOS = os.platform() === 'darwin';
 
 module.exports = defineConfig({
+  globalSetup: require.resolve('./scripts/playwright-global-setup'),
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
