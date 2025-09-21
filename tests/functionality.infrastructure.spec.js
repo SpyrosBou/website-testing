@@ -221,7 +221,13 @@ test.describe('Functionality: Core Infrastructure', () => {
     errorContext.setTest('Page Availability Check');
     const availabilityResults = [];
 
-    for (const testPage of siteConfig.testPages) {
+    const pagesToTest = process.env.SMOKE
+      ? (Array.isArray(siteConfig.testPages) && siteConfig.testPages.includes('/'))
+        ? ['/']
+        : [siteConfig.testPages[0]]
+      : siteConfig.testPages;
+
+    for (const testPage of pagesToTest) {
       await test.step(`Checking page availability: ${testPage}`, async () => {
         errorContext.setPage(testPage);
         errorContext.setAction('navigating to page');
@@ -280,7 +286,13 @@ test.describe('Functionality: Core Infrastructure', () => {
     test.setTimeout(20000);
     errorContext.setTest('HTTP Response Validation');
     const responseResults = [];
-    for (const testPage of siteConfig.testPages) {
+    const pagesToTest = process.env.SMOKE
+      ? (Array.isArray(siteConfig.testPages) && siteConfig.testPages.includes('/'))
+        ? ['/']
+        : [siteConfig.testPages[0]]
+      : siteConfig.testPages;
+
+    for (const testPage of pagesToTest) {
       await test.step(`Validating response for: ${testPage}`, async () => {
         errorContext.setPage(testPage);
         const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
@@ -354,7 +366,13 @@ test.describe('Functionality: Core Infrastructure', () => {
         ? siteConfig.performanceBudgets
         : null;
     const performanceBreaches = [];
-    for (const testPage of siteConfig.testPages.slice(0, 5)) {
+    const perfPages = process.env.SMOKE
+      ? (Array.isArray(siteConfig.testPages) && siteConfig.testPages.includes('/'))
+        ? ['/']
+        : [siteConfig.testPages[0]]
+      : siteConfig.testPages.slice(0, 5);
+
+    for (const testPage of perfPages) {
       await test.step(`Measuring performance for: ${testPage}`, async () => {
         errorContext.setPage(testPage);
         const startTime = Date.now();

@@ -177,7 +177,11 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
 
   test('WCAG 2.1 A/AA scans', async ({ page }) => {
     test.setTimeout(45000);
-    const pages = siteConfig.testPages;
+    const pages = process.env.SMOKE
+      ? (Array.isArray(siteConfig.testPages) && siteConfig.testPages.includes('/'))
+        ? ['/']
+        : [siteConfig.testPages[0]]
+      : siteConfig.testPages;
     const aggregatedViolations = [];
     for (const testPage of pages) {
       await test.step(`Accessibility scan: ${testPage}`, async () => {

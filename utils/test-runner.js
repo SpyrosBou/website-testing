@@ -129,6 +129,9 @@ class TestRunner {
         console.log('ℹ️  Sitemap discovery disabled (run with --discover to refresh testPages).');
       }
 
+      if (options.profile === 'smoke') {
+        console.log('🚬 SMOKE profile: functionality-only, Chrome, homepage only');
+      }
       console.log(`Running tests for: ${siteConfig.name}`);
       console.log(`Base URL: ${siteConfig.baseUrl}`);
       console.log(`Pages to test: ${siteConfig.testPages.join(', ')}`);

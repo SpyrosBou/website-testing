@@ -68,8 +68,9 @@ async function runTests() {
   };
 
   if (profile === 'smoke') {
-    options.responsive = true;
-    options.functionality = false;
+    // Smoke = functionality-only, single browser, homepage only
+    options.responsive = false;
+    options.functionality = true;
     options.project = options.project || 'Chrome';
     process.env.SMOKE = '1';
   }

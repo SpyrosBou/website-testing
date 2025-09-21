@@ -91,7 +91,12 @@ test.describe('Functionality: WordPress Specific', () => {
     test.setTimeout(30000);
     const detectedSet = new Set();
     const pageSummaries = [];
-    for (const testPage of siteConfig.testPages.slice(0, 3)) {
+    const pages = process.env.SMOKE
+      ? (Array.isArray(siteConfig.testPages) && siteConfig.testPages.includes('/'))
+        ? ['/']
+        : [siteConfig.testPages[0]]
+      : siteConfig.testPages.slice(0, 3);
+    for (const testPage of pages) {
       await test.step(`Detecting plugins on: ${testPage}`, async () => {
         const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
         if (response.status() !== 200) return;

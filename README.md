@@ -39,12 +39,12 @@ To try it locally: run `npm run setup`, copy `sites/example-site.json` to your o
    node run-tests.js --site=your-site-name
    ```
 
-4. **Run smoke test (Chrome + responsive only)**
+4. **Run smoke test (functionality only, Chrome, homepage)**
    ```bash
    # Against local ddev site (make sure ddev is running)
    npm run smoke:nfs -- --site=nfsmediation-local
    # Or directly
-   node run-tests.js --site=nfsmediation-local --responsive --project=Chrome
+   node run-tests.js --site=nfsmediation-local --profile=smoke
    ```
 
 5. **Generate Allure report (required)**
@@ -69,7 +69,7 @@ export PATH="/usr/local/opt/openjdk/bin:$PATH"     # Intel
 # 2) Install deps and Playwright browsers
 npm run setup
 
-# 3) Run a quick smoke (Chrome only, first page)
+# 3) Run a quick smoke (functionality only, Chrome, homepage)
 node run-tests.js --site=nfsmediation-live --profile=smoke
 
 # 4) Generate and open the Allure report (primary report)
@@ -172,7 +172,7 @@ npm run smoke:nfs
 npm run update-baselines -- --site=my-site
 
 ### Profiles
-- `--profile=smoke` → responsive-only, Chrome-only, single page (fast).
+- `--profile=smoke` → functionality-only, Chrome-only, homepage only (fast).
 - `--profile=full` → default behavior (all enabled specs, all configured projects).
 - `--profile=nightly` → same as full; reserve for longer, scheduled runs.
 

@@ -140,7 +140,13 @@ test.describe('Functionality: Interactive Elements', () => {
       }
     });
 
-    for (const testPage of siteConfig.testPages) {
+    const pagesToTest = process.env.SMOKE
+      ? (Array.isArray(siteConfig.testPages) && siteConfig.testPages.includes('/'))
+        ? ['/']
+        : [siteConfig.testPages[0]]
+      : siteConfig.testPages;
+
+    for (const testPage of pagesToTest) {
       await test.step(`JS errors on: ${testPage}`, async () => {
         const perPage = {
           page: testPage,

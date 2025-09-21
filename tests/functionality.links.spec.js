@@ -193,7 +193,13 @@ test.describe('Functionality: Internal Links', () => {
 
     linkCheckConfig.followRedirects = linkCheckConfig.followRedirects !== false;
     linkCheckConfig.methodFallback = linkCheckConfig.methodFallback !== false;
-    for (const testPage of siteConfig.testPages) {
+    const pagesToTest = process.env.SMOKE
+      ? (Array.isArray(siteConfig.testPages) && siteConfig.testPages.includes('/'))
+        ? ['/']
+        : [siteConfig.testPages[0]]
+      : siteConfig.testPages;
+
+    for (const testPage of pagesToTest) {
       await test.step(`Checking internal links on: ${testPage}`, async () => {
         const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
         if (response.status() !== 200) return;
