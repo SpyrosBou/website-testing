@@ -10,11 +10,19 @@ On every run (`node run-tests.js --site=your-site`):
 - The suite loads the config, opens each page, and checks the layout on mobile, tablet, and desktop sizes.
 - It makes sure critical pieces like headers, menus, and footers are visible, and it compares screenshots to catch visual regressions.
 - It looks for broken links, slow or failing responses, JavaScript errors, and accessibility issues using axe-core.
-- It saves easy-to-read reports under `playwright-report/` (HTML) and, if Java is installed, `allure-report/`.
+- It saves an Allure report under `allure-report/` (Java required) which is the primary way to review structured, readable results. A lightweight Playwright HTML report is also written to `playwright-report/` as a backup.
 
 To try it locally: run `npm run setup`, copy `sites/example-site.json` to your own file, update the URLs, then execute `node run-tests.js --site=<your-site>`. The HTML report will show you exactly what passed and what needs attention before users notice.
 
 ## Quick Start
+
+0. **Prereqs (Allure required)**
+   - Node.js 18+ and npm
+   - Java Runtime (required for Allure):
+     - macOS: `brew install openjdk`
+       - If needed, add Java to PATH (Apple Silicon): `export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"`
+       - If needed, add Java to PATH (Intel): `export PATH="/usr/local/opt/openjdk/bin:$PATH"`
+     - Linux (Debian/Ubuntu): `sudo apt-get update && sudo apt-get install -y default-jre`
 
 1. **Setup**
    ```bash
@@ -38,6 +46,35 @@ To try it locally: run `npm run setup`, copy `sites/example-site.json` to your o
    # Or directly
    node run-tests.js --site=nfsmediation-local --responsive --project=Chrome
    ```
+
+5. **Generate Allure report (required)**
+   ```bash
+   npm run allure-report
+   ```
+   This generates `allure-report/` and opens it. If the command errors with a Java message, ensure Java is installed and available on your PATH (see step 0).
+
+## Quick Setup (macOS)
+
+Use this streamlined flow on a Mac to verify everything works end-to-end:
+
+```bash
+# 1) Install Java for Allure (required)
+brew install openjdk
+
+# If your shell can’t find `java`, add it to PATH for this session:
+export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"  # Apple Silicon
+# or
+export PATH="/usr/local/opt/openjdk/bin:$PATH"     # Intel
+
+# 2) Install deps and Playwright browsers
+npm run setup
+
+# 3) Run a quick smoke (Chrome only, first page)
+node run-tests.js --site=nfsmediation-live --profile=smoke
+
+# 4) Generate and open the Allure report (primary report)
+npm run allure-report
+```
 
 ## Site Configuration
 
@@ -192,18 +229,15 @@ All other shared suites (infrastructure, links, accessibility, responsive struct
 - **Console Output**: Shows exact report path to open after each run
 
 ### Viewing Reports
-After tests complete, open the Playwright HTML report:
-```bash
-open playwright-report/index.html
-📸 Screenshots and videos: ./test-results/
-```
 
-Allure (optional)
-- Allure requires a Java runtime. If Java is installed:
+Allure (required)
+- This project is designed around Allure for readable, structured results. Install Java and use:
   - Generate and open: `npm run allure-report`
   - Live server: `npm run allure-serve`
-- If Java is not installed, use Playwright HTML report (`playwright-report/index.html`) or `npx playwright show-report`.
-- Functional specs attach structured HTML + Markdown summaries (stored under `test-results/<suite>`) so the Allure "Overview" pane spells out which checks passed, which pages were scanned, and any warnings logged.
+- Functional specs attach structured HTML + Markdown summaries so the Allure Overview spells out which checks passed, which pages were scanned, and any warnings logged.
+
+Playwright HTML report (backup)
+- A backup HTML report is saved to `playwright-report/index.html`. It’s useful for quick inspection, but lacks the structured summaries provided by Allure.
 
 ## CI & Scheduling
 - CI smoke tests no longer run automatically on PRs, pushes, or on a schedule.
