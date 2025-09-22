@@ -7,6 +7,7 @@ const {
   waitForPageStability,
   ErrorContext,
 } = require('../utils/test-helpers');
+const { attachSummary, escapeHtml } = require('../utils/allure-utils');
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
@@ -49,6 +50,7 @@ test.describe('Responsive Visual Regression', () => {
         const pagesToTest = process.env.SMOKE
           ? siteConfig.testPages.slice(0, 1)
           : siteConfig.testPages;
+        const visualSummaries = [];
 
         for (const testPage of pagesToTest) {
           await test.step(`Visual ${viewportName}: ${testPage}`, async () => {
@@ -118,13 +120,70 @@ test.describe('Responsive Visual Regression', () => {
                 mask: masks,
               });
               console.log(`✅ Visual regression passed for ${testPage} (${viewportName})`);
+              visualSummaries.push({
+                page: testPage,
+                result: 'pass',
+                threshold,
+                screenshot: screenshotName,
+              });
             } catch (error) {
               console.log(
                 `⚠️  Visual difference detected for ${testPage} (${viewportName}): ${error.message}`
               );
+              visualSummaries.push({
+                page: testPage,
+                result: 'diff',
+                threshold,
+                screenshot: screenshotName,
+                error: String(error.message || '').slice(0, 200),
+              });
             }
           });
         }
+
+        // Attach Allure summary for this viewport
+        const rowsHtml = visualSummaries
+          .map((e) => {
+            const className = e.result === 'pass' ? 'status-ok' : 'status-error';
+            const notes = e.result === 'pass' ? '<li class="check-pass">Matched baseline</li>' : `<li class="check-fail">Diff detected</li>${e.error ? `<li class=\"check-fail\">${escapeHtml(e.error)}</li>` : ''}`;
+            return `
+              <tr class="${className}">
+                <td><code>${escapeHtml(e.page)}</code></td>
+                <td>${escapeHtml(String(e.screenshot))}</td>
+                <td>${e.threshold}</td>
+                <td><ul class="checks">${notes}</ul></td>
+              </tr>
+            `;
+          })
+          .join('');
+
+        const htmlBody = `
+          <section class="summary-report summary-visual">
+            <h3>Responsive visual summary — ${escapeHtml(viewportName)}</h3>
+            <table>
+              <thead><tr><th>Page</th><th>Screenshot</th><th>Threshold</th><th>Notes</th></tr></thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+          </section>
+        `;
+
+        const mdRows = visualSummaries.map(
+          (e) => `| \`${e.page}\` | ${e.screenshot} | ${e.threshold} | ${e.result === 'pass' ? '✅ matched' : '⚠️ diff'} |`
+        );
+        const markdown = [
+          `# Responsive visual summary — ${viewportName}`,
+          '',
+          '| Page | Screenshot | Threshold | Result |',
+          '| --- | --- | --- | --- |',
+          ...mdRows,
+        ].join('\n');
+
+        await attachSummary({
+          baseName: `responsive-visual-${viewportName}-summary`,
+          htmlBody,
+          markdown,
+          setDescription: false,
+        });
       });
     });
   });

@@ -8,6 +8,7 @@ const {
   safeElementInteraction,
 } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
+const { attachSummary, escapeHtml } = require('../utils/allure-utils');
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
@@ -46,6 +47,7 @@ test.describe('Responsive Structure & UX', () => {
         const pagesToTest = process.env.SMOKE
           ? siteConfig.testPages.slice(0, 1)
           : siteConfig.testPages;
+        const pageSummaries = [];
 
         for (const testPage of pagesToTest) {
           await test.step(`Structure ${viewportName}: ${testPage}`, async () => {
@@ -123,8 +125,69 @@ test.describe('Responsive Structure & UX', () => {
                 }
               }
             }
+
+            // Collect per-page summary for Allure attachment
+            pageSummaries.push({
+              page: testPage,
+              loadTime,
+              threshold,
+              elements: {
+                header: Boolean(again.header),
+                navigation: Boolean(again.navigation),
+                content: Boolean(again.content),
+                footer: Boolean(again.footer),
+              },
+            });
           });
         }
+
+        // Attach styled Allure summary for this viewport
+        const rowsHtml = pageSummaries
+          .map((e) => {
+            const className = e.loadTime > e.threshold ? 'status-error' : 'status-ok';
+            const boolCell = (v) => (v ? '✅' : '⚠️');
+            return `
+              <tr class="${className}">
+                <td><code>${escapeHtml(e.page)}</code></td>
+                <td>${Math.round(e.loadTime)}ms</td>
+                <td>${e.threshold}ms</td>
+                <td>${boolCell(e.elements.header)}</td>
+                <td>${boolCell(e.elements.navigation)}</td>
+                <td>${boolCell(e.elements.content)}</td>
+                <td>${boolCell(e.elements.footer)}</td>
+              </tr>
+            `;
+          })
+          .join('');
+
+        const htmlBody = `
+          <section class="summary-report summary-responsive-structure">
+            <h3>Responsive structure — ${escapeHtml(viewportName)}</h3>
+            <table>
+              <thead><tr><th>Page</th><th>Load</th><th>Threshold</th><th>Header</th><th>Nav</th><th>Content</th><th>Footer</th></tr></thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+          </section>
+        `;
+
+        const mdRows = pageSummaries.map(
+          (e) =>
+            `| \`${e.page}\` | ${Math.round(e.loadTime)}ms | ${e.threshold}ms | ${e.elements.header ? '✅' : '⚠️'} | ${e.elements.navigation ? '✅' : '⚠️'} | ${e.elements.content ? '✅' : '⚠️'} | ${e.elements.footer ? '✅' : '⚠️'} |`
+        );
+        const markdown = [
+          `# Responsive structure — ${viewportName}`,
+          '',
+          '| Page | Load | Threshold | Header | Nav | Content | Footer |',
+          '| --- | --- | --- | --- | --- | --- | --- |',
+          ...mdRows,
+        ].join('\n');
+
+        await attachSummary({
+          baseName: `responsive-structure-${viewportName}-summary`,
+          htmlBody,
+          markdown,
+          setDescription: false,
+        });
       });
     });
   });

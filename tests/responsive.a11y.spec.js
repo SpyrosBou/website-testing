@@ -1,6 +1,5 @@
 const { test, expect } = require('@playwright/test');
 const { AxeBuilder } = require('@axe-core/playwright');
-const { allure } = require('allure-playwright');
 const SiteLoader = require('../utils/site-loader');
 const {
   setupTestPage,
@@ -8,12 +7,66 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
+const { attachSummary, escapeHtml } = require('../utils/allure-utils');
 
-async function attachAllureText(name, content) {
-  if (allure && typeof allure.attachment === 'function') {
-    await allure.attachment(name, content, 'text/plain');
-  }
-}
+const formatResponsiveA11ySummaryHtml = (entries, viewportName) => {
+  if (!entries.length) return '';
+
+  const sections = entries
+    .map((entry) => {
+      const rows = (entry.filtered || [])
+        .slice(0, 12)
+        .map((v) => {
+          const nodes = (v.nodes || [])
+            .slice(0, 5)
+            .map((n) => (n.target && n.target[0]) || n.html || 'node')
+            .map((t) => `<code>${escapeHtml(String(t))}</code>`)
+            .join('<br />');
+          return `
+            <tr class="impact-${escapeHtml((v.impact || 'unknown').toLowerCase())}">
+              <td>${escapeHtml(v.impact || 'unknown')}</td>
+              <td>${escapeHtml(v.id)}</td>
+              <td>${v.nodes?.length || 0}</td>
+              <td><a href="${escapeHtml(v.helpUrl || '#')}" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+              <td>${nodes || 'n/a'}</td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      return `
+        <section class="summary-report summary-a11y">
+          <h3>${escapeHtml(entry.page)} (${escapeHtml(viewportName)}) — ${entry.filtered.length} issue(s)</h3>
+          <table>
+            <thead><tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>Sample targets</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </section>
+      `;
+    })
+    .join('\n');
+
+  return `
+    <section class="summary-report summary-a11y">
+      <h2>Responsive accessibility summary — ${escapeHtml(viewportName)}</h2>
+      <p>Detected on <strong>${entries.length}</strong> page(s) for this viewport.</p>
+      <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span></p>
+    </section>
+    ${sections}
+  `;
+};
+
+const formatResponsiveA11ySummaryMarkdown = (entries, viewportName) => {
+  if (!entries.length) return '';
+  const header = [
+    `# Responsive accessibility summary — ${viewportName}`,
+    '',
+    '| Page | Violations |',
+    '| --- | --- |',
+  ];
+  const rows = entries.map((e) => `| \`${e.page}\` | ${e.filtered.length} |`);
+  return header.concat(rows).join('\n');
+};
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
@@ -49,6 +102,7 @@ test.describe('Responsive Accessibility', () => {
         : siteConfig.testPages.slice(0, 3);
 
       const aggregatedViolations = [];
+      const perViewportEntries = [];
       for (const testPage of samplesToTest) {
         await test.step(`Accessibility ${viewportName}: ${testPage}`, async () => {
           const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
@@ -72,23 +126,13 @@ test.describe('Responsive Accessibility', () => {
               .filter((v) => !ignoreRules.includes(v.id));
 
             if (filtered.length > 0) {
-              const lines = filtered.map((v) => {
-                const nodes = (v.nodes || [])
-                  .slice(0, 5)
-                  .map((n) => (n.target && n.target[0]) || n.html || 'node')
-                  .join('\n  - ');
-                return `• ${v.id} [${v.impact}]\n  Help: ${v.helpUrl}\n  Nodes: ${v.nodes?.length || 0}\n  Sample targets:\n  - ${nodes}`;
-              });
-              const report =
-                `Accessibility Violations for ${testPage} (${viewportName})\n\n` +
-                lines.join('\n\n');
-              await attachAllureText(`a11y-${viewportName}-${testPage}-violations`, report);
+              perViewportEntries.push({ page: testPage, filtered });
               aggregatedViolations.push({
                 page: testPage,
                 viewport: viewportName,
                 count: filtered.length,
                 failOn,
-                report,
+                entries: filtered,
               });
               const message = `❌ ${filtered.length} accessibility violations (fail-on: ${failOn.join(
                 ', '
@@ -111,17 +155,23 @@ test.describe('Responsive Accessibility', () => {
         });
       }
 
+      if (perViewportEntries.length > 0) {
+        const html = formatResponsiveA11ySummaryHtml(perViewportEntries, viewportName);
+        const md = formatResponsiveA11ySummaryMarkdown(perViewportEntries, viewportName);
+        await attachSummary({
+          baseName: `responsive-a11y-${viewportName}-summary`,
+          htmlBody: html,
+          markdown: md,
+          setDescription: false,
+        });
+      }
+
       if (aggregatedViolations.length > 0) {
-        const summary = aggregatedViolations
-          .map(
-            (entry) =>
-              `Page: ${entry.page} (${entry.viewport})\nViolations: ${entry.count}\n${entry.report}`
-          )
-          .join('\n\n');
+        const count = aggregatedViolations.reduce((s, e) => s + e.count, 0);
         if (a11yMode === 'audit') {
-          console.warn(`ℹ️ Accessibility audit summary (no failure):\n\n${summary}`);
+          console.warn(`ℹ️ Accessibility audit summary (no failure): ${count} issues across ${aggregatedViolations.length} page(s) for ${viewportName}.`);
         } else {
-          expect(aggregatedViolations.length, `Accessibility violations detected:\n\n${summary}`).toBe(0);
+          expect(count, `Accessibility violations detected for ${viewportName}. See Allure attachment 'responsive-a11y-${viewportName}-summary'`).toBe(0);
         }
       }
     });
