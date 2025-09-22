@@ -213,6 +213,10 @@ node run-tests.js --site=my-site --headed
 node run-tests.js --site=my-site --project="Chrome"
 node run-tests.js --site=my-site --project="Firefox"
 node run-tests.js --site=my-site --project="Safari"  # WebKit engine
+
+# Start local ddev automatically (if applicable)
+# Use --local to enable ddev preflight and infer DDEV_PROJECT_PATH under /home/warui/sites
+node run-tests.js --site=my-site-local --responsive --local
 ```
 
 ## What Gets Tested
@@ -258,7 +262,7 @@ Allure (required)
 - This project is designed around Allure for readable, structured results. Install Java and use:
   - Generate and open: `npm run allure-report`
   - Live server: `npm run allure-serve`
-- Functional specs attach structured HTML + Markdown summaries so the Allure Overview spells out which checks passed, which pages were scanned, and any warnings logged.
+- Specs attach structured HTML + Markdown summaries so the Allure Overview spells out which checks passed, which pages were scanned, and any warnings logged.
 
 Playwright HTML report (backup)
 
@@ -281,7 +285,8 @@ Playwright HTML report (backup)
 ## Local ddev Preflight (Optional)
 
 - If your site uses ddev and is unreachable, the runner can attempt to start it when:
-  - `ENABLE_DDEV=true` and `DDEV_PROJECT_PATH=/path/to/your/wp/project` are set in the environment.
+  - Use `--local` to automatically set `ENABLE_DDEV=true` and infer `DDEV_PROJECT_PATH` from `/home/warui/sites/<project>` when possible.
+  - Or set `ENABLE_DDEV=true` and `DDEV_PROJECT_PATH=/path/to/your/wp/project` in the environment manually.
   - The site `baseUrl` contains `.ddev.site`.
 - The runner will try `ddev start` and wait up to 2 minutes for the site to respond.
 
