@@ -4,6 +4,7 @@
 - `tests/` Playwright specs: responsive (`responsive.*.spec.js`), functionality (`functionality.*.spec.js`), and `baseline-snapshots/` for visual baselines.
 - `sites/` JSON site configs (e.g., `example-site.json`, `*-local.json`, `*-live.json`).
 - `utils/` helpers (`test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`, `allure-utils.js`).
+- `specs/` experimental YAML definitions + generator (not wired into the runner).
 - Reports/artifacts: `allure-results/`, `allure-report/`, `playwright-report/`, `test-results/` (git-ignored).
 
 ## Build, Test, and Development Commands
@@ -25,7 +26,7 @@
 - Tests live in `tests/` and end with `*.spec.js` using `test.describe` / `test`.
 - Site configs: one file per site in `sites/`; prefer `my-site-local.json` and `my-site-live.json` naming.
 - Keep helpers cohesive in `utils/`; avoid ad-hoc scripts elsewhere.
-- Optional discovery: when `discover.strategy` is `sitemap`, the runner fetches the sitemap, merges up to `maxPages` paths, and applies optional `include`/`exclude` filters. Always keep `testPages` aligned with critical routes even when discovery is enabled.
+- Optional discovery: when `discover.strategy` is `sitemap`, run `node run-tests.js --site=<name> --discover` to fetch the sitemap, merge up to `maxPages` paths, and apply optional `include`/`exclude` filters. Without `--discover` the runner leaves `testPages` unchanged. Always keep `testPages` aligned with critical routes even when discovery is enabled.
 
 ## Testing Guidelines
 - Frameworks: `@playwright/test` + `@axe-core/playwright`; reporting via `allure-playwright`.
@@ -48,7 +49,7 @@ All shared suites traverse the full `testPages` list. The interactive audit is i
 - Update visual baselines after intentional UI changes:
   - CLI: `npx playwright test tests/responsive.visual.spec.js --update-snapshots`
   - Runner helper: `node run-tests.js --update-baselines --site=<name>` or `npm run update-baselines -- --site=<name>`
-- Generate reports: `npm run allure-report`. Artifacts per site in `test-results/<site>/`.
+- Generate reports: `npm run allure-report`. Playwright artifacts for the latest run live in `test-results/` (cleared before each execution unless `PW_SKIP_RESULT_CLEAN=true`).
 
 ### Accessibility Configuration (Optional)
 - Add to your site config to control gating and ignores:
@@ -58,7 +59,7 @@ All shared suites traverse the full `testPages` list. The interactive audit is i
 - When violations occur, tests attach an Allure text report per page/viewport summarizing rule IDs, help URLs, and node counts.
 - `ignoreConsoleErrors`: substrings/regex patterns to filter known console noise during interactive scans.
 - `resourceErrorBudget`: number of failed network requests tolerated before the interactive spec soft-fails (default 0).
-- `testPages`: keep this array tightly aligned with the content that should stay live. Functionality/accessibility specs treat 4xx/5xx as failures, so update the JSON whenever URLs are removed or slugs change. A sitemap-driven discovery mode will come later; for now it’s curated list or manual updates.
+- `testPages`: keep this array tightly aligned with the content that should stay live. Functionality/accessibility specs treat 4xx/5xx as failures, so update the JSON whenever URLs are removed or slugs change. Discovery is opt-in—configure `discover.strategy: "sitemap"` and run with `--discover` when you want to refresh paths.
 
 ### Link & Performance Configuration (Optional)
 - `linkCheck`: `{ maxPerPage?: number, timeoutMs?: number, followRedirects?: boolean, methodFallback?: boolean }` tunes the internal link audit. Defaults are `20`, `5000`, `true`, `true`, respectively.

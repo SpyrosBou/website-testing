@@ -7,6 +7,7 @@ Automated testing suite for WordPress websites with responsive design, functiona
 Think of this suite as an automated QA teammate for WordPress sites. You give it a small JSON config in `sites/` that lists the URLs you care about, and it drives real browsers (via Playwright) to make sure those pages still look and behave correctly.
 
 On every run (`node run-tests.js --site=your-site`):
+
 - The suite loads the config, opens each page, and checks the layout on mobile, tablet, and desktop sizes.
 - It makes sure critical pieces like headers, menus, and footers are visible, and it compares screenshots to catch visual regressions.
 - It looks for broken links, slow or failing responses, JavaScript errors, and accessibility issues using axe-core.
@@ -25,6 +26,7 @@ To try it locally: run `npm run setup`, copy `sites/example-site.json` to your o
      - Linux (Debian/Ubuntu): `sudo apt-get update && sudo apt-get install -y default-jre`
 
 1. **Setup**
+
    ```bash
    cd website-testing
    npm run setup
@@ -35,13 +37,18 @@ To try it locally: run `npm run setup`, copy `sites/example-site.json` to your o
    - Update the configuration with your WordPress site details
 
 3. **Run tests**
+
    ```bash
    node run-tests.js --site=your-site-name
    ```
 
 4. **Run smoke test (functionality only, Chrome, homepage)**
+
    ```bash
-   # Against local ddev site (make sure ddev is running)
+   # Built-in smoke profile samples the first test page per responsive spec
+   node run-tests.js --site=nfsmediation-local --profile=smoke
+
+   # Convenience script for ddev setups (responsive across all pages)
    npm run smoke:nfs -- --site=nfsmediation-local
    # Or directly
    node run-tests.js --site=nfsmediation-local --profile=smoke
@@ -105,9 +112,9 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
     }
   ],
   "criticalElements": [
-    {"name": "Navigation", "selector": ".main-navigation"},
-    {"name": "Header", "selector": "header"},
-    {"name": "Footer", "selector": "footer"}
+    { "name": "Navigation", "selector": ".main-navigation" },
+    { "name": "Header", "selector": "header" },
+    { "name": "Footer", "selector": "footer" }
   ],
   "linkCheck": {
     "maxPerPage": 20,
@@ -134,7 +141,7 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
 
 ## Optional Page Discovery
 
-You can ask the runner to supplement `testPages` by parsing a sitemap:
+Add a `discover` block to your site config and run with `--discover` when you want to refresh `testPages` from a sitemap. Without the flag the runner keeps your existing list (and prints a reminder), so discovery is always an explicit action.
 
 ```json
 {
@@ -151,7 +158,17 @@ You can ask the runner to supplement `testPages` by parsing a sitemap:
 }
 ```
 
-When `strategy` is `sitemap`, the runner fetches the sitemap (default `baseUrl/sitemap.xml`), walks child sitemaps up to two levels, normalises URLs to paths, filters them with the optional `include`/`exclude` patterns, and merges up to `maxPages` new entries into `testPages` (without removing the curated list).
+Run discovery like this:
+
+```bash
+node run-tests.js --site=my-site --discover
+```
+
+When `strategy` is `sitemap`, the runner fetches the sitemap (default `baseUrl/sitemap.xml`), walks child sitemaps up to two levels, normalises URLs to paths, filters them with the optional `include`/`exclude` patterns, and writes the merged list back to your site JSON (sorted, unique) so subsequent runs stay in sync.
+
+## Experimental YAML Specs
+
+An experimental generator lives under `specs/`. These YAML definitions map to the same functionality/responsive categories and can be converted into `.spec.js` files with the scripts in `specs/utils/`, but they are not wired into `run-tests.js`. Treat them as prototypes—hand-authored Playwright specs in `tests/` remain canonical.
 
 ## Commands
 
@@ -167,6 +184,9 @@ npm run test:site -- --site=my-site
 
 # Smoke test helper (nfs ddev)
 npm run smoke:nfs
+
+# Refresh sitemap-backed page list before running tests
+node run-tests.js --site=my-site --discover
 
 # Update visual baselines for a site (responsive visuals only)
 npm run update-baselines -- --site=my-site
@@ -198,6 +218,7 @@ node run-tests.js --site=my-site --project="Safari"  # WebKit engine
 ## What Gets Tested
 
 ### Responsive Testing (Industry-Standard Approach)
+
 - ✅ **Multi-Viewport Testing**: Each desktop browser tests mobile (375x667), tablet (768x1024), and desktop (1920x1080) viewports
 - ✅ **Cross-Browser Coverage**: Chrome, Firefox, and Safari (macOS) for comprehensive engine testing
 - ✅ Critical elements are visible across devices
@@ -206,11 +227,13 @@ node run-tests.js --site=my-site --project="Safari"  # WebKit engine
 - ✅ **Layout Change Alerts** - Pixel-level difference detection
 
 ### Browser Strategy
+
 - **Desktop Browsers Only**: Uses Chrome, Firefox, Safari to simulate all viewport sizes
 - **Why This Works**: Matches real-world responsive development and testing workflows
 - **Real Mobile Testing**: For actual device testing, use cloud services (not covered by this suite)
 
--### Functionality Testing
+### Functionality Testing
+
 - ✅ No broken internal links (per-page sampling honours `linkCheck` config, retries with GET when HEAD is unsupported, and publishes an Allure table of checked/broken URLs)
 - ✅ JavaScript & resource error smoke: light focus/hover on buttons/links/inputs with console logging, failed-request tracking, per-site ignore/budget controls, and an Allure summary per page
 - ✅ Form validation and submission (for forms listed in site config)
@@ -223,46 +246,52 @@ All other shared suites (infrastructure, links, accessibility, responsive struct
 
 ## Test Results
 
-- **HTML Report**: Each test run creates a site-specific report (e.g., `playwright-report-nfsmediation-local/index.html`)
+- **HTML Report**: Each run refreshes `playwright-report/index.html` (single folder, cleared by global setup)
 - **Visual Diff Reports**: Side-by-side comparison of layout changes with pixel-level detection
-- **Test Artifacts**: Screenshots, videos, and traces stored in `test-results/[site-name]/`
+- **Test Artifacts**: Screenshots, videos, and traces stored in `test-results/` (cleared by global setup unless `PW_SKIP_RESULT_CLEAN=true`)
 - **Console Output**: Shows exact report path to open after each run
 
 ### Viewing Reports
 
 Allure (required)
+
 - This project is designed around Allure for readable, structured results. Install Java and use:
   - Generate and open: `npm run allure-report`
   - Live server: `npm run allure-serve`
 - Functional specs attach structured HTML + Markdown summaries so the Allure Overview spells out which checks passed, which pages were scanned, and any warnings logged.
 
 Playwright HTML report (backup)
+
 - A backup HTML report is saved to `playwright-report/index.html`. It’s useful for quick inspection, but lacks the structured summaries provided by Allure.
 
 ## CI & Scheduling
+
 - CI smoke tests no longer run automatically on PRs, pushes, or on a schedule.
 - Trigger the workflow manually from GitHub Actions (Run workflow) and optionally set `site` input.
 - You can also set repository Actions variable `SMOKE_SITE` (e.g., `nfsmediation-live`) to be used when running manually.
 - You can also trigger manually via the "Run workflow" button and provide a site input.
 
 ### Deterministic Smoke (optional)
+
 - A static fixture and local server exist for fully deterministic smoke runs:
   - Server: `node scripts/static-server.js` (serves `fixtures/static-site/` on `http://127.0.0.1:8080`).
   - Config: `sites/static-smoke.json`.
   - CI will auto-start this server when `SMOKE_SITE=static-smoke` or manual input `site=static-smoke`.
 
 ## Local ddev Preflight (Optional)
+
 - If your site uses ddev and is unreachable, the runner can attempt to start it when:
   - `ENABLE_DDEV=true` and `DDEV_PROJECT_PATH=/path/to/your/wp/project` are set in the environment.
   - The site `baseUrl` contains `.ddev.site`.
 - The runner will try `ddev start` and wait up to 2 minutes for the site to respond.
 
 ### Managing Reports
+
 ```bash
 # Clean backup HTML report folder
 npm run clean-backup-html
 
-# Clean old test artifacts (older than 15 days) 
+# Clean old test artifacts (older than 15 days)
 npm run clean-old-results
 
 # Clean all test artifacts
@@ -274,6 +303,7 @@ npm run clean-all-results
 ## Browser Coverage
 
 Tests run on:
+
 - Desktop Chrome & Firefox
 - Safari (WebKit engine)
 - Mobile and tablet viewports via device profiles

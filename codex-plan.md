@@ -18,7 +18,7 @@ This plan splits the remaining fundamentals into three isolated tracks to be exe
 - Artifacts: Do not commit `playwright-report/`, `allure-results/`, `allure-report/`, `test-results/`.
 - Docs: Update only the sections/files listed in your track. Do not rewrite unrelated docs.
 - DDEV note: If a target site uses `.ddev.site`, follow README’s optional preflight. Use `ddev` only when explicitly required for that site; this repo’s scripts run locally.
-- Site configs: keep `testPages` aligned with live content; functionality/accessibility suites treat 4xx/5xx as failures. A sitemap-driven helper will be introduced separately when we need broader discovery.
+- Site configs: keep `testPages` aligned with live content; functionality/accessibility suites treat 4xx/5xx as failures. Use the opt-in sitemap helper (`discover.strategy: "sitemap"` + `--discover`) when you need to refresh paths in bulk.
 
 ## Track 1 — Accessibility Policy, Fail Gates, Allure Artifacts
 Status: Completed
@@ -103,6 +103,17 @@ Changes
 
 - Lighthouse or third-party perf tooling; keep within Playwright APIs.
 - Arbitrary crawling; discovery is limited to curated lists and sitemap parsing when implemented.
+
+## 2024-10 Documentation Maintenance
+Status: Completed
+Scope
+- Reviewed top-level README, agent instructions, and directory-specific guides for drift against current runner behaviour.
+- Documented the `--discover` workflow, smoke-profile sampling, artifact cleanup, and experimental YAML specs.
+- Renamed `codex-plan-new.md` back to `codex-plan.md` to satisfy repository guidelines.
+
+Acceptance Criteria
+- All public docs reflect current commands/environment variables. ✅
+- Internal guidance (`tests/CLAUDE.md`, `utils/CLAUDE.md`) matches real helper capabilities. ✅
 
 ---
 

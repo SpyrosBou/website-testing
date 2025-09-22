@@ -17,6 +17,9 @@ node run-tests.js --site=SITENAME --responsive     # Responsive tests only
 # List available sites
 node run-tests.js --list
 
+# Refresh sitemap-backed testPages and persist the result
+node run-tests.js --site=SITENAME --discover
+
 # Run single test file directly with Playwright
 SITE_NAME=SITENAME npx playwright test tests/functionality.infrastructure.spec.js
 
@@ -74,25 +77,26 @@ Each WordPress site requires a JSON configuration in `sites/` directory:
 - Functionality specs read these settings and surface structured summaries in Allure via helpers in `utils/allure-utils.js` (HTTP response tables, link coverage, interactive console/resource breakdowns, etc.).
 
 ### Test Runner Architecture
-The `run-tests.js` orchestrates test execution:
-1. Loads site configuration from `sites/` directory
-2. Sets environment variables (`SITE_NAME`, `SITE_OUTPUT_DIR`, `PLAYWRIGHT_REPORT_FOLDER`)
-3. Spawns Playwright process with appropriate test filters
-4. Organizes reports by site name to prevent conflicts
+The `run-tests.js` script orchestrates test execution:
+1. Loads and validates the requested site configuration from `sites/`.
+2. When `--discover` is supplied and the config uses `discover.strategy: "sitemap"`, fetches the sitemap, merges paths, and writes the updated `testPages` back to the JSON file.
+3. Sets `SITE_NAME` (and `SMOKE=1` for the smoke profile) before spawning Playwright with the requested spec filters/projects.
+4. Relies on `scripts/playwright-global-setup.js` to clear `allure-results/`, `allure-report/`, `playwright-report/`, and `test-results/` unless `PW_SKIP_RESULT_CLEAN=true`.
 
 ### Key Utilities
 - `utils/test-runner.js` - Main test orchestration and site management
 - `utils/site-loader.js` - Configuration loading and validation
+- `utils/sitemap-loader.js` - Sitemap discovery helper for `--discover`
 - `utils/test-helpers.js` - Advanced error handling, retry mechanisms, browser lifecycle
 - `utils/wordpress-page-objects.js` - WordPress-specific page object patterns
 - `utils/test-data-factory.js` - Test data generation for forms
 
 ### Report Organization
-- `allure-results/` - Raw test data (overwritten each run)
-- `allure-report/` - Generated HTML report with charts and trends
-- `test-results/[site-name]/` - Screenshots, videos, traces per site
-- `tests/baseline-snapshots/` - Visual regression baselines (version controlled)
-- `playwright-report-[site-name]/` - Backup HTML report per site
+- `allure-results/` - Raw test data (cleared before each run)
+- `allure-report/` - Generated Allure site (regenerate with `npm run allure-report`)
+- `playwright-report/` - Playwright HTML report for the latest run
+- `test-results/` - Screenshots, videos, traces scoped by test + project (cleared unless `PW_SKIP_RESULT_CLEAN=true`)
+- `tests/baseline-snapshots/` - Version-controlled visual baselines
 
 ## WordPress-Specific Considerations
 
@@ -123,8 +127,11 @@ The `run-tests.js` orchestrates test execution:
 ### Environment Variables
 The test runner automatically sets:
 - `SITE_NAME` - Required by all test files to load configuration
-- `SITE_OUTPUT_DIR` - Organizes test artifacts by site
-- `PLAYWRIGHT_REPORT_FOLDER` - Site-specific HTML report location
+- `SMOKE` - Set to `1` when `--profile=smoke` so responsive specs sample a single page
+
+Helpers also recognise:
+- `PW_SKIP_RESULT_CLEAN` - Skip automatic artifact cleanup in global setup when `true`
+- `ENABLE_DDEV` and `DDEV_PROJECT_PATH` - Allow `test-runner` to start a ddev project if a `.ddev.site` base URL is unreachable
 
 ### Visual Regression Thresholds
 Sites can customize thresholds in configuration:
