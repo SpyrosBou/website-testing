@@ -96,7 +96,9 @@ class TestRunner {
             );
           }
         } else {
-          console.log(`🛠  --local: Using DDEV project path from env: ${process.env.DDEV_PROJECT_PATH}`);
+          console.log(
+            `🛠  --local: Using DDEV project path from env: ${process.env.DDEV_PROJECT_PATH}`
+          );
         }
       }
 
@@ -107,9 +109,7 @@ class TestRunner {
             if (discovered.length === 0) {
               console.log('ℹ️  Sitemap discovery returned no pages. Test list unchanged.');
             } else {
-              const previous = Array.isArray(siteConfig.testPages)
-                ? [...siteConfig.testPages]
-                : [];
+              const previous = Array.isArray(siteConfig.testPages) ? [...siteConfig.testPages] : [];
               const discoveredSet = new Set(discovered);
               const updated = [...discoveredSet].sort((a, b) => a.localeCompare(b));
 
@@ -133,12 +133,13 @@ class TestRunner {
                 const parsed = JSON.parse(raw);
                 parsed.testPages = updated;
                 fs.writeFileSync(sitePath, `${JSON.stringify(parsed, null, 2)}\n`);
-                console.log(`📄 Updated sites/${siteName}.json with ${updated.length} test page(s).`);
+                console.log(
+                  `📄 Updated sites/${siteName}.json with ${updated.length} test page(s).`
+                );
               } catch (writeError) {
                 console.log(`⚠️  Unable to persist sitemap results: ${writeError.message}`);
               }
             }
-
           } catch (error) {
             console.log(`⚠️  Sitemap discovery skipped: ${error.message}`);
           }
