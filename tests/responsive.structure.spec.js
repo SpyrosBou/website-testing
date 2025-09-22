@@ -231,12 +231,61 @@ test.describe('Responsive Structure & UX', () => {
           expect.soft(cmp.hasFooter).toBe(base.hasFooter);
         }
       }
+
+      // Attach Allure summary for cross-viewport consistency
+      const rowsHtml = names
+        .map((vp) => {
+          const d = contentStructure[vp] || {};
+          const b = (v) => (v ? '✅' : '⚠️');
+          const headings = (d.headings || []).map((h) => `<code>${escapeHtml(String(h))}</code>`).join('<br />');
+          return `
+            <tr>
+              <td>${escapeHtml(vp)}</td>
+              <td>${d.headingCount ?? 0}</td>
+              <td>${b(Boolean(d.hasNav))}</td>
+              <td>${b(Boolean(d.hasMain))}</td>
+              <td>${b(Boolean(d.hasFooter))}</td>
+              <td>${headings || '—'}</td>
+            </tr>
+          `;
+        })
+        .join('');
+      const htmlBody = `
+        <section class="summary-report summary-responsive-consistency">
+          <h3>Cross-viewport content consistency</h3>
+          <p>Page: <code>${escapeHtml(testPage)}</code></p>
+          <table>
+            <thead><tr><th>Viewport</th><th>Heading count</th><th>Nav</th><th>Main</th><th>Footer</th><th>Sample headings</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </section>
+      `;
+      const mdRows = names.map((vp) => {
+        const d = contentStructure[vp] || {};
+        return `| ${vp} | ${d.headingCount ?? 0} | ${d.hasNav ? '✅' : '⚠️'} | ${d.hasMain ? '✅' : '⚠️'} | ${d.hasFooter ? '✅' : '⚠️'} | ${(d.headings || []).slice(0, 3).join(' / ') || '—'} |`;
+      });
+      const markdown = [
+        `# Cross-viewport content consistency`,
+        '',
+        `Page: \`${testPage}\``,
+        '',
+        '| Viewport | Headings | Nav | Main | Footer | Sample headings |',
+        '| --- | --- | --- | --- | --- | --- |',
+        ...mdRows,
+      ].join('\n');
+      await attachSummary({
+        baseName: 'responsive-consistency-summary',
+        htmlBody,
+        markdown,
+        setDescription: false,
+      });
     });
   });
 
   test.describe('WordPress-Specific Responsive Features', () => {
     test('WordPress theme responsive patterns', async ({ page }) => {
       test.setTimeout(30000);
+      const features = [];
       for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
         await test.step(`WP features: ${viewportName}`, async () => {
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -256,8 +305,55 @@ test.describe('Responsive Structure & UX', () => {
 
           const widgets = await page.locator('.widget').count();
           if (widgets > 0) console.log(`📊 ${widgets} widgets found on ${viewportName}`);
+
+          features.push({
+            viewport: viewportName,
+            hasWpResponsive,
+            blockElements,
+            widgets,
+          });
         });
       }
+
+      // Attach Allure summary for WP-specific responsive features
+      const rowsHtml = features
+        .map((f) => {
+          const b = (v) => (v ? '✅' : '⚠️');
+          return `
+            <tr>
+              <td>${escapeHtml(f.viewport)}</td>
+              <td>${b(Boolean(f.hasWpResponsive))}</td>
+              <td>${f.blockElements}</td>
+              <td>${f.widgets}</td>
+            </tr>
+          `;
+        })
+        .join('');
+      const htmlBody = `
+        <section class="summary-report summary-wp-responsive">
+          <h3>WordPress responsive features</h3>
+          <table>
+            <thead><tr><th>Viewport</th><th>Responsive elems</th><th>Block elements</th><th>Widgets</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </section>
+      `;
+      const mdRows = features.map(
+        (f) => `| ${f.viewport} | ${f.hasWpResponsive ? '✅' : '⚠️'} | ${f.blockElements} | ${f.widgets} |`
+      );
+      const markdown = [
+        '# WordPress responsive features',
+        '',
+        '| Viewport | Responsive | Block elements | Widgets |',
+        '| --- | --- | --- | --- |',
+        ...mdRows,
+      ].join('\n');
+      await attachSummary({
+        baseName: 'responsive-wp-features-summary',
+        htmlBody,
+        markdown,
+        setDescription: false,
+      });
     });
   });
 });
