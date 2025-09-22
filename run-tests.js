@@ -23,6 +23,7 @@ Available options:
   --functionality     Run only functionality tests  
   --update-baselines  Update visual baselines for responsive visual tests
   --discover          Refresh the site's testPages from its sitemap before running
+  --local             Enable DDEV preflight for local sites (sets ENABLE_DDEV=true and attempts to infer DDEV_PROJECT_PATH)
   --list              List all available site configurations
   --help              Show this help message
 
@@ -65,6 +66,7 @@ async function runTests() {
     project: argv.project,
     profile,
     discover: Boolean(argv.discover),
+    local: Boolean(argv.local),
   };
 
   if (profile === 'smoke') {

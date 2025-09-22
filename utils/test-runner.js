@@ -80,6 +80,26 @@ class TestRunner {
       const siteConfig = SiteLoader.loadSite(siteName);
       SiteLoader.validateSiteConfig(siteConfig);
 
+      // Handle convenience flag for local DDEV sites
+      if (options.local) {
+        // Always enable DDEV when --local is passed
+        process.env.ENABLE_DDEV = 'true';
+        // If a project path is not supplied, try to infer it from SITE_NAME or baseUrl
+        if (!process.env.DDEV_PROJECT_PATH) {
+          const inferred = this.inferDdevProjectPath(siteName, siteConfig.baseUrl);
+          if (inferred) {
+            process.env.DDEV_PROJECT_PATH = inferred;
+            console.log(`🛠  --local: Using inferred DDEV project path: ${inferred}`);
+          } else {
+            console.log(
+              'ℹ️  --local provided but unable to infer DDEV project path. You can set DDEV_PROJECT_PATH explicitly.'
+            );
+          }
+        } else {
+          console.log(`🛠  --local: Using DDEV project path from env: ${process.env.DDEV_PROJECT_PATH}`);
+        }
+      }
+
       if (options.discover) {
         if (siteConfig.discover && siteConfig.discover.strategy === 'sitemap') {
           try {
@@ -224,6 +244,56 @@ class TestRunner {
         reject(error);
       });
     });
+  }
+
+  static inferDdevProjectPath(siteName, baseUrl) {
+    try {
+      const home = process.env.HOME || '/home/warui';
+      const sitesRoot = path.join(home, 'sites');
+
+      // Helper to validate a candidate path
+      const isValidProject = (dir) => {
+        try {
+          const configPath = path.join(dir, '.ddev', 'config.yaml');
+          return fs.existsSync(dir) && fs.existsSync(configPath);
+        } catch (_) {
+          return false;
+        }
+      };
+
+      const candidates = new Set();
+
+      // Candidate 1: siteName minus common suffixes
+      const baseFromSite = siteName.replace(/-(local|live)$/i, '');
+      if (baseFromSite) candidates.add(path.join(sitesRoot, baseFromSite));
+
+      // Candidate 2: from baseUrl hostname first label(s)
+      try {
+        const url = new URL(baseUrl);
+        const host = url.hostname || '';
+        // e.g., day.local -> day, roladev.atelierdev.local -> roladev
+        const parts = host.split('.');
+        if (parts.length > 0) {
+          candidates.add(path.join(sitesRoot, parts[0]));
+        }
+        // Also try host without common local TLDs
+        const stripped = host.replace(/\.(local|ddev\.site)$/i, '');
+        if (stripped && stripped !== parts[0]) {
+          candidates.add(path.join(sitesRoot, stripped));
+        }
+      } catch (_) {
+        // ignore URL parse errors
+      }
+
+      for (const dir of candidates) {
+        if (isValidProject(dir)) {
+          return dir;
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   static requestReachable(urlString, timeoutMs = 5000) {
