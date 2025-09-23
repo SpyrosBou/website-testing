@@ -3,8 +3,8 @@ const { allure } = require('allure-playwright');
 const SUMMARY_STYLES = `
 <style>
   .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-  .summary-report h2 { margin-bottom: 0.25rem; }
-  .summary-report h3 { margin: 0.75rem 0 0.35rem; }
+  .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
+  .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
   .summary-report section { margin: 0.75rem 0; }
   .summary-report table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
   .summary-report th,
