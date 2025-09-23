@@ -261,7 +261,7 @@ test.describe('Responsive Accessibility', () => {
           baseName: `responsive-a11y-${viewportName}-summary`,
           htmlBody: html,
           markdown: md,
-          setDescription: false,
+          setDescription: true,
         });
       }
 
