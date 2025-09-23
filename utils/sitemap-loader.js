@@ -64,6 +64,43 @@ function normalizeToPath(urlString, baseUrl) {
 }
 
 async function fetchXml(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (_error) {
+    // Fallback to direct fetch if URL parsing fails for some reason
+    parsed = null;
+  }
+
+  const allowInsecure =
+    parsed &&
+    parsed.protocol === 'https:' &&
+    (/\.ddev\.site$/i.test(parsed.hostname) ||
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1');
+
+  if (allowInsecure) {
+    const hadOverride = Object.prototype.hasOwnProperty.call(
+      process.env,
+      'NODE_TLS_REJECT_UNAUTHORIZED'
+    );
+    const previous = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    try {
+      const response = await fetchFn(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch sitemap: ${url} (status ${response.status})`);
+      }
+      return await response.text();
+    } finally {
+      if (hadOverride) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = previous;
+      } else {
+        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      }
+    }
+  }
+
   const response = await fetchFn(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch sitemap: ${url} (status ${response.status})`);

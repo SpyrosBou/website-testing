@@ -1,0 +1,36 @@
+{
+  "name": "Agilitas",
+  "baseUrl": "https://www.agilitas.co.uk",
+  "discover": {
+    "strategy": "sitemap",
+    "sitemapUrl": "https://www.agilitas.co.uk/sitemap_index.xml",
+    "maxPages": 25
+  },
+  "testPages": [
+    "/a-christmas-message-from-agilitas/",
+    "/accelerating-action-dei-growth-roundtable/",
+    "/agilitas-crn-ai-roundtable/",
+    "/agilitas-esg-to-achieve-net-zero/",
+    "/agilitas-international-womens-day-2024/",
+    "/agilitas-joins-techies-go-green/",
+    "/agilitas-partner-choices-report/",
+    "/agilitas-receives-silver-medal-from-ecovadis/",
+    "/agilitas-six-finalists-crn-women-diversity-2025/",
+    "/agilitas-take-on-the-nottingham-hospitals-charity-dragon-boat-race/",
+    "/agilitas-triple-shortlist-crn-diversity-award/",
+    "/bev-markland-cpo-podcast-hr-grapevine/",
+    "/channel-trends-report-2023/",
+    "/cro-gary-lomas-features-in-crns-latest-collaborative-article-sharing-his-thoughts-on-the-uks-data-centre-expansion-plans/",
+    "/data-analytics-building-a-sustainable-supply-chain/",
+    "/democratisation-of-technology/",
+    "/developing-an-agile-growth-strategy/",
+    "/employee-mental-health-hybrid-working/",
+    "/equity-challenging-gender-stereotypes/",
+    "/hattrick-nominations-it-europa-channel-awards-2024/",
+    "/how-to-embrace-ai-and-its-role-in-channel-businesses/",
+    "/mercedes-benz-agilitas-partner-day-2024/",
+    "/michelle-would-completes-agilitas-new-executive-line-up-in-chief-operating-officer-appointment/",
+    "/the-as-a-service-era/",
+    "/total-experience-to-the-technology-channel-jhw/"
+  ]
+}

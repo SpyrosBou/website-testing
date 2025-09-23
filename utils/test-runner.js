@@ -102,12 +102,53 @@ class TestRunner {
         }
       }
 
-      if (options.discover) {
+      let createdDefaultDiscover = false;
+      let discoverySkipped = false;
+
+      if (options.discover && (!siteConfig.discover || !siteConfig.discover.strategy)) {
+        if (!siteConfig.baseUrl) {
+          console.log(
+            '⚠️  --discover requested but site config has no baseUrl; skipping sitemap discovery.'
+          );
+          discoverySkipped = true;
+        } else {
+          const defaultSitemapUrl = `${siteConfig.baseUrl.replace(/\/$/, '')}/sitemap.xml`;
+          siteConfig.discover = {
+            strategy: 'sitemap',
+            sitemapUrl: defaultSitemapUrl,
+          };
+          createdDefaultDiscover = true;
+          console.log(
+            `ℹ️  --discover: Default sitemap discovery enabled using ${defaultSitemapUrl}`
+          );
+        }
+      }
+
+      if (options.discover && !discoverySkipped) {
         if (siteConfig.discover && siteConfig.discover.strategy === 'sitemap') {
           try {
             const discovered = await discoverFromSitemap(siteConfig, siteConfig.discover);
             if (discovered.length === 0) {
               console.log('ℹ️  Sitemap discovery returned no pages. Test list unchanged.');
+
+              if (createdDefaultDiscover) {
+                try {
+                  const sitePath = path.join(process.cwd(), 'sites', `${siteName}.json`);
+                  const raw = fs.readFileSync(sitePath, 'utf8');
+                  const parsed = JSON.parse(raw);
+                  if (!parsed.discover) {
+                    parsed.discover = { ...siteConfig.discover };
+                    fs.writeFileSync(sitePath, `${JSON.stringify(parsed, null, 2)}\n`);
+                    console.log(
+                      `📄 Added default sitemap discovery config to sites/${siteName}.json.`
+                    );
+                  }
+                } catch (writeError) {
+                  console.log(
+                    `⚠️  Unable to persist default sitemap config: ${writeError.message}`
+                  );
+                }
+              }
             } else {
               const previous = Array.isArray(siteConfig.testPages) ? [...siteConfig.testPages] : [];
               const discoveredSet = new Set(discovered);
@@ -132,6 +173,13 @@ class TestRunner {
                 const raw = fs.readFileSync(sitePath, 'utf8');
                 const parsed = JSON.parse(raw);
                 parsed.testPages = updated;
+                if (siteConfig.discover) {
+                  const mergedDiscover = {
+                    ...(parsed.discover || {}),
+                    ...siteConfig.discover,
+                  };
+                  parsed.discover = mergedDiscover;
+                }
                 fs.writeFileSync(sitePath, `${JSON.stringify(parsed, null, 2)}\n`);
                 console.log(
                   `📄 Updated sites/${siteName}.json with ${updated.length} test page(s).`
@@ -143,6 +191,8 @@ class TestRunner {
           } catch (error) {
             console.log(`⚠️  Sitemap discovery skipped: ${error.message}`);
           }
+        } else if (!siteConfig.discover) {
+          console.log('ℹ️  --discover requested but sitemap discovery is disabled for this site.');
         } else {
           console.log('ℹ️  --discover requested but site config has no sitemap strategy.');
         }
@@ -194,6 +244,14 @@ class TestRunner {
     if (options.functionality) {
       for (const file of testEntries) {
         if (path.basename(file).startsWith('functionality.')) {
+          selectedTests.add(file);
+        }
+      }
+    }
+    if (options.accessibility) {
+      for (const file of testEntries) {
+        const baseName = path.basename(file);
+        if (/accessibility|a11y/i.test(baseName)) {
           selectedTests.add(file);
         }
       }

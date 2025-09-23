@@ -21,6 +21,7 @@ Available options:
   --profile=smoke|full|nightly  Preset options (smoke = responsive+Chrome)
   --responsive        Run only responsive tests
   --functionality     Run only functionality tests  
+  --accessibility     Run only accessibility-focused tests
   --update-baselines  Update visual baselines for responsive visual tests
   --discover          Refresh the site's testPages from its sitemap before running
   --local             Enable DDEV preflight for local sites (sets ENABLE_DDEV=true and attempts to infer DDEV_PROJECT_PATH)
@@ -33,6 +34,7 @@ Examples:
   node run-tests.js --site=daygroup-live         # Test live production site
   node run-tests.js --site=nfsmediation-local --responsive
   node run-tests.js --site=daygroup-live --functionality
+  node run-tests.js --site=daygroup-live --accessibility
 `);
 }
 
@@ -61,6 +63,7 @@ async function runTests() {
   const options = {
     responsive: argv.responsive,
     functionality: argv.functionality,
+    accessibility: argv.accessibility,
     headed: argv.headed,
     debug: argv.debug,
     project: argv.project,
