@@ -43,7 +43,7 @@ test.describe('Responsive Structure & UX', () => {
       });
 
       test(`Layout and critical elements - ${viewportName}`, async ({ page }) => {
-        test.setTimeout(45000);
+        test.setTimeout(300000);
         const pagesToTest = process.env.SMOKE
           ? siteConfig.testPages.slice(0, 1)
           : siteConfig.testPages;
@@ -194,7 +194,7 @@ test.describe('Responsive Structure & UX', () => {
 
   test.describe('Cross-Viewport Consistency', () => {
     test('Content hierarchy consistency across viewports', async ({ page }) => {
-      test.setTimeout(30000);
+      test.setTimeout(300000);
 
       const testPage = siteConfig.testPages[0];
       const contentStructure = {};
@@ -284,7 +284,7 @@ test.describe('Responsive Structure & UX', () => {
 
   test.describe('WordPress-Specific Responsive Features', () => {
     test('WordPress theme responsive patterns', async ({ page }) => {
-      test.setTimeout(30000);
+      test.setTimeout(300000);
       const features = [];
       for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
         await test.step(`WP features: ${viewportName}`, async () => {

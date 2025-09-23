@@ -1,3 +1,6 @@
+const http = require('http');
+const https = require('https');
+
 const fetchFn = globalThis.fetch
   ? (...args) => globalThis.fetch(...args)
   : async (...args) => {
@@ -63,12 +66,11 @@ function normalizeToPath(urlString, baseUrl) {
   }
 }
 
-async function fetchXml(url) {
+async function fetchXml(url, redirectCount = 0) {
   let parsed;
   try {
     parsed = new URL(url);
   } catch (_error) {
-    // Fallback to direct fetch if URL parsing fails for some reason
     parsed = null;
   }
 
@@ -79,26 +81,49 @@ async function fetchXml(url) {
       parsed.hostname === 'localhost' ||
       parsed.hostname === '127.0.0.1');
 
-  if (allowInsecure) {
-    const hadOverride = Object.prototype.hasOwnProperty.call(
-      process.env,
-      'NODE_TLS_REJECT_UNAUTHORIZED'
-    );
-    const previous = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    try {
-      const response = await fetchFn(url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sitemap: ${url} (status ${response.status})`);
+  if (allowInsecure && parsed) {
+    return await new Promise((resolve, reject) => {
+      const lib = parsed.protocol === 'https:' ? https : http;
+      const requestOptions = {
+        method: 'GET',
+        hostname: parsed.hostname,
+        port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+        path: `${parsed.pathname}${parsed.search}` || '/',
+        headers: { 'User-Agent': 'wp-test-suite/1.0' },
+      };
+      if (parsed.protocol === 'https:') {
+        requestOptions.rejectUnauthorized = false;
       }
-      return await response.text();
-    } finally {
-      if (hadOverride) {
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = previous;
-      } else {
-        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      }
-    }
+
+      const req = lib.request(requestOptions, (res) => {
+        const { statusCode = 0, headers } = res;
+        if (statusCode >= 300 && statusCode < 400 && headers.location) {
+          res.resume();
+          if (redirectCount >= 5) {
+            reject(new Error(`Too many redirects while fetching sitemap: ${url}`));
+            return;
+          }
+          const nextUrl = new URL(headers.location, url).href;
+          fetchXml(nextUrl, redirectCount + 1).then(resolve).catch(reject);
+          return;
+        }
+
+        if (statusCode >= 400) {
+          res.resume();
+          reject(new Error(`Failed to fetch sitemap: ${url} (status ${statusCode})`));
+          return;
+        }
+
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          resolve(Buffer.concat(chunks).toString('utf8'));
+        });
+      });
+
+      req.on('error', reject);
+      req.end();
+    });
   }
 
   const response = await fetchFn(url);

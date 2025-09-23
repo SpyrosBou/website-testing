@@ -325,27 +325,72 @@ async function safeNavigate(page, url, options = {}) {
 
 // Wait for page stability with multiple strategies
 async function waitForPageStability(page, options = {}) {
-  const { timeout = 10000, strategies = ['networkidle', 'domcontentloaded', 'load'] } = options;
+  const {
+    timeout = 20000,
+    strategies = ['networkidle', 'domcontentloaded', 'load'],
+    softFail = true,
+  } = options;
 
   if (page.isClosed()) {
     throw new Error('Cannot wait for page stability: page is closed');
   }
 
-  const errors = [];
+  const attempts = [];
+  let totalElapsed = 0;
 
   for (const strategy of strategies) {
+    const start = Date.now();
     try {
       await page.waitForLoadState(strategy, { timeout });
-      console.log(`✅ Page stability achieved using ${strategy}`);
-      return true;
+      const duration = Date.now() - start;
+      totalElapsed += duration;
+      console.log(`✅ Page stability achieved using ${strategy} (${duration}ms)`);
+      return {
+        ok: true,
+        successfulStrategy: strategy,
+        duration,
+        totalElapsed,
+        attempts,
+      };
     } catch (error) {
-      errors.push(`${strategy}: ${error.message}`);
-      console.log(`⚠️  ${strategy} strategy failed: ${error.message.substring(0, 50)}...`);
+      const duration = Date.now() - start;
+      totalElapsed += duration;
+      const detail = {
+        strategy,
+        duration,
+        errorMessage: error.message,
+      };
+      attempts.push(detail);
+      console.log(
+        `⚠️  ${strategy} strategy failed after ${duration}ms: ${error.message.substring(0, 80)}...`
+      );
     }
   }
 
-  console.log(`⚠️  All stability strategies failed: ${errors.join('; ')}`);
-  return false; // Don't throw, let tests continue
+  const summaryMessage = `All stability strategies failed (timeout ${timeout}ms per strategy).`;
+  console.log(
+    `⚠️  ${summaryMessage} Details: ${attempts
+      .map((attempt) => `${attempt.strategy}: ${attempt.errorMessage}`)
+      .join('; ')}`
+  );
+
+  const result = {
+    ok: false,
+    successfulStrategy: null,
+    duration: 0,
+    totalElapsed,
+    attempts,
+    message: summaryMessage,
+  };
+
+  if (!softFail) {
+    const aggregatedErrors = attempts
+      .map((attempt) => `${attempt.strategy}: ${attempt.errorMessage}`)
+      .join('; ');
+    throw new Error(`${summaryMessage} ${aggregatedErrors}`);
+  }
+
+  return result; // Soft-fail so callers can decide how to report
 }
 
 /**

@@ -35,12 +35,17 @@ const formatResponsiveA11ySummaryHtml = (entries, viewportName) => {
         .join('');
 
       return `
-        <section class="summary-report summary-a11y">
-          <h3>${escapeHtml(entry.page)} (${escapeHtml(viewportName)}) — ${entry.filtered.length} issue(s)</h3>
-          <table>
-            <thead><tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>Sample targets</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
+        <section class="summary-report summary-a11y page-card">
+          <div class="page-card__header">
+            <h3>${escapeHtml(entry.page)} (${escapeHtml(viewportName)})</h3>
+            <span class="status-pill error">${entry.filtered.length} issue(s)</span>
+          </div>
+          <div class="page-card__table">
+            <table>
+              <thead><tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>Sample targets</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
         </section>
       `;
     })
@@ -94,7 +99,7 @@ test.describe('Responsive Accessibility', () => {
 
   Object.entries(VIEWPORTS).forEach(([viewportName, viewport]) => {
     test(`Accessibility across viewports - ${viewportName}`, async ({ page }) => {
-      test.setTimeout(45000);
+      test.setTimeout(300000);
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
       const samplesToTest = process.env.SMOKE

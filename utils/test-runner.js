@@ -286,10 +286,18 @@ class TestRunner {
 
       playwright.on('close', (code) => {
         console.log('');
+
+        const summary = TestRunner.summarizeAllureResults();
+        console.log('Quick Summary:');
+        console.log(`Tests broken: ${summary.broken}`);
+        console.log(`Tests failed: ${summary.failed}`);
+        console.log(`Tests passed: ${summary.passed}`);
+
+        console.log('');
         if (code === 0) {
           console.log('✅ Tests completed successfully!');
         } else {
-          console.log('❌ Some tests failed.');
+          console.log('❌ Test run completed with issues.');
         }
         console.log('📊 Generate Allure report: npm run allure-report');
         console.log('🧭 HTML report: ./playwright-report/index.html');
@@ -303,6 +311,58 @@ class TestRunner {
         reject(error);
       });
     });
+  }
+
+  static summarizeAllureResults() {
+    const summary = {
+      broken: 0,
+      failed: 0,
+      passed: 0,
+      skipped: 0,
+      unknown: 0,
+    };
+
+    try {
+      const resultsDir = path.join(process.cwd(), 'allure-results');
+      if (!fs.existsSync(resultsDir)) {
+        return summary;
+      }
+
+      const resultFiles = fs
+        .readdirSync(resultsDir)
+        .filter((file) => file.endsWith('-result.json'));
+
+      for (const file of resultFiles) {
+        try {
+          const content = fs.readFileSync(path.join(resultsDir, file), 'utf8');
+          const data = JSON.parse(content);
+          switch ((data.status || '').toLowerCase()) {
+            case 'passed':
+              summary.passed += 1;
+              break;
+            case 'failed':
+              summary.failed += 1;
+              break;
+            case 'broken':
+              summary.broken += 1;
+              break;
+            case 'skipped':
+              summary.skipped += 1;
+              break;
+            default:
+              summary.unknown += 1;
+              break;
+          }
+        } catch (error) {
+          summary.unknown += 1;
+          console.warn(`⚠️  Unable to parse Allure result ${file}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️  Unable to collect Allure summary: ${error.message}`);
+    }
+
+    return summary;
   }
 
   static inferDdevProjectPath(siteName, baseUrl) {

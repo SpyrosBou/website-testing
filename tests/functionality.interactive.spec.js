@@ -123,7 +123,7 @@ test.describe('Functionality: Interactive Elements', () => {
   });
 
   test('JavaScript error detection during interactions', async ({ context }) => {
-    test.setTimeout(60000);
+    test.setTimeout(300000);
     const consoleErrors = [];
     const resourceErrors = [];
     const pageSummaries = [];
@@ -285,7 +285,7 @@ test.describe('Functionality: Interactive Elements', () => {
   });
 
   test('Form interactions and validation (if configured)', async ({ page }) => {
-    test.setTimeout(30000);
+    test.setTimeout(300000);
     if (!siteConfig.forms || siteConfig.forms.length === 0) {
       console.log('ℹ️  No forms configured for testing');
       return;

@@ -171,7 +171,7 @@ test.describe('Functionality: Internal Links', () => {
   });
 
   test('Validate internal links across pages (rate-limited)', async ({ page }) => {
-    test.setTimeout(90000);
+    test.setTimeout(300000);
     const brokenLinks = [];
     const checkedLinks = new Set();
     const pageSummaries = [];

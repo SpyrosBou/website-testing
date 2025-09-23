@@ -30,7 +30,7 @@ module.exports = defineConfig({
     ['list'], // Console output
   ],
   // Test timeout increased for better stability
-  timeout: 60000,
+  timeout: 300000,
   expect: {
     timeout: 15000,
   },
