@@ -287,6 +287,8 @@ class TestRunner {
       playwright.on('close', (code) => {
         console.log('');
 
+        TestRunner.pruneEmptyAllureVideos();
+
         const summary = TestRunner.summarizeAllureResults();
         console.log('Quick Summary:');
         console.log(`Tests broken: ${summary.broken}`);
@@ -512,6 +514,71 @@ class TestRunner {
     } catch (_) {
       // Ignore if directories don't exist
     }
+  }
+
+  static pruneEmptyAllureVideos() {
+    const allureDir = path.join(process.cwd(), 'allure-results');
+    if (!fs.existsSync(allureDir)) return;
+
+    const entries = fs.readdirSync(allureDir);
+    const smallVideos = new Set();
+    const VIDEO_MIN_BYTES = 2048;
+
+    for (const name of entries) {
+      if (!name.endsWith('.webm')) continue;
+      const fullPath = path.join(allureDir, name);
+      let stats;
+      try {
+        stats = fs.statSync(fullPath);
+      } catch (_) {
+        continue;
+      }
+      if (stats.size > VIDEO_MIN_BYTES) continue;
+
+      try {
+        fs.rmSync(fullPath);
+        smallVideos.add(name);
+      } catch (_) {
+        // best-effort cleanup
+      }
+    }
+
+    if (smallVideos.size === 0) return;
+
+    const pruneNode = (node) => {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node.attachments)) {
+        node.attachments = node.attachments.filter(
+          (attachment) => !smallVideos.has(attachment.source)
+        );
+      }
+      if (Array.isArray(node.steps)) node.steps.forEach(pruneNode);
+      if (Array.isArray(node.befores)) node.befores.forEach(pruneNode);
+      if (Array.isArray(node.afters)) node.afters.forEach(pruneNode);
+    };
+
+    const jsonFiles = entries.filter((name) => name.endsWith('.json'));
+    for (const jsonFile of jsonFiles) {
+      const fullPath = path.join(allureDir, jsonFile);
+      let data;
+      try {
+        data = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+      } catch (_) {
+        continue;
+      }
+
+      pruneNode(data);
+
+      try {
+        fs.writeFileSync(fullPath, `${JSON.stringify(data, null, 2)}\n`);
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    console.log(
+      `🧹 Removed ${smallVideos.size} empty video attachment(s) from allure results`
+    );
   }
 
   // Removed unsafe process cleanup; no-op retained for compatibility
