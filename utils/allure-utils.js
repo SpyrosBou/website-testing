@@ -31,6 +31,8 @@ const SUMMARY_STYLES = `
   .summary-report .badge.error { background: #ffe5e5; }
   .summary-report .badge-critical { background: #ffe5e5; }
   .summary-report .badge-serious { background: #fff4ce; }
+  .summary-report .badge-neutral { background: #eef2f6; }
+  .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
   .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
   .summary-report .status-summary li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
   .summary-report .status-pill { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid #d0d7de; background: #f6f8fa; color: #1d2939; text-transform: capitalize; }
