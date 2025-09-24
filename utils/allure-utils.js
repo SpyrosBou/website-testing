@@ -31,6 +31,7 @@ const SUMMARY_STYLES = `
   .summary-report .badge.error { background: #ffe5e5; }
   .summary-report .badge-critical { background: #ffe5e5; }
   .summary-report .badge-serious { background: #fff4ce; }
+  .summary-report .badge-best-practice { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
   .summary-report .badge-neutral { background: #eef2f6; }
   .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
   .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
@@ -40,6 +41,7 @@ const SUMMARY_STYLES = `
   .summary-report .status-pill.error { background: #ffe5e5; border-color: #f3b5b3; color: #b42318; }
   .summary-report .status-pill.warning { background: #fff4ce; border-color: #f7d070; color: #6a4d00; }
   .summary-report .status-pill.neutral { background: #eef2f6; border-color: #d0d7de; color: #344054; }
+  .summary-report .status-pill.info { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
   .summary-report .page-card { border: 1px solid #d0d7de; border-radius: 8px; padding: 0.85rem 1rem; margin: 1rem 0; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
   .summary-report .page-card__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
   .summary-report .page-card__header h3 { margin: 0; font-size: 1.1rem; }

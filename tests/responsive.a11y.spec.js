@@ -127,7 +127,7 @@ const formatResponsiveA11ySummaryHtml = (entries, viewportName, failOnLabel) => 
           ? `<p class="details">Best-practice advisories (no WCAG tag) surfaced on ${bestPracticePages} page(s).</p>`
           : ''
       }
-      <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span><span class="badge badge-wcag">WCAG A/AA/AAA</span></p>
+      <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span><span class="badge badge-wcag">WCAG A/AA/AAA</span><span class="badge badge-best-practice">Best-practice advisory</span></p>
     </section>
     ${sections}
   `;
