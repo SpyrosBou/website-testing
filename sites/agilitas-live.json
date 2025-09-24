@@ -4,9 +4,10 @@
   "discover": {
     "strategy": "sitemap",
     "sitemapUrl": "https://www.agilitas.co.uk/sitemap_index.xml",
-    "maxPages": 25
+    "maxPages": 500
   },
   "testPages": [
+    "/",
     "/a-christmas-message-from-agilitas/",
     "/accelerating-action-dei-growth-roundtable/",
     "/agilitas-crn-ai-roundtable/",
