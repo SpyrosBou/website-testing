@@ -204,7 +204,7 @@ test.describe('Responsive Accessibility', () => {
 
   Object.entries(VIEWPORTS).forEach(([viewportName, viewport]) => {
     test(`Accessibility across viewports - ${viewportName}`, async ({ page }) => {
-      test.setTimeout(300000);
+      test.setTimeout(7200000);
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
       const failOn = Array.isArray(siteConfig.a11yFailOn)

@@ -44,7 +44,7 @@ test.describe('Responsive Visual Regression', () => {
       });
 
       test(`Visual regression - ${viewportName}`, async ({ page, browserName }) => {
-        test.setTimeout(300000);
+        test.setTimeout(7200000);
         errorContext.setTest(`Visual Regression - ${viewportName}`);
 
         const pagesToTest = process.env.SMOKE

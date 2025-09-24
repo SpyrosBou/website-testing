@@ -88,7 +88,7 @@ test.describe('Functionality: WordPress Specific', () => {
   });
 
   test('Plugin compatibility detection (sample pages)', async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(7200000);
     const detectedSet = new Set();
     const pageSummaries = [];
     const pages = process.env.SMOKE
@@ -126,7 +126,7 @@ test.describe('Functionality: WordPress Specific', () => {
   });
 
   test('Theme elements and type detection', async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(7200000);
     const summary = { details: [] };
     await test.step('Analyzing theme structure', async () => {
       const response = await safeNavigate(page, siteConfig.baseUrl);

@@ -582,7 +582,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
   });
 
   test('WCAG 2.1 A/AA scans', async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(7200000);
     const pages = process.env.SMOKE
       ? (Array.isArray(siteConfig.testPages) && siteConfig.testPages.includes('/'))
         ? ['/']

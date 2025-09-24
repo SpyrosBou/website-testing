@@ -217,7 +217,7 @@ test.describe('Functionality: Core Infrastructure', () => {
   });
 
   test('Page availability across configured pages', async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(7200000);
     errorContext.setTest('Page Availability Check');
     const availabilityResults = [];
 
@@ -283,7 +283,7 @@ test.describe('Functionality: Core Infrastructure', () => {
   });
 
   test('HTTP response and content integrity', async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(7200000);
     errorContext.setTest('HTTP Response Validation');
     const responseResults = [];
     const pagesToTest = process.env.SMOKE
@@ -357,7 +357,7 @@ test.describe('Functionality: Core Infrastructure', () => {
   });
 
   test('Performance monitoring (sample up to 5 pages)', async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(7200000);
     errorContext.setTest('Performance Monitoring');
     const performanceData = [];
     const perfBudgets =

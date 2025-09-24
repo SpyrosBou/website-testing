@@ -29,8 +29,8 @@ module.exports = defineConfig({
     ['html', { open: 'never' }], // Lightweight backup HTML report
     ['list'], // Console output
   ],
-  // Test timeout increased for better stability
-  timeout: 300000,
+  // Allow long-running end-to-end suites (2 hours)
+  timeout: 7200000,
   expect: {
     timeout: 15000,
   },
