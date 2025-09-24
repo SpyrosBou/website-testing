@@ -12,7 +12,6 @@ const {
   extractWcagLevels,
   violationHasWcagCoverage,
   formatWcagLabels,
-  WCAG_AXE_TAGS,
 } = require('../utils/a11y-utils');
 
 const STABILITY_TIMEOUT_MS = 20000;
@@ -258,6 +257,13 @@ const formatPageCardHtml = (report) => {
     gatingSections.push(createViolationTableHtml(report.advisory));
   }
 
+  if (Array.isArray(report.bestPractice) && report.bestPractice.length > 0) {
+    gatingSections.push(
+      `<h4>Best-practice advisories (no WCAG tag) (${report.bestPractice.length})</h4>`
+    );
+    gatingSections.push(createViolationTableHtml(report.bestPractice));
+  }
+
   const bodySections = [];
 
   if (report.status === 'stability-timeout') {
@@ -339,6 +345,7 @@ const formatPageCardMarkdown = (report) => {
 
   const hasGating = Array.isArray(report.violations) && report.violations.length > 0;
   const hasAdvisory = Array.isArray(report.advisory) && report.advisory.length > 0;
+  const hasBestPractice = Array.isArray(report.bestPractice) && report.bestPractice.length > 0;
 
   if (hasGating) {
     lines.push('');
@@ -358,10 +365,26 @@ const formatPageCardMarkdown = (report) => {
     );
   }
 
+  if (hasBestPractice) {
+    lines.push('');
+    lines.push(
+      formatViolationTableMarkdown(report.page, report.bestPractice, {
+        headingLevel: '####',
+        title: `${report.page} — Best-practice advisories (no WCAG tag) (${report.bestPractice.length} issues)`,
+      })
+    );
+  }
+
   return lines.join('\n');
 };
 
-const buildSuiteSummaryHtml = (pageReports, aggregatedViolations, aggregatedAdvisories, failOnLabel) => {
+const buildSuiteSummaryHtml = (
+  pageReports,
+  aggregatedViolations,
+  aggregatedAdvisories,
+  aggregatedBestPractices,
+  failOnLabel
+) => {
   const counts = pageReports.reduce((acc, report) => {
     const key = report.status || 'skipped';
     acc[key] = (acc[key] || 0) + 1;
@@ -376,12 +399,21 @@ const buildSuiteSummaryHtml = (pageReports, aggregatedViolations, aggregatedAdvi
     })
     .join('');
 
-  const advisoryPages = pageReports.filter((report) => Array.isArray(report.advisory) && report.advisory.length > 0).length;
+  const advisoryPages = pageReports.filter(
+    (report) => Array.isArray(report.advisory) && report.advisory.length > 0
+  ).length;
+  const bestPracticePages = pageReports.filter(
+    (report) => Array.isArray(report.bestPractice) && report.bestPractice.length > 0
+  ).length;
 
   const ruleSummaryHtml = formatRuleSummaryHtml(aggregatedViolations, 'Gating rule summary');
   const advisoryRuleSummaryHtml =
     aggregatedAdvisories && aggregatedAdvisories.length > 0
       ? formatRuleSummaryHtml(aggregatedAdvisories, 'Non-gating rule summary')
+      : '';
+  const bestPracticeRuleSummaryHtml =
+    aggregatedBestPractices && aggregatedBestPractices.length > 0
+      ? formatRuleSummaryHtml(aggregatedBestPractices, 'Best-practice advisory summary')
       : '';
   const pageCardsHtml = pageReports.map((report) => formatPageCardHtml(report)).join('\n');
 
@@ -391,11 +423,21 @@ const buildSuiteSummaryHtml = (pageReports, aggregatedViolations, aggregatedAdvi
       <p>Analyzed <strong>${pageReports.length}</strong> page(s) with a ${STABILITY_TIMEOUT_MS / 1000}s stability budget per strategy.</p>
       ${summaryItems ? `<ul class="status-summary">${summaryItems}</ul>` : ''}
       <p class="details">Gating threshold: ${escapeHtml(failOnLabel)}</p>
-      ${advisoryPages > 0 ? `<p class="details">Non-gating WCAG findings surfaced on ${advisoryPages} page(s).</p>` : ''}
+      ${
+        advisoryPages > 0
+          ? `<p class="details">Non-gating WCAG findings surfaced on ${advisoryPages} page(s).</p>`
+          : ''
+      }
+      ${
+        bestPracticePages > 0
+          ? `<p class="details">Best-practice advisories (no WCAG tag) surfaced on ${bestPracticePages} page(s).</p>`
+          : ''
+      }
       <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span><span class="badge badge-wcag">WCAG A/AA/AAA</span></p>
     </section>
     ${ruleSummaryHtml}
     ${advisoryRuleSummaryHtml}
+    ${bestPracticeRuleSummaryHtml}
     <section class="summary-report summary-a11y">
       <h3>Per-page breakdown</h3>
     </section>
@@ -403,7 +445,13 @@ const buildSuiteSummaryHtml = (pageReports, aggregatedViolations, aggregatedAdvi
   `;
 };
 
-const buildSuiteSummaryMarkdown = (pageReports, aggregatedViolations, aggregatedAdvisories, failOnLabel) => {
+const buildSuiteSummaryMarkdown = (
+  pageReports,
+  aggregatedViolations,
+  aggregatedAdvisories,
+  aggregatedBestPractices,
+  failOnLabel
+) => {
   const counts = pageReports.reduce(
     (acc, report) => {
       const key = report.status || 'skipped';
@@ -424,6 +472,7 @@ const buildSuiteSummaryMarkdown = (pageReports, aggregatedViolations, aggregated
     `- Passed without gating issues: ${counts.passed || 0}`,
     `- Gating threshold: ${failOnLabel}`,
     `- Pages with non-gating WCAG findings: ${pageReports.filter((report) => Array.isArray(report.advisory) && report.advisory.length > 0).length}`,
+    `- Pages with best-practice advisories (no WCAG tag): ${pageReports.filter((report) => Array.isArray(report.bestPractice) && report.bestPractice.length > 0).length}`,
     '',
     '## Per-page breakdown',
     '',
@@ -453,6 +502,9 @@ const buildSuiteSummaryMarkdown = (pageReports, aggregatedViolations, aggregated
     if (Array.isArray(report.advisory) && report.advisory.length > 0) {
       notes.push(`${report.advisory.length} non-gating finding(s)`);
     }
+    if (Array.isArray(report.bestPractice) && report.bestPractice.length > 0) {
+      notes.push(`${report.bestPractice.length} best-practice advisory finding(s)`);
+    }
     lines.push(`| \`${report.page}\` | ${meta.label} | ${notes.join('; ') || '—'} |`);
   });
 
@@ -466,6 +518,14 @@ const buildSuiteSummaryMarkdown = (pageReports, aggregatedViolations, aggregated
     lines.push('', advisoryRuleSummary);
   }
 
+  const bestPracticeRuleSummary = formatRuleSummary(
+    aggregatedBestPractices,
+    'Best-practice advisory summary'
+  );
+  if (bestPracticeRuleSummary) {
+    lines.push('', bestPracticeRuleSummary);
+  }
+
   aggregatedViolations.forEach((entry) => {
     lines.push('', formatViolationTableMarkdown(entry.page, entry.entries));
   });
@@ -477,6 +537,18 @@ const buildSuiteSummaryMarkdown = (pageReports, aggregatedViolations, aggregated
         formatViolationTableMarkdown(entry.page, entry.entries, {
           headingLevel: '####',
           title: `${entry.page} — Non-gating WCAG findings (${entry.entries.length} issues)`,
+        })
+      );
+    });
+  }
+
+  if (aggregatedBestPractices) {
+    aggregatedBestPractices.forEach((entry) => {
+      lines.push(
+        '',
+        formatViolationTableMarkdown(entry.page, entry.entries, {
+          headingLevel: '####',
+          title: `${entry.page} — Best-practice advisories (no WCAG tag) (${entry.entries.length} issues)`,
         })
       );
     });
@@ -525,6 +597,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
 
     const aggregatedViolations = [];
     const aggregatedAdvisories = [];
+    const aggregatedBestPractices = [];
     const pageReports = [];
 
     for (const testPage of pages) {
@@ -537,6 +610,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
           notes: [],
           violations: [],
           advisory: [],
+          bestPractice: [],
           gatingLabel: failOnLabel,
         };
         pageReports.push(pageReport);
@@ -597,9 +671,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
         }
 
         try {
-          const results = await new AxeBuilder({ page })
-            .withTags(WCAG_AXE_TAGS)
-            .analyze();
+          const results = await new AxeBuilder({ page }).analyze();
 
           const ignoreRules = Array.isArray(siteConfig.a11yIgnoreRules)
             ? siteConfig.a11yIgnoreRules
@@ -613,14 +685,21 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             failOnSet.has(String(violation.impact || '').toLowerCase())
           );
 
-          const advisoryViolations = relevantViolations
-            .filter(
-              (violation) => !failOnSet.has(String(violation.impact || '').toLowerCase())
-            )
-            .filter((violation) => violationHasWcagCoverage(violation));
+          const advisoryViolations = relevantViolations.filter(
+            (violation) =>
+              !failOnSet.has(String(violation.impact || '').toLowerCase()) &&
+              violationHasWcagCoverage(violation)
+          );
+
+          const bestPracticeViolations = relevantViolations.filter(
+            (violation) =>
+              !failOnSet.has(String(violation.impact || '').toLowerCase()) &&
+              !violationHasWcagCoverage(violation)
+          );
 
           pageReport.violations = gatingViolations;
           pageReport.advisory = advisoryViolations;
+          pageReport.bestPractice = bestPracticeViolations;
 
           if (gatingViolations.length > 0) {
             pageReport.status = 'violations';
@@ -655,7 +734,20 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             );
           }
 
-          if (pageReport.status === 'passed' && advisoryViolations.length > 0) {
+          if (bestPracticeViolations.length > 0) {
+            aggregatedBestPractices.push({
+              page: testPage,
+              entries: bestPracticeViolations,
+            });
+            console.warn(
+              `ℹ️  ${bestPracticeViolations.length} best-practice advisory finding(s) (no WCAG tag) on ${testPage}`
+            );
+          }
+
+          if (
+            pageReport.status === 'passed' &&
+            (advisoryViolations.length > 0 || bestPracticeViolations.length > 0)
+          ) {
             const pageSlug = slugify(testPage);
             await attachSummary({
               baseName: `a11y-${pageSlug}`,
@@ -686,12 +778,14 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
       pageReports,
       aggregatedViolations,
       aggregatedAdvisories,
+      aggregatedBestPractices,
       failOnLabel
     );
     const summaryMarkdown = buildSuiteSummaryMarkdown(
       pageReports,
       aggregatedViolations,
       aggregatedAdvisories,
+      aggregatedBestPractices,
       failOnLabel
     );
 
@@ -710,10 +804,20 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
       (sum, entry) => sum + (entry.entries?.length || 0),
       0
     );
+    const totalBestPractice = aggregatedBestPractices.reduce(
+      (sum, entry) => sum + (entry.entries?.length || 0),
+      0
+    );
 
     if (totalAdvisory > 0) {
       console.warn(
         `ℹ️ Non-gating WCAG findings detected (${totalAdvisory} item(s)); review the Allure summary for details.`
+      );
+    }
+
+    if (totalBestPractice > 0) {
+      console.warn(
+        `ℹ️ Best-practice advisory findings (no WCAG tag) detected (${totalBestPractice} item(s)); review the Allure summary for details.`
       );
     }
 

@@ -12,7 +12,6 @@ const {
   extractWcagLevels,
   violationHasWcagCoverage,
   formatWcagLabels,
-  WCAG_AXE_TAGS,
 } = require('../utils/a11y-utils');
 
 const renderResponsiveViolationTable = (violations = []) => {
@@ -58,6 +57,9 @@ const formatResponsiveA11ySummaryHtml = (entries, viewportName, failOnLabel) => 
 
   const gatingPages = entries.filter((entry) => Array.isArray(entry.gating) && entry.gating.length > 0).length;
   const advisoryPages = entries.filter((entry) => Array.isArray(entry.advisory) && entry.advisory.length > 0).length;
+  const bestPracticePages = entries.filter(
+    (entry) => Array.isArray(entry.bestPractice) && entry.bestPractice.length > 0
+  ).length;
   const gatingSummary =
     gatingPages > 0
       ? `Detected gating issues on <strong>${gatingPages}</strong> page(s) for this viewport.`
@@ -70,19 +72,31 @@ const formatResponsiveA11ySummaryHtml = (entries, viewportName, failOnLabel) => 
         : `<p class="details">No gating issues detected.</p>`;
 
       const advisoryContent = entry.advisory?.length
-        ? `<h4>Non-gating WCAG findings (${entry.advisory.length})</h4>${renderResponsiveViolationTable(entry.advisory)}`
+        ? `<h4>Non-gating WCAG findings (${entry.advisory.length})</h4>${renderResponsiveViolationTable(
+            entry.advisory
+          )}`
+        : '';
+
+      const bestPracticeContent = entry.bestPractice?.length
+        ? `<h4>Best-practice advisories (no WCAG tag) (${entry.bestPractice.length})</h4>${renderResponsiveViolationTable(
+            entry.bestPractice
+          )}`
         : '';
 
       const pillClass = entry.gating?.length
         ? 'error'
         : entry.advisory?.length
           ? 'warning'
-          : 'success';
+          : entry.bestPractice?.length
+            ? 'info'
+            : 'success';
       const pillText = entry.gating?.length
         ? `${entry.gating.length} gating issue(s)`
         : entry.advisory?.length
-          ? 'Non-gating findings'
-          : 'Clear';
+          ? 'WCAG advisories'
+          : entry.bestPractice?.length
+            ? 'Best-practice advisories'
+            : 'Clear';
 
       return `
         <section class="summary-report summary-a11y page-card">
@@ -92,6 +106,7 @@ const formatResponsiveA11ySummaryHtml = (entries, viewportName, failOnLabel) => 
           </div>
           ${gatingContent}
           ${advisoryContent}
+          ${bestPracticeContent}
         </section>
       `;
     })
@@ -102,7 +117,16 @@ const formatResponsiveA11ySummaryHtml = (entries, viewportName, failOnLabel) => 
       <h2>Responsive accessibility summary — ${escapeHtml(viewportName)}</h2>
       <p>${gatingSummary}</p>
       <p class="details">Gating threshold: ${escapeHtml(failOnLabel)}</p>
-      ${advisoryPages > 0 ? `<p class="details">Non-gating WCAG findings surfaced on ${advisoryPages} page(s).</p>` : ''}
+      ${
+        advisoryPages > 0
+          ? `<p class="details">Non-gating WCAG findings surfaced on ${advisoryPages} page(s).</p>`
+          : ''
+      }
+      ${
+        bestPracticePages > 0
+          ? `<p class="details">Best-practice advisories (no WCAG tag) surfaced on ${bestPracticePages} page(s).</p>`
+          : ''
+      }
       <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span><span class="badge badge-wcag">WCAG A/AA/AAA</span></p>
     </section>
     ${sections}
@@ -114,6 +138,9 @@ const formatResponsiveA11ySummaryMarkdown = (entries, viewportName, failOnLabel)
 
   const gatingPages = entries.filter((entry) => Array.isArray(entry.gating) && entry.gating.length > 0).length;
   const advisoryPages = entries.filter((entry) => Array.isArray(entry.advisory) && entry.advisory.length > 0).length;
+  const bestPracticePages = entries.filter(
+    (entry) => Array.isArray(entry.bestPractice) && entry.bestPractice.length > 0
+  ).length;
 
   const lines = [
     `# Responsive accessibility summary — ${viewportName}`,
@@ -121,22 +148,29 @@ const formatResponsiveA11ySummaryMarkdown = (entries, viewportName, failOnLabel)
     `- Gating threshold: ${failOnLabel}`,
     `- Pages with gating issues: ${gatingPages}`,
     `- Pages with non-gating WCAG findings: ${advisoryPages}`,
+    `- Pages with best-practice advisories (no WCAG tag): ${bestPracticePages}`,
     '',
-    '| Page | Gating violations | Non-gating WCAG findings |',
-    '| --- | --- | --- |',
-    ...entries.map((entry) => `| \`${entry.page}\` | ${entry.gating?.length || 0} | ${entry.advisory?.length || 0} |`),
+    '| Page | Gating violations | Non-gating WCAG findings | Best-practice advisories |',
+    '| --- | --- | --- | --- |',
+    ...entries.map(
+      (entry) =>
+        `| \`${entry.page}\` | ${entry.gating?.length || 0} | ${entry.advisory?.length || 0} | ${entry.bestPractice?.length || 0} |`
+    ),
   ];
 
   entries.forEach((entry) => {
     const gatingRules = Array.from(new Set((entry.gating || []).map((violation) => violation.id)));
     const advisoryRules = Array.from(new Set((entry.advisory || []).map((violation) => violation.id)));
+    const bestPracticeRules = Array.from(
+      new Set((entry.bestPractice || []).map((violation) => violation.id))
+    );
 
-    if (gatingRules.length || advisoryRules.length) {
+    if (gatingRules.length || advisoryRules.length || bestPracticeRules.length) {
       lines.push('');
       lines.push(
         `- \`${entry.page}\`: gating=[${gatingRules.join(', ') || 'none'}], non-gating=[${
           advisoryRules.join(', ') || 'none'
-        }]`
+        }], best-practice=[${bestPracticeRules.join(', ') || 'none'}]`
       );
     }
   });
@@ -192,9 +226,7 @@ test.describe('Responsive Accessibility', () => {
           await waitForPageStability(page);
 
           try {
-            const results = await new AxeBuilder({ page })
-              .withTags(WCAG_AXE_TAGS)
-              .analyze();
+            const results = await new AxeBuilder({ page }).analyze();
             const ignoreRules = Array.isArray(siteConfig.a11yIgnoreRules)
               ? siteConfig.a11yIgnoreRules
               : [];
@@ -207,18 +239,28 @@ test.describe('Responsive Accessibility', () => {
               failOnSet.has(String(violation.impact || '').toLowerCase())
             );
 
-            const advisoryViolations = relevantViolations
-              .filter(
-                (violation) =>
-                  !failOnSet.has(String(violation.impact || '').toLowerCase()) &&
-                  violationHasWcagCoverage(violation)
-              );
+            const advisoryViolations = relevantViolations.filter(
+              (violation) =>
+                !failOnSet.has(String(violation.impact || '').toLowerCase()) &&
+                violationHasWcagCoverage(violation)
+            );
 
-            if (gatingViolations.length > 0 || advisoryViolations.length > 0) {
+            const bestPracticeViolations = relevantViolations.filter(
+              (violation) =>
+                !failOnSet.has(String(violation.impact || '').toLowerCase()) &&
+                !violationHasWcagCoverage(violation)
+            );
+
+            if (
+              gatingViolations.length > 0 ||
+              advisoryViolations.length > 0 ||
+              bestPracticeViolations.length > 0
+            ) {
               perViewportEntries.push({
                 page: testPage,
                 gating: gatingViolations,
                 advisory: advisoryViolations,
+                bestPractice: bestPracticeViolations,
               });
             }
 
@@ -244,6 +286,12 @@ test.describe('Responsive Accessibility', () => {
             if (advisoryViolations.length > 0) {
               console.warn(
                 `ℹ️  ${advisoryViolations.length} non-gating WCAG finding(s) on ${testPage} (${viewportName})`
+              );
+            }
+
+            if (bestPracticeViolations.length > 0) {
+              console.warn(
+                `ℹ️  ${bestPracticeViolations.length} best-practice advisory finding(s) (no WCAG tag) on ${testPage} (${viewportName})`
               );
             }
           } catch (error) {
