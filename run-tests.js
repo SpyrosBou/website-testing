@@ -24,6 +24,8 @@ Available options:
   --accessibility     Run only accessibility-focused tests
   --update-baselines  Update visual baselines for responsive visual tests
   --discover          Refresh the site's testPages from its sitemap before running
+  --a11y-tags=all|wcag  Toggle axe rule scoping (default: all)
+  --a11y-sample=N|all  Override responsive a11y sample size (default: 3 pages)
   --local             Enable DDEV preflight for local sites (sets ENABLE_DDEV=true and attempts to infer DDEV_PROJECT_PATH)
   --list              List all available site configurations
   --help              Show this help message
@@ -70,6 +72,8 @@ async function runTests() {
     profile,
     discover: Boolean(argv.discover),
     local: Boolean(argv.local),
+    a11yTags: argv['a11y-tags'] || argv.a11yTags,
+    a11ySample: argv['a11y-sample'] || argv.a11ySample,
   };
 
   if (profile === 'smoke') {

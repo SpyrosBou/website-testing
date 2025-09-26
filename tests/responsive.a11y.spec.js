@@ -12,6 +12,7 @@ const {
   extractWcagLevels,
   violationHasWcagCoverage,
   formatWcagLabels,
+  WCAG_AXE_TAGS,
 } = require('../utils/a11y-utils');
 
 const renderResponsiveViolationTable = (violations = []) => {
@@ -178,6 +179,77 @@ const formatResponsiveA11ySummaryMarkdown = (entries, viewportName, failOnLabel)
   return lines.join('\n');
 };
 
+const DEFAULT_RESPONSIVE_SAMPLE = 3;
+
+const ensureHomepageFirst = (pages = []) => {
+  const filtered = Array.isArray(pages)
+    ? pages.filter((page) => typeof page === 'string')
+    : [];
+  const unique = Array.from(new Set(filtered));
+
+  if (unique.includes('/')) {
+    const idx = unique.indexOf('/');
+    if (idx > 0) {
+      unique.splice(idx, 1);
+      unique.unshift('/');
+    }
+  } else {
+    unique.unshift('/');
+  }
+
+  return unique;
+};
+
+const parseSampleSetting = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value > 0 ? Math.floor(value) : null;
+  }
+
+  const trimmed = String(value).trim().toLowerCase();
+  if (!trimmed) return null;
+  if (trimmed === 'all') return 'all';
+
+  const numeric = Number(trimmed);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return Math.floor(numeric);
+  }
+
+  return null;
+};
+
+const resolveResponsiveSampleSetting = (siteConfig) => {
+  if (process.env.SMOKE) return 1;
+
+  const envSetting = parseSampleSetting(process.env.A11Y_SAMPLE);
+  if (envSetting) return envSetting;
+
+  const configSetting = parseSampleSetting(siteConfig?.a11yResponsiveSampleSize);
+  if (configSetting) return configSetting;
+
+  return DEFAULT_RESPONSIVE_SAMPLE;
+};
+
+const selectResponsiveTestPages = (siteConfig) => {
+  const pages = ensureHomepageFirst(siteConfig?.testPages || []);
+  const sampleSetting = resolveResponsiveSampleSetting(siteConfig);
+
+  if (sampleSetting === 'all') {
+    return pages;
+  }
+
+  return pages.slice(0, sampleSetting);
+};
+
+const buildAxeBuilder = (page) => {
+  const builder = new AxeBuilder({ page });
+  const tagsMode = String(process.env.A11Y_TAGS_MODE || 'all').toLowerCase();
+  if (tagsMode === 'wcag') {
+    builder.withTags(WCAG_AXE_TAGS);
+  }
+  return builder;
+};
+
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
   tablet: { width: 768, height: 1024, name: 'tablet' },
@@ -213,9 +285,7 @@ test.describe('Responsive Accessibility', () => {
       const failOnSet = new Set(failOn.map((impact) => String(impact).toLowerCase()));
       const failOnLabel = failOn.map((impact) => String(impact).toUpperCase()).join('/');
 
-      const samplesToTest = process.env.SMOKE
-        ? siteConfig.testPages.slice(0, 1)
-        : siteConfig.testPages.slice(0, 3);
+      const samplesToTest = selectResponsiveTestPages(siteConfig);
 
       const aggregatedViolations = [];
       const perViewportEntries = [];
@@ -226,7 +296,7 @@ test.describe('Responsive Accessibility', () => {
           await waitForPageStability(page);
 
           try {
-            const results = await new AxeBuilder({ page }).analyze();
+            const results = await buildAxeBuilder(page).analyze();
             const ignoreRules = Array.isArray(siteConfig.a11yIgnoreRules)
               ? siteConfig.a11yIgnoreRules
               : [];

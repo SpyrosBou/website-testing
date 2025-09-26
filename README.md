@@ -137,7 +137,7 @@ Create a JSON file in the `sites/` directory for each WordPress site you want to
 
 `linkCheck` lets you tune how aggressively the internal link audit runs. Defaults are `maxPerPage: 20`, `timeoutMs: 5000`, `followRedirects: true`, and `methodFallback: true` (retry with GET when servers reject HEAD). `performanceBudgets` soft-fail the run when `domContentLoaded`, `loadComplete`, or `firstContentfulPaint` timings exceed the provided millisecond thresholds. If omitted, the suite uses the conservative defaults baked into the specs (`linkCheck`) and skips the performance gating entirely.
 
-`testPages` should list the exact paths you expect to remain available. The functionality and accessibility suites will fail as soon as they encounter a 4xx/5xx response, so keep this array in sync with the live site (or enable sitemap discovery as described below).
+`testPages` should list the exact paths you expect to remain available. Always include `'/'` so the homepage is scanned—the runner will warn and inject it if omitted, but keeping it explicit avoids churn in repo diffs. The functionality and accessibility suites will fail as soon as they encounter a 4xx/5xx response, so keep this array in sync with the live site (or enable sitemap discovery as described below).
 
 ## Optional Page Discovery
 
@@ -187,6 +187,12 @@ npm run smoke:nfs
 
 # Refresh sitemap-backed page list before running tests
 node run-tests.js --site=my-site --discover
+
+# Run accessibility scans with WCAG-only tagging (impact gate unchanged)
+node run-tests.js --site=my-site --accessibility --a11y-tags=wcag
+
+# Expand responsive accessibility sampling to all configured pages
+node run-tests.js --site=my-site --responsive --a11y-sample=all
 
 # Update visual baselines for a site (responsive visuals only)
 npm run update-baselines -- --site=my-site
@@ -330,15 +336,18 @@ Tests run on:
 - `a11yFailOn`: array of axe impact levels to gate on. Default: `["critical","serious"]`. Only violations at these severities fail the build; everything else is treated as a non-gating advisory.
 - `a11yIgnoreRules`: array of axe rule IDs to ignore when evaluating failures (e.g., `"color-contrast"`).
 - `a11yMode`: how accessibility specs behave. `"gate"` (default) aggregates violations across all pages/viewports and fails once at the end; `"audit"` logs the summary without failing so you can review issues without blocking the pipeline.
+- `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Override on the CLI with `--a11y-sample=<n|all>` when you need temporary breadth without editing configs.
 - `ignoreConsoleErrors`: array of substrings or regex patterns (string form) to suppress known console noise during interactive scans.
 - `resourceErrorBudget`: maximum number of failed network requests (request failures or 4xx/5xx responses) tolerated before the interactive spec soft-fails. Default: `0`.
 
 These fields are optional. When present, they control how the a11y tests in `tests/functionality.accessibility.spec.js` and `tests/responsive.a11y.spec.js` decide which violations trigger failures. Both suites now generate structured Allure summaries that:
 
 - Inline the HTML report into the test description (no download required).
-- Split the findings into **gating** (impact ∈ `a11yFailOn`) and **non-gating WCAG** sections.
+- Split the findings into **gating** (impact ∈ `a11yFailOn`), **non-gating WCAG advisories**, and **best-practice advisories** (rules without WCAG tags) so you can see the full axe signal without conflating compliance with severity.
 - Display WCAG version/level badges alongside the traditional axe impact, so project managers can answer “which WCAG criteria failed?” while engineering stays focused on user-harm severity.
 
 Non-gating findings still appear in the report even though they do not fail CI. If you need stricter gating (e.g., include `moderate`), just extend `a11yFailOn` in your site config. Functionality/accessibility suites default to the Playwright project you pass (we typically run Chrome). Omit `--project` if you want Playwright to execute the same checks across every configured browser/device profile.
+
+Need a compliance-only view? Run with `--a11y-tags=wcag` to scope the axe pass to WCAG-tagged rules (gating still follows `a11yFailOn`).
 
 For additional context on why we continue to gate on severity instead of raw WCAG tags, see [`why_not_wcag_gating.md`](./why_not_wcag_gating.md).

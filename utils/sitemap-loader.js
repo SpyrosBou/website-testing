@@ -104,7 +104,9 @@ async function fetchXml(url, redirectCount = 0) {
             return;
           }
           const nextUrl = new URL(headers.location, url).href;
-          fetchXml(nextUrl, redirectCount + 1).then(resolve).catch(reject);
+          fetchXml(nextUrl, redirectCount + 1)
+            .then(resolve)
+            .catch(reject);
           return;
         }
 
@@ -201,7 +203,19 @@ async function discoverFromSitemap(siteConfig, discoverConfig = {}) {
     options.maxPages
   );
 
-  return Array.from(new Set(normalized));
+  const unique = Array.from(new Set(normalized));
+
+  if (unique.includes('/')) {
+    const index = unique.indexOf('/');
+    if (index > 0) {
+      unique.splice(index, 1);
+      unique.unshift('/');
+    }
+  } else {
+    unique.unshift('/');
+  }
+
+  return unique;
 }
 
 module.exports = {

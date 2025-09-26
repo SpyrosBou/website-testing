@@ -2,6 +2,7 @@
   "name": "Agilitas",
   "baseUrl": "https://agilitas.ddev.site",
   "testPages": [
+    "/",
     "/a-christmas-message-from-agilitas/",
     "/accelerating-action-dei-growth-roundtable/",
     "/agilitas-esg-to-achieve-net-zero/",

@@ -6,6 +6,31 @@ const http = require('http');
 const https = require('https');
 const { discoverFromSitemap } = require('./sitemap-loader');
 
+function ensureHomepagePresence(pages, siteName, contextLabel = 'runtime') {
+  const sourceList = Array.isArray(pages) ? pages.filter((item) => typeof item === 'string') : [];
+  const unique = Array.from(new Set(sourceList));
+
+  if (unique.length === 0) {
+    console.log(
+      `⚠️  ${contextLabel}: ${siteName} has no testPages configured; injecting '/' to keep coverage aligned.`
+    );
+    return ['/'];
+  }
+
+  const hasRoot = unique.includes('/');
+  if (!hasRoot) {
+    console.log(
+      `⚠️  ${contextLabel}: ${siteName} testPages missing homepage '/'; injecting for this run.`
+    );
+    unique.unshift('/');
+  } else if (unique[0] !== '/') {
+    unique.splice(unique.indexOf('/'), 1);
+    unique.unshift('/');
+  }
+
+  return unique;
+}
+
 class TestRunner {
   static listSites() {
     const sites = SiteLoader.listAvailableSites();
@@ -76,8 +101,9 @@ class TestRunner {
 
   static async runTestsForSite(siteName, options = {}) {
     // Validate site exists
+    let siteConfig;
     try {
-      const siteConfig = SiteLoader.loadSite(siteName);
+      siteConfig = SiteLoader.loadSite(siteName);
       SiteLoader.validateSiteConfig(siteConfig);
 
       // Handle convenience flag for local DDEV sites
@@ -157,7 +183,11 @@ class TestRunner {
               const added = updated.filter((pathItem) => !previous.includes(pathItem));
               const removed = previous.filter((pathItem) => !discoveredSet.has(pathItem));
 
-              siteConfig.testPages = updated;
+              siteConfig.testPages = ensureHomepagePresence(
+                updated,
+                siteConfig.name,
+                'sitemap discovery'
+              );
 
               if (added.length === 0 && removed.length === 0) {
                 console.log(`ℹ️  Sitemap discovery found ${updated.length} page(s); no changes.`);
@@ -172,7 +202,7 @@ class TestRunner {
                 const sitePath = path.join(process.cwd(), 'sites', `${siteName}.json`);
                 const raw = fs.readFileSync(sitePath, 'utf8');
                 const parsed = JSON.parse(raw);
-                parsed.testPages = updated;
+                parsed.testPages = siteConfig.testPages;
                 if (siteConfig.discover) {
                   const mergedDiscover = {
                     ...(parsed.discover || {}),
@@ -199,6 +229,12 @@ class TestRunner {
       } else if (siteConfig.discover && siteConfig.discover.strategy === 'sitemap') {
         console.log('ℹ️  Sitemap discovery disabled (run with --discover to refresh testPages).');
       }
+
+      siteConfig.testPages = ensureHomepagePresence(
+        siteConfig.testPages,
+        siteConfig.name,
+        'runtime'
+      );
 
       if (options.profile === 'smoke') {
         console.log('🚬 SMOKE profile: functionality-only, Chrome, homepage only');
@@ -262,6 +298,24 @@ class TestRunner {
     // Set environment variables for test execution
     process.env.SITE_NAME = siteName;
 
+    const spawnEnv = {
+      ...process.env,
+      SITE_NAME: siteName,
+      SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || '',
+    };
+
+    if (options.a11yTags) {
+      spawnEnv.A11Y_TAGS_MODE = String(options.a11yTags).toLowerCase();
+    } else if (!spawnEnv.A11Y_TAGS_MODE) {
+      spawnEnv.A11Y_TAGS_MODE = 'all';
+    }
+
+    if (options.a11ySample) {
+      spawnEnv.A11Y_SAMPLE = String(options.a11ySample).toLowerCase();
+    } else if (!spawnEnv.A11Y_SAMPLE && siteConfig.a11yResponsiveSampleSize) {
+      spawnEnv.A11Y_SAMPLE = String(siteConfig.a11yResponsiveSampleSize).toLowerCase();
+    }
+
     // Run Playwright tests
     const playwrightArgs = ['test', ...testTargets];
 
@@ -270,6 +324,15 @@ class TestRunner {
     if (options.debug) playwrightArgs.push('--debug');
     if (options.project) playwrightArgs.push(`--project=${options.project}`);
 
+    if (spawnEnv.A11Y_TAGS_MODE && spawnEnv.A11Y_TAGS_MODE !== 'all') {
+      console.log(`ℹ️  Accessibility tags mode: ${spawnEnv.A11Y_TAGS_MODE}`);
+    }
+    if (spawnEnv.A11Y_SAMPLE) {
+      const sampleSummary =
+        spawnEnv.A11Y_SAMPLE === 'all' ? 'all configured pages' : `${spawnEnv.A11Y_SAMPLE} page(s)`;
+      console.log(`ℹ️  Responsive a11y sample: ${sampleSummary}`);
+    }
+
     console.log(`Starting tests...`);
     console.log(`Command: npx playwright ${playwrightArgs.join(' ')}`);
     console.log('');
@@ -277,11 +340,7 @@ class TestRunner {
     return new Promise((resolve, reject) => {
       const playwright = spawn('npx', ['playwright', ...playwrightArgs], {
         stdio: 'inherit',
-        env: {
-          ...process.env,
-          SITE_NAME: siteName,
-          SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || '',
-        },
+        env: spawnEnv,
       });
 
       playwright.on('close', (code) => {
@@ -576,9 +635,7 @@ class TestRunner {
       }
     }
 
-    console.log(
-      `🧹 Removed ${smallVideos.size} empty video attachment(s) from allure results`
-    );
+    console.log(`🧹 Removed ${smallVideos.size} empty video attachment(s) from allure results`);
   }
 
   // Removed unsafe process cleanup; no-op retained for compatibility
