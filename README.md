@@ -278,6 +278,7 @@ Allure (required)
   - Live server: `npm run allure-serve`
 - Specs attach structured HTML + Markdown summaries so the Allure Overview spells out which checks passed, which pages were scanned, and any warnings logged.
 - When you add a new suite, build its run-level summary with `attachSummary({ ..., setDescription: true })` so the styled HTML card appears directly in the Allure Overview. Keeping that pattern consistent makes triage faster and avoids unstyled blobs in the report body.
+- Treat WCAG findings surfaced by the suites as defects to address. We do **not** suppress or whitelist contrast (or any other WCAG-level) violations in the harness; our automated results must stay faithful to a real audit even when product/design decides to accept the risk.
 
 Playwright HTML report (backup)
 

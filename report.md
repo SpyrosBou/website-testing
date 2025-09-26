@@ -133,6 +133,7 @@ Actions:
   - Focus-indicator heuristics rely on `outline`/`boxShadow`, so legitimate indicators implemented with background/border/underline changes show up as advisories. Replace this with a short per-element screenshot diff (baseline vs focus) to avoid false alarms.
   - Skip-link detection simply matches anchors containing “skip”. Tighten the logic to require links that target landmarks (e.g., `#main`) and verify they become visible/functional on focus.
   - Keyboard traversal currently TABs forward up to 10 elements; long navs will look like traps. Make the depth configurable (mirroring `--a11y-sample`) and include at least one reverse-tab pass so we exercise backtracking.
+- WCAG-level findings (contrast, critical keyboard traps, etc.) are never candidates for whitelisting. Every gating failure should be triaged as an accessibility defect and resolved in the product code or content before the run is considered green.
 
 ## Milestones & Ownership
 
