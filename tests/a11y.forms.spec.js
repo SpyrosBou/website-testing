@@ -156,7 +156,14 @@ const getAccessibleNameDetails = async (fieldLocator) => {
     const title = (el.getAttribute('title') || '').trim();
     const placeholder = (el.getAttribute('placeholder') || '').trim();
 
-    const accessibleName = [labelText, ariaLabel, labelledbyText, title]
+    const controlType = el.tagName.toLowerCase();
+    const inputType = (el.getAttribute('type') || '').toLowerCase();
+    const valueText =
+      controlType === 'button' || inputType === 'submit' || inputType === 'button'
+        ? (el.value || '').trim()
+        : '';
+
+    const accessibleName = [labelText, ariaLabel, labelledbyText, title, valueText]
       .map((value) => value.trim())
       .filter(Boolean)
       .join(' ')
@@ -443,4 +450,3 @@ test.describe('Accessibility: Forms', () => {
     expect(gatingTotal, 'Form accessibility gating issues detected').toBe(0);
   });
 });
-
