@@ -26,6 +26,7 @@ Available options:
   --discover          Refresh the site's testPages from its sitemap before running
   --a11y-tags=all|wcag  Toggle axe rule scoping (default: all)
   --a11y-sample=N|all  Override responsive a11y sample size (default: 3 pages)
+  --a11y-keyboard-steps=N  Override keyboard audit TAB depth (default: 20)
   --local             Enable DDEV preflight for local sites (sets ENABLE_DDEV=true and attempts to infer DDEV_PROJECT_PATH)
   --list              List all available site configurations
   --help              Show this help message
@@ -74,6 +75,7 @@ async function runTests() {
     local: Boolean(argv.local),
     a11yTags: argv['a11y-tags'] || argv.a11yTags,
     a11ySample: argv['a11y-sample'] || argv.a11ySample,
+    a11yKeyboardSteps: argv['a11y-keyboard-steps'] || argv.a11yKeyboardSteps,
   };
 
   if (profile === 'smoke') {
@@ -82,6 +84,16 @@ async function runTests() {
     options.functionality = true;
     options.project = options.project || 'Chrome';
     process.env.SMOKE = '1';
+  }
+
+  if (profile === 'nightly') {
+    options.responsive = true;
+    options.functionality = true;
+    options.accessibility = true;
+    options.project = options.project || 'Chrome';
+    options.a11ySample = options.a11ySample || 'all';
+    options.a11yKeyboardSteps = options.a11yKeyboardSteps || '40';
+    process.env.NIGHTLY = '1';
   }
 
   try {

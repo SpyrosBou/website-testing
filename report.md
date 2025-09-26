@@ -86,16 +86,16 @@ Implementation (extend keyboard spec):
 Goals:
 - Semantic label association, required semantics, inline error announcement (ARIA live), error summary links back to fields.
 
-Implementation (extend existing form tests):
-- After invalid submit, check errors are announced (aria-live or role=alert), fields are described by error text, and any summary links focus the field.
+Implementation (new spec: `tests/a11y.forms.spec.js`):
+- Validates accessible names for configured form fields, then submits the form blank to confirm aria-invalid, inline error copy, and global alerts surface appropriately.
 
 ### F. Accessibility Tree & Structure
 
 Goals:
 - Validate basic structure: one `h1`, landmark presence, reasonable heading progression.
 
-Implementation:
-- `await page.accessibility.snapshot()`; assert `main` landmark present, single `h1`, and that headings don’t egregiously skip levels.
+Implementation (new spec: `tests/a11y.structure.spec.js`):
+- Inspects landmarks + heading outline per page, gating on missing `main`/H1 and flagging heading-level skips as advisories.
 
 ### G. Iframes & Embeds
 

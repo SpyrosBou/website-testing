@@ -316,6 +316,12 @@ class TestRunner {
       spawnEnv.A11Y_SAMPLE = String(siteConfig.a11yResponsiveSampleSize).toLowerCase();
     }
 
+    if (options.a11yKeyboardSteps) {
+      spawnEnv.A11Y_KEYBOARD_STEPS = String(options.a11yKeyboardSteps);
+    } else if (!spawnEnv.A11Y_KEYBOARD_STEPS && options.profile === 'nightly') {
+      spawnEnv.A11Y_KEYBOARD_STEPS = '40';
+    }
+
     // Run Playwright tests
     const playwrightArgs = ['test', ...testTargets];
 
@@ -331,6 +337,9 @@ class TestRunner {
       const sampleSummary =
         spawnEnv.A11Y_SAMPLE === 'all' ? 'all configured pages' : `${spawnEnv.A11Y_SAMPLE} page(s)`;
       console.log(`ℹ️  Responsive a11y sample: ${sampleSummary}`);
+    }
+    if (spawnEnv.A11Y_KEYBOARD_STEPS) {
+      console.log(`ℹ️  Keyboard audit steps: ${spawnEnv.A11Y_KEYBOARD_STEPS}`);
     }
 
     console.log(`Starting tests...`);

@@ -42,10 +42,13 @@
   - `functionality.interactive.spec.js` (touches every `testPages` URL with lightweight focus/hover taps while capturing console/resource failures; add client-specific specs when you need real user journeys)
   - `functionality.wordpress.spec.js` (plugins, theme)
 - `functionality.accessibility.spec.js` (WCAG scans)
+- `a11y.forms.spec.js` (form labelling + validation checks driven by `siteConfig.forms`)
+- `a11y.structure.spec.js` (landmark + heading integrity)
 - Each functionality spec publishes HTML + Markdown attachments via `utils/allure-utils.js`, so Allure reports include readable tables (availability, HTTP responses, link coverage, interactive errors, plugin/theme detection) instead of bare pass/fail icons.
   - When adding a new spec, always publish a styled HTML + Markdown overview using `attachSummary` and pass `setDescription: true` on the run-level summary. This keeps the Allure Overview pane consistent across suites and makes results scannable without digging into individual attachments.
 - WCAG-impact findings (e.g., contrast, keyboard traps) are never ignored in automated runs. If the suite flags one, treat it as a bug for the product/design team—do not whitelist it in configs just to satisfy CI.
 - Keyboard audit depth can be tuned per run by exporting `A11Y_KEYBOARD_STEPS` (defaults to 20 forward tabs and one reverse tab sanity check).
+- Structural sample size honours `a11yStructureSampleSize` (falls back to `a11yResponsiveSampleSize`).
 
 All shared suites traverse the full `testPages` list. The interactive audit is intentionally light-touch—focus/hover taps plus console and network monitoring—so it remains stable across sites. Build site-specific interactive specs when you need deep journeys, logins, or bespoke flows.
 - Snapshot baselines go in `tests/baseline-snapshots/`.
