@@ -277,6 +277,7 @@ Allure (required)
   - Generate and open: `npm run allure-report`
   - Live server: `npm run allure-serve`
 - Specs attach structured HTML + Markdown summaries so the Allure Overview spells out which checks passed, which pages were scanned, and any warnings logged.
+- When you add a new suite, build its run-level summary with `attachSummary({ ..., setDescription: true })` so the styled HTML card appears directly in the Allure Overview. Keeping that pattern consistent makes triage faster and avoids unstyled blobs in the report body.
 
 Playwright HTML report (backup)
 

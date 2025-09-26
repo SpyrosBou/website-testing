@@ -43,6 +43,7 @@
   - `functionality.wordpress.spec.js` (plugins, theme)
   - `functionality.accessibility.spec.js` (WCAG scans)
 - Each functionality spec publishes HTML + Markdown attachments via `utils/allure-utils.js`, so Allure reports include readable tables (availability, HTTP responses, link coverage, interactive errors, plugin/theme detection) instead of bare pass/fail icons.
+  - When adding a new spec, always publish a styled HTML + Markdown overview using `attachSummary` and pass `setDescription: true` on the run-level summary. This keeps the Allure Overview pane consistent across suites and makes results scannable without digging into individual attachments.
 
 All shared suites traverse the full `testPages` list. The interactive audit is intentionally light-touch—focus/hover taps plus console and network monitoring—so it remains stable across sites. Build site-specific interactive specs when you need deep journeys, logins, or bespoke flows.
 - Snapshot baselines go in `tests/baseline-snapshots/`.
