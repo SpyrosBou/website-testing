@@ -546,6 +546,7 @@ test.describe('Accessibility: Resilience checks', () => {
       baseName: 'a11y-reduced-motion-summary',
       htmlBody: formatReducedMotionSummaryHtml(reports),
       markdown: formatReducedMotionSummaryMarkdown(reports),
+      setDescription: true,
     });
 
     expect(gatingTotal, 'Reduced motion gating issues detected').toBe(0);
@@ -633,6 +634,7 @@ test.describe('Accessibility: Resilience checks', () => {
       baseName: 'a11y-reflow-summary',
       htmlBody: formatReflowSummaryHtml(reports),
       markdown: formatReflowSummaryMarkdown(reports),
+      setDescription: true,
     });
 
     expect(gatingTotal, 'Reflow gating issues detected').toBe(0);
@@ -737,6 +739,7 @@ test.describe('Accessibility: Resilience checks', () => {
       baseName: 'a11y-iframe-summary',
       htmlBody: formatIframeSummaryHtml(reports),
       markdown: formatIframeSummaryMarkdown(reports),
+      setDescription: true,
     });
 
     expect(gatingTotal, 'Iframe accessibility gating issues detected').toBe(0);

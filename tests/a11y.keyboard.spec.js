@@ -371,6 +371,7 @@ test.describe('Accessibility: Keyboard navigation', () => {
       baseName: 'a11y-keyboard-summary',
       htmlBody: summaryHtml,
       markdown: summaryMarkdown,
+      setDescription: true,
     });
 
     expect(gatingTotal, 'Keyboard navigation gating issues detected').toBe(0);
