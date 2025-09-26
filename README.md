@@ -191,8 +191,8 @@ node run-tests.js --site=my-site --discover
 # Run accessibility scans with WCAG-only tagging (impact gate unchanged)
 node run-tests.js --site=my-site --accessibility --a11y-tags=wcag
 
-# Expand responsive accessibility sampling to all configured pages
-node run-tests.js --site=my-site --responsive --a11y-sample=all
+# Expand accessibility sampling to all configured pages (affects responsive + new resilience specs)
+node run-tests.js --site=my-site --accessibility --a11y-sample=all
 
 # Update visual baselines for a site (responsive visuals only)
 npm run update-baselines -- --site=my-site
@@ -253,6 +253,14 @@ node run-tests.js --site=my-site-local --responsive --local
 The interactive audit still walks every entry in `testPages`, but it only performs lightweight focus/hover taps while watching for console errors and failed network requests. That keeps the shared harness stable across very different client sites. When you need multi-step user journeys, flows behind logins, or bespoke form handling, layer client-specific Playwright specs on top of the shared suite.
 
 All other shared suites (infrastructure, links, accessibility, responsive structure/visual) execute their full assertions across every `testPages` URL without these limitations. Each spec drops an HTML + Markdown attachment into Allure via helpers in `utils/allure-utils.js`, so passing tests now explain exactly what was validated instead of surfacing a bare green tick.
+
+### Accessibility Deep-Dive
+
+- ✅ **Responsive Axe scans** honour impact-based gating and now surface three buckets: gating, WCAG advisories, and best-practice advisories.
+- ✅ **Keyboard-only navigation audit** exercises the first ten focus stops per page, verifies focus never lands on hidden elements, and records skip-link coverage.
+- ✅ **Reduced-motion coverage** forces `prefers-reduced-motion: reduce` and flags long-running or infinite animations that remain active.
+- ✅ **Reflow/zoom resilience** renders pages at a 320 px viewport and reports horizontal overflow sources that break responsive layouts.
+- ✅ **Iframe inventory** captures accessible metadata for embeddings, flagging unlabeled or cross-origin frames that require manual follow-up.
 
 ## Test Results
 
@@ -337,6 +345,7 @@ Tests run on:
 - `a11yIgnoreRules`: array of axe rule IDs to ignore when evaluating failures (e.g., `"color-contrast"`).
 - `a11yMode`: how accessibility specs behave. `"gate"` (default) aggregates violations across all pages/viewports and fails once at the end; `"audit"` logs the summary without failing so you can review issues without blocking the pipeline.
 - `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Override on the CLI with `--a11y-sample=<n|all>` when you need temporary breadth without editing configs.
+- `a11yKeyboardSampleSize` / `a11yMotionSampleSize` / `a11yReflowSampleSize` / `a11yIframeSampleSize`: optional overrides for the new keyboard, reduced-motion, reflow, and iframe audits. Each falls back to `a11yResponsiveSampleSize` (or the CLI `--a11y-sample` override) when omitted.
 - `ignoreConsoleErrors`: array of substrings or regex patterns (string form) to suppress known console noise during interactive scans.
 - `resourceErrorBudget`: maximum number of failed network requests (request failures or 4xx/5xx responses) tolerated before the interactive spec soft-fails. Default: `0`.
 

@@ -1,5 +1,4 @@
 const { test, expect } = require('@playwright/test');
-const { AxeBuilder } = require('@axe-core/playwright');
 const SiteLoader = require('../utils/site-loader');
 const {
   setupTestPage,
@@ -12,8 +11,8 @@ const {
   extractWcagLevels,
   violationHasWcagCoverage,
   formatWcagLabels,
-  WCAG_AXE_TAGS,
 } = require('../utils/a11y-utils');
+const { createAxeBuilder } = require('../utils/a11y-runner');
 
 const STABILITY_TIMEOUT_MS = 20000;
 
@@ -564,15 +563,6 @@ const slugify = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'root';
 
-const buildAxeBuilder = (page) => {
-  const builder = new AxeBuilder({ page });
-  const tagsMode = String(process.env.A11Y_TAGS_MODE || 'all').toLowerCase();
-  if (tagsMode === 'wcag') {
-    builder.withTags(WCAG_AXE_TAGS);
-  }
-  return builder;
-};
-
 test.describe('Functionality: Accessibility (WCAG)', () => {
   let siteConfig;
   let errorContext;
@@ -681,7 +671,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
         }
 
         try {
-            const results = await buildAxeBuilder(page).analyze();
+            const results = await createAxeBuilder(page).analyze();
 
           const ignoreRules = Array.isArray(siteConfig.a11yIgnoreRules)
             ? siteConfig.a11yIgnoreRules
