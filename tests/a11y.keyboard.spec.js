@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const pixelmatch = require('pixelmatch');
+const { PNG } = require('pngjs');
 const SiteLoader = require('../utils/site-loader');
 const {
   setupTestPage,
@@ -12,7 +14,8 @@ const {
   selectAccessibilityTestPages,
 } = require('../utils/a11y-shared');
 
-const MAX_TAB_ITERATIONS = 10;
+const DEFAULT_MAX_TAB_ITERATIONS = 20;
+const FOCUS_DIFF_THRESHOLD = 0.02;
 
 const focusableElementScript = () => {
   const candidates = Array.from(
@@ -94,16 +97,48 @@ const activeElementSnapshotScript = () => {
 };
 
 const skipLinkMetadataScript = () => {
-  const interactive = Array.from(
-    document.querySelectorAll('a[href^="#"], button[href^="#"], a[href*="skip" i]')
+  const focusable = Array.from(
+    document.querySelectorAll('a[href^="#"], button[href^="#"], [role="link"][href^="#"]')
   );
 
-  const candidate = interactive.find((el) => {
+  const isLikelySkipLink = (el) => {
     const text = (el.innerText || el.textContent || '').trim();
     const label = (el.getAttribute('aria-label') || '').trim();
-    return /skip/i.test(text || label);
-  });
+    if (!/skip/i.test(`${text} ${label}`)) return false;
 
+    const href = el.getAttribute('href') || '';
+    const targetSelector = href.startsWith('#') ? href : null;
+    if (!targetSelector || targetSelector === '#') return false;
+
+    const target = document.querySelector(targetSelector);
+    if (!target) return false;
+
+    const acceptableRoles = ['main', 'banner', 'contentinfo'];
+    const role = target.getAttribute('role') || '';
+    const idMatch = /^(main|content|primary|page)/i.test(target.id || '');
+    const isLandmark = target.tagName.toLowerCase() === 'main' || acceptableRoles.includes(role.toLowerCase()) || idMatch;
+    if (!isLandmark) return false;
+
+    const rect = el.getBoundingClientRect();
+    if (rect.top > 400) return false;
+
+    const previouslyFocused = document.activeElement;
+    el.focus({ preventScroll: true });
+    const focusedStyles = window.getComputedStyle(el);
+    const visibleOnFocus =
+      focusedStyles.visibility !== 'hidden' &&
+      focusedStyles.display !== 'none' &&
+      !(focusedStyles.clipPath && focusedStyles.clipPath !== 'none') &&
+      !(focusedStyles.clip && focusedStyles.clip !== 'auto');
+    if (previouslyFocused && previouslyFocused !== el && typeof previouslyFocused.focus === 'function') {
+      previouslyFocused.focus({ preventScroll: true });
+    } else if (previouslyFocused && typeof previouslyFocused.blur === 'function') {
+      previouslyFocused.blur();
+    }
+    return visibleOnFocus;
+  };
+
+  const candidate = focusable.find(isLikelySkipLink);
   if (!candidate) return null;
 
   return {
@@ -112,6 +147,82 @@ const skipLinkMetadataScript = () => {
     id: candidate.id || null,
     tag: candidate.tagName.toLowerCase(),
   };
+};
+
+const computeElementClip = (boundingBox, viewport) => {
+  if (!boundingBox || !viewport) return null;
+  const padding = 6;
+  const x = Math.max(boundingBox.x - padding, 0);
+  const y = Math.max(boundingBox.y - padding, 0);
+  const maxWidth = Math.max(Math.min(boundingBox.width + padding * 2, viewport.width - x), 1);
+  const maxHeight = Math.max(Math.min(boundingBox.height + padding * 2, viewport.height - y), 1);
+  return {
+    x,
+    y,
+    width: maxWidth,
+    height: maxHeight,
+  };
+};
+
+const detectFocusIndicator = async (page, elementHandle) => {
+  const viewport = page.viewportSize();
+  const box = await elementHandle.boundingBox();
+  const clip = computeElementClip(box, viewport || { width: 1280, height: 720 });
+  if (!clip) return { hasIndicator: false, diffRatio: 0 };
+
+  let focusedBuffer;
+  try {
+    focusedBuffer = await page.screenshot({ clip, type: 'png' });
+  } catch (_) {
+    return { hasIndicator: false, diffRatio: 0 };
+  }
+
+  await elementHandle.evaluate((el) => {
+    if (typeof el.blur === 'function') el.blur();
+  });
+  await page.waitForTimeout(75);
+
+  let unfocusedBuffer;
+  try {
+    unfocusedBuffer = await page.screenshot({ clip, type: 'png' });
+  } catch (_) {
+    await elementHandle.evaluate((el) => {
+      if (typeof el.focus === 'function') el.focus();
+    });
+    await page.waitForTimeout(50);
+    return { hasIndicator: false, diffRatio: 0 };
+  }
+
+  await elementHandle.evaluate((el) => {
+    if (typeof el.focus === 'function') el.focus();
+  });
+  await page.waitForTimeout(50);
+
+  try {
+    const focusedPng = PNG.sync.read(focusedBuffer);
+    const unfocusedPng = PNG.sync.read(unfocusedBuffer);
+
+    if (
+      focusedPng.width !== unfocusedPng.width ||
+      focusedPng.height !== unfocusedPng.height
+    ) {
+      return { hasIndicator: false, diffRatio: 0 };
+    }
+
+    const diff = new PNG({ width: focusedPng.width, height: focusedPng.height });
+    const pixelDiff = pixelmatch(
+      focusedPng.data,
+      unfocusedPng.data,
+      diff.data,
+      focusedPng.width,
+      focusedPng.height,
+      { threshold: 0.2 }
+    );
+    const diffRatio = pixelDiff / (focusedPng.width * focusedPng.height);
+    return { hasIndicator: diffRatio >= FOCUS_DIFF_THRESHOLD, diffRatio };
+  } catch (_) {
+    return { hasIndicator: false, diffRatio: 0 };
+  }
 };
 
 const formatKeyboardSummaryHtml = (reports) => {
@@ -257,6 +368,7 @@ test.describe('Accessibility: Keyboard navigation', () => {
     });
 
     const reports = [];
+    const maxTabIterations = Number(process.env.A11Y_KEYBOARD_STEPS || DEFAULT_MAX_TAB_ITERATIONS);
 
     for (const testPage of pages) {
       await test.step(`Keyboard audit: ${testPage}`, async () => {
@@ -308,9 +420,9 @@ test.describe('Accessibility: Keyboard navigation', () => {
           if (document.body) document.body.focus({ preventScroll: true });
         });
 
-        const visited = new Set();
+        const visited = [];
 
-        for (let step = 0; step < Math.min(MAX_TAB_ITERATIONS, focusable.length); step += 1) {
+        for (let step = 0; step < Math.min(maxTabIterations, focusable.length); step += 1) {
           await page.keyboard.press('Tab');
           await page.waitForTimeout(75);
 
@@ -326,22 +438,24 @@ test.describe('Accessibility: Keyboard navigation', () => {
           }
 
           const identity = `${snapshot.tag}|${snapshot.id || ''}|${snapshot.role || ''}|${snapshot.label || ''}`;
-          visited.add(identity);
+          visited.push(identity);
 
-          const hasIndicator =
-            (snapshot.outlineStyle && snapshot.outlineStyle !== 'none' && snapshot.outlineWidth !== '0px') ||
-            (snapshot.boxShadow && snapshot.boxShadow !== 'none') ||
-            snapshot.matchesFocusVisible;
+          const activeElementHandle = await page.evaluateHandle(() => document.activeElement);
+          let hasIndicator = false;
+          if (activeElementHandle && activeElementHandle.asElement()) {
+            const result = await detectFocusIndicator(page, activeElementHandle.asElement());
+            hasIndicator = result.hasIndicator;
+          }
+          if (activeElementHandle) await activeElementHandle.dispose();
 
           if (!snapshot.isVisible) {
             report.gating.push(
               `Keyboard focus moved to an element that is visually hidden (${snapshot.tag} ${snapshot.id ? `#${snapshot.id}` : ''}).`
             );
           }
-
           if (!hasIndicator) {
             report.advisories.push(
-              `No visible focus indicator detected for ${snapshot.tag} ${snapshot.id ? `#${snapshot.id}` : ''} (${snapshot.label || 'unnamed element'}).`
+              `Unable to detect focus indicator change for ${snapshot.tag} ${snapshot.id ? `#${snapshot.id}` : ''} (${snapshot.label || 'unnamed element'}).`
             );
           }
 
@@ -354,10 +468,21 @@ test.describe('Accessibility: Keyboard navigation', () => {
           });
         }
 
-        report.visitedCount = visited.size;
+        report.visitedCount = visited.length;
 
-        if (visited.size <= 1 && focusable.length > 1) {
+        if (visited.length <= 1 && focusable.length > 1) {
           report.gating.push('Tab order did not progress beyond the first interactive element.');
+        }
+
+        if (visited.length > 1) {
+          await page.keyboard.press('Shift+Tab');
+          await page.waitForTimeout(75);
+          const reverseSnapshot = await page.evaluate(activeElementSnapshotScript);
+          if (!reverseSnapshot || reverseSnapshot.isBody) {
+            report.gating.push('Reverse tabbing returned focus to <body>; keyboard users may get trapped.');
+          }
+          await page.keyboard.press('Tab');
+          await page.waitForTimeout(50);
         }
       });
     }

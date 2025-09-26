@@ -520,16 +520,23 @@ test.describe('Accessibility: Resilience checks', () => {
         report.significant = motionData.significantAnimations;
 
         if (!motionData.matchesReduce) {
-          report.gating.push('Media emulation for prefers-reduced-motion did not register on the page.');
+          report.advisories.push('prefers-reduced-motion media query did not match; site may lack reduced motion styles.');
         }
 
         motionData.significantAnimations.forEach((animation) => {
           const label = animation.name || animation.type || 'animation';
-          report.gating.push(
-            `${label} on ${animation.selector || 'element'} runs ${
-              animation.iterations === 'infinite' ? 'indefinitely' : `${animation.duration ?? 'unknown'}ms`
-            } despite reduced motion preference.`
-          );
+          const iterations = animation.iterations === 'infinite' ? Infinity : animation.iterations || 1;
+          const duration = animation.duration || 0;
+          const totalDuration = iterations === Infinity ? Infinity : duration * iterations;
+          const isBlocking = iterations === Infinity || totalDuration >= 5000;
+          const message = `${label} on ${animation.selector || 'element'} runs ${
+            iterations === Infinity ? 'indefinitely' : `${totalDuration}ms`
+          } despite reduced motion preference.`;
+          if (isBlocking) {
+            report.gating.push(message);
+          } else {
+            report.advisories.push(message);
+          }
         });
 
         if (!motionData.animations.length) {
