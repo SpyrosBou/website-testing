@@ -109,44 +109,49 @@ Implementation:
 
 - Daytime/CI default:
   - Gating: `critical/serious` only.
-  - `tests/responsive.a11y.spec.js` currently samples first 3 pages per viewport; keep this for speed, but make the sample size configurable.
+  - `tests/responsive.a11y.spec.js` samples the first three pages per viewport by default (override via config/env when needed).
 - Nightly:
   - Full rule scans across all pages for responsive a11y (or rotate through pages), all browsers if desired.
 
 Actions:
-- Add config key `a11yResponsiveSampleSize` (number or `'all'`) to control responsive a11y sampling.
-- Add runner CLI flags: `--a11y-tags=all|wcag`, `--a11y-sample=<N>` (optional, defaults to site config).
+- [x] Add config key `a11yResponsiveSampleSize` (number or `'all'`) to control responsive a11y sampling.
+- [x] Add runner CLI flags/env overrides (`--a11y-tags`, `--a11y-sample`, `A11Y_KEYBOARD_STEPS`) so teams can tune coverage without code changes.
 
 ## Reporting Enhancements
 
 - Allure summaries:
-  - Add “Best-practice advisories (no WCAG tag)” section under a11y cards.
-  - Include an iframe inventory table per page with scan coverage notes (same-origin vs cross-origin).
-  - Add badges/notes for keyboard, reduced motion, and reflow checks per page/viewport.
+  - [x] Add “Best-practice advisories (no WCAG tag)” section under a11y cards.
+  - [x] Include an iframe inventory table per page with scan coverage notes (same-origin vs cross-origin).
+  - [x] Add badges/notes for keyboard, reduced motion, and reflow checks per page/viewport.
 
 ## Risks & Mitigations
 
 - Expect more advisory findings after removing tag filtering; gating should remain stable because it is severity-based.
 - To manage noise, keep using `a11yIgnoreRules` in site configs and refine per-site as needed.
-- Keyboard/resilience additions surfaced the following gaps that we still need to close:
-  - Reduced-motion gate currently fails any animation ≥150 ms even when the site honours `prefers-reduced-motion`. Downgrade the `matchMedia` mismatch to an advisory, and only fail when we detect infinite or multi-second motion that persists in reduce mode.
-  - Focus-indicator heuristics rely on `outline`/`boxShadow`, so legitimate indicators implemented with background/border/underline changes show up as advisories. Replace this with a short per-element screenshot diff (baseline vs focus) to avoid false alarms.
-  - Skip-link detection simply matches anchors containing “skip”. Tighten the logic to require links that target landmarks (e.g., `#main`) and verify they become visible/functional on focus.
-  - Keyboard traversal currently TABs forward up to 10 elements; long navs will look like traps. Make the depth configurable (mirroring `--a11y-sample`) and include at least one reverse-tab pass so we exercise backtracking.
+- Recent follow-ups completed:
+  - Reduced-motion gate now downgrades plain `matchMedia` mismatches to advisories and only fails on infinite or ≥5 s motion that persists under `prefers-reduced-motion`.
+  - Focus-indicator checks use before/after screenshots (pixel diff) instead of CSS heuristics, dramatically reducing false positives.
+  - Skip-link detection now insists on landmark targets and verifies the link presents when focused.
+  - Keyboard traversal depth is configurable (`A11Y_KEYBOARD_STEPS`), and the audit includes a reverse `Shift+Tab` sanity check.
 - WCAG-level findings (contrast, critical keyboard traps, etc.) are never candidates for whitelisting. Every gating failure should be triaged as an accessibility defect and resolved in the product code or content before the run is considered green.
+
+### Outstanding risks
+
+- Live site currently fails serious `color-contrast` checks (homepage and `/working-with-us/`). These blocks need design fixes before the suite will pass again.
+- Keyboard suite reports missing visible focus on several footer/contact elements—verify on the site and adjust styles as needed.
 
 ## Milestones & Ownership
 
 Phase 1 (1–2 days)
-- Remove `.withTags(...)` from both a11y specs; add “best-practice advisory” bucket.
-- Enforce homepage coverage: add `'/'` to all site configs; add runner safeguard and discovery post-processing.
-- Make responsive a11y sample size configurable.
-- Update documentation to clarify intent and profiles.
+- [x] Remove `.withTags(...)` from both a11y specs; add “best-practice advisory” bucket.
+- [x] Enforce homepage coverage: add `'/'` to all site configs; add runner safeguard and discovery post-processing.
+- [x] Make responsive a11y sample size configurable.
+- [x] Update documentation to clarify intent and profiles.
 
 Phase 2 (3–5 days)
-- Add keyboard-only spec with common component coverage and focus assertions.
-- Add reduced-motion checks and reflow checks.
-- Add iframe inventory and same-origin frame scanning.
+- [x] Add keyboard-only spec with common component coverage and focus assertions.
+- [x] Add reduced-motion checks and reflow checks.
+- [x] Add iframe inventory and same-origin frame scanning.
 
 Phase 3 (as needed)
 - Deepen form validation checks and a11y-tree assertions.

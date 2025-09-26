@@ -194,6 +194,9 @@ node run-tests.js --site=my-site --accessibility --a11y-tags=wcag
 # Expand accessibility sampling to all configured pages (affects responsive + new resilience specs)
 node run-tests.js --site=my-site --accessibility --a11y-sample=all
 
+# Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
+A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
+
 # Update visual baselines for a site (responsive visuals only)
 npm run update-baselines -- --site=my-site
 
@@ -261,6 +264,7 @@ All other shared suites (infrastructure, links, accessibility, responsive struct
 - ✅ **Reduced-motion coverage** forces `prefers-reduced-motion: reduce` and flags long-running or infinite animations that remain active.
 - ✅ **Reflow/zoom resilience** renders pages at a 320 px viewport and reports horizontal overflow sources that break responsive layouts.
 - ✅ **Iframe inventory** captures accessible metadata for embeddings, flagging unlabeled or cross-origin frames that require manual follow-up.
+- Focus-indicator detection now compares before/after screenshots (via `pixelmatch`) so the suite only warns when the visual state truly fails to change.
 
 ## Test Results
 
@@ -348,6 +352,7 @@ Tests run on:
 - `a11yMode`: how accessibility specs behave. `"gate"` (default) aggregates violations across all pages/viewports and fails once at the end; `"audit"` logs the summary without failing so you can review issues without blocking the pipeline.
 - `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Override on the CLI with `--a11y-sample=<n|all>` when you need temporary breadth without editing configs.
 - `a11yKeyboardSampleSize` / `a11yMotionSampleSize` / `a11yReflowSampleSize` / `a11yIframeSampleSize`: optional overrides for the new keyboard, reduced-motion, reflow, and iframe audits. Each falls back to `a11yResponsiveSampleSize` (or the CLI `--a11y-sample` override) when omitted.
+- `A11Y_KEYBOARD_STEPS` (env): override the maximum number of forward TAB steps the keyboard audit performs (default: `20`). The spec always performs a reverse TAB sanity check after the forward traversal.
 - `ignoreConsoleErrors`: array of substrings or regex patterns (string form) to suppress known console noise during interactive scans.
 - `resourceErrorBudget`: maximum number of failed network requests (request failures or 4xx/5xx responses) tolerated before the interactive spec soft-fails. Default: `0`.
 
