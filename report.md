@@ -128,6 +128,11 @@ Actions:
 
 - Expect more advisory findings after removing tag filtering; gating should remain stable because it is severity-based.
 - To manage noise, keep using `a11yIgnoreRules` in site configs and refine per-site as needed.
+- Keyboard/resilience additions surfaced the following gaps that we still need to close:
+  - Reduced-motion gate currently fails any animation ≥150 ms even when the site honours `prefers-reduced-motion`. Downgrade the `matchMedia` mismatch to an advisory, and only fail when we detect infinite or multi-second motion that persists in reduce mode.
+  - Focus-indicator heuristics rely on `outline`/`boxShadow`, so legitimate indicators implemented with background/border/underline changes show up as advisories. Replace this with a short per-element screenshot diff (baseline vs focus) to avoid false alarms.
+  - Skip-link detection simply matches anchors containing “skip”. Tighten the logic to require links that target landmarks (e.g., `#main`) and verify they become visible/functional on focus.
+  - Keyboard traversal currently TABs forward up to 10 elements; long navs will look like traps. Make the depth configurable (mirroring `--a11y-sample`) and include at least one reverse-tab pass so we exercise backtracking.
 
 ## Milestones & Ownership
 
@@ -167,4 +172,3 @@ Phase 3 (as needed)
 ---
 
 Prepared to start with Phase 1 unless you prefer a different ordering. The changes are backward-compatible and keep the gating contract intact while surfacing a broader set of actionable advisories.
-
