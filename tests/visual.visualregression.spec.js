@@ -108,6 +108,7 @@ test.describe('Visual Regression', () => {
           ? siteConfig.testPages.slice(0, 1)
           : siteConfig.testPages;
         const visualSummaries = [];
+        const diffEntries = [];
 
         for (const testPage of pagesToTest) {
           await test.step(`Visual ${viewportName}: ${testPage}`, async () => {
@@ -254,6 +255,7 @@ test.describe('Visual Regression', () => {
                 diffMetrics,
                 artifacts,
               });
+              diffEntries.push({ page: testPage, metrics: diffMetrics });
             }
           });
         }
@@ -357,7 +359,15 @@ test.describe('Visual Regression', () => {
           baseName: `visual-regression-${viewportName}-summary`,
           htmlBody,
           markdown,
+          setDescription: true,
         });
+
+        if (diffEntries.length > 0) {
+          const pageList = diffEntries.map((entry) => `\`${entry.page}\``).join(', ');
+          throw new Error(
+            `Visual differences detected on ${pageList}. Review attachments for details.`
+          );
+        }
       });
     });
   });
