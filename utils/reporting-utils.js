@@ -1,4 +1,4 @@
-const { allure } = require('allure-playwright');
+const { test } = require('@playwright/test');
 
 const SUMMARY_STYLES = `
 <style>
@@ -65,33 +65,6 @@ const DESCRIPTION_BYTE_LIMIT = 18_000_000;
 
 const wrapHtml = (content) => `${SUMMARY_STYLES}${content}`;
 
-const attachAllureText = async (name, content, type = 'text/plain') => {
-  if (allure && typeof allure.attachment === 'function') {
-    await allure.attachment(name, content, type);
-  }
-};
-
-const attachSummary = async ({ baseName, htmlBody, markdown, setDescription = false }) => {
-  if (htmlBody) {
-    const wrappedHtml = wrapHtml(htmlBody);
-    await attachAllureText(`${baseName}.html`, wrappedHtml, 'text/html');
-    if (setDescription && typeof allure?.descriptionHtml === 'function') {
-      const byteLength = Buffer.byteLength(wrappedHtml, 'utf8');
-      if (byteLength <= DESCRIPTION_BYTE_LIMIT) {
-        allure.descriptionHtml(wrappedHtml);
-      } else {
-        await attachAllureText(
-          `${baseName}-description-truncated.txt`,
-          `Skipped setting descriptionHtml: rendered summary is ${byteLength.toLocaleString()} bytes (limit ${DESCRIPTION_BYTE_LIMIT.toLocaleString()})`
-        );
-      }
-    }
-  }
-  if (markdown) {
-    await attachAllureText(`${baseName}.md`, markdown, 'text/markdown');
-  }
-};
-
 const escapeHtml = (value) =>
   String(value || '')
     .replace(/&/g, '&amp;')
@@ -100,8 +73,74 @@ const escapeHtml = (value) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+const resolveTestInfo = (maybeTestInfo) => {
+  if (maybeTestInfo) return maybeTestInfo;
+  try {
+    return test.info();
+  } catch (_error) {
+    throw new Error(
+      'attachSummary must be called within a Playwright test or provided an explicit testInfo instance.'
+    );
+  }
+};
+
+async function attachSummary(testInfoOrOptions, maybeOptions) {
+  const hasExplicitTestInfo = Boolean(maybeOptions);
+  const testInfo = resolveTestInfo(hasExplicitTestInfo ? testInfoOrOptions : undefined);
+  const options = hasExplicitTestInfo ? maybeOptions : testInfoOrOptions;
+
+  if (!options || typeof options !== 'object') {
+    throw new Error('attachSummary requires an options object.');
+  }
+
+  const { baseName, htmlBody, markdown, setDescription = false } = options;
+  if (!baseName) {
+    throw new Error('attachSummary requires a baseName value.');
+  }
+
+  const payload = {
+    type: 'custom-report-summary',
+    baseName,
+    setDescription: Boolean(setDescription),
+    htmlBody: htmlBody ? wrapHtml(htmlBody) : null,
+    markdown: markdown || null,
+    createdAt: new Date().toISOString(),
+  };
+
+  await testInfo.attach(`${baseName}.summary.json`, {
+    contentType: 'application/json',
+    body: Buffer.from(JSON.stringify(payload, null, 2), 'utf8'),
+  });
+
+  if (payload.htmlBody) {
+    const byteLength = Buffer.byteLength(payload.htmlBody, 'utf8');
+    if (byteLength <= DESCRIPTION_BYTE_LIMIT) {
+      await testInfo.attach(`${baseName}.summary.html`, {
+        contentType: 'text/html',
+        body: Buffer.from(payload.htmlBody, 'utf8'),
+      });
+    } else {
+      await testInfo.attach(`${baseName}.summary-truncated.txt`, {
+        contentType: 'text/plain',
+        body: Buffer.from(
+          `Summary HTML (${byteLength.toLocaleString()} bytes) exceeds inline byte limit (${DESCRIPTION_BYTE_LIMIT.toLocaleString()} bytes).`,
+          'utf8'
+        ),
+      });
+    }
+  }
+
+  if (payload.markdown) {
+    await testInfo.attach(`${baseName}.summary.md`, {
+      contentType: 'text/markdown',
+      body: Buffer.from(payload.markdown, 'utf8'),
+    });
+  }
+}
+
 module.exports = {
-  attachAllureText,
   attachSummary,
   escapeHtml,
+  SUMMARY_STYLES,
+  wrapHtml,
 };

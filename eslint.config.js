@@ -11,8 +11,6 @@ module.exports = [
       'node_modules/**',
       'test-results/**',
       'playwright-report/**',
-      'allure-results/**',
-      'allure-report/**',
       'tests/baseline-snapshots/**',
       'sites/*.json',
       '.github/**',

@@ -30,7 +30,7 @@ test_cases:
   - name: "page_load_performance"
     description: "Measure and validate page load performance metrics"
     priority: "high"
-    allure:
+    reporting:
       epic: "Core Infrastructure"
       feature: "Performance Monitoring"
       story: "As a user, I want pages to load quickly for good user experience"
@@ -78,13 +78,13 @@ test_cases:
           description: "Check performance against thresholds"
         
         - action: "log_performance_results"
-          format: "allure_attachment"
+          format: "reporting_attachment"
           description: "Attach performance data to test report"
 
   - name: "resource_loading_efficiency"
     description: "Validate resource loading efficiency and identify bottlenecks"
     priority: "medium"
-    allure:
+    reporting:
       epic: "Core Infrastructure"
       feature: "Resource Loading"
       story: "As a developer, I want to identify performance bottlenecks"
@@ -109,7 +109,7 @@ test_cases:
           description: "Identify potential performance issues"
         
         - action: "generate_performance_recommendations"
-          output: "allure_attachment"
+          output: "reporting_attachment"
           description: "Generate actionable performance recommendations"
 
 assertions:
@@ -133,7 +133,7 @@ error_handling:
     - report_as_performance_issue: true
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     include_performance_charts: true
     attach_metrics: true
     performance_trends: true

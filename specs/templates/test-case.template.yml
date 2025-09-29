@@ -6,8 +6,8 @@ description: "Clear description of what this test validates"
 category: "core-infrastructure|navigation-ux|interactive-elements|accessibility|wordpress-specific"
 priority: "critical|high|medium|low"
 
-# Allure reporting configuration
-allure:
+# Reporting configuration
+reporting:
   epic: "Functionality Testing"
   feature: "Specific Feature Being Tested"
   story: "User Story or Business Requirement"
@@ -122,7 +122,7 @@ integration:
     include_timing: true
     capture_network: false
   
-  allure_attachments:
+  reporting_attachments:
     - type: "screenshot"
       when: "on_failure"
     - type: "trace"

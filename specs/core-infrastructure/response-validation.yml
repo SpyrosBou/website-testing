@@ -22,7 +22,7 @@ test_cases:
   - name: "http_response_validation"
     description: "Validate HTTP responses and status codes"
     priority: "critical"
-    allure:
+    reporting:
       epic: "Core Infrastructure"
       feature: "HTTP Response Validation"
       story: "As a user, I want reliable HTTP responses from the website"
@@ -61,7 +61,7 @@ test_cases:
   - name: "content_integrity_validation"
     description: "Validate basic HTML content integrity and structure"
     priority: "high"
-    allure:
+    reporting:
       epic: "Core Infrastructure"
       feature: "Content Integrity"
       story: "As a user, I want properly structured HTML content"
@@ -105,7 +105,7 @@ test_cases:
   - name: "wordpress_specific_validation"
     description: "Validate WordPress-specific response characteristics"
     priority: "medium"
-    allure:
+    reporting:
       epic: "Core Infrastructure"
       feature: "WordPress Validation"
       story: "As a developer, I want to ensure WordPress is functioning correctly"
@@ -173,7 +173,7 @@ error_handling:
       include_response_body: true
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     include_response_details: true
     attach_headers: true
     security_findings: true

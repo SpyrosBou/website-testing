@@ -9,7 +9,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/allure-utils');
+const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
 const {
   extractWcagLevels,
   violationHasWcagCoverage,
@@ -912,25 +912,23 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
 
       if (totalAdvisory > 0) {
         console.warn(
-          `ℹ️ Non-gating WCAG findings detected (${totalAdvisory} item(s)); review the Allure summary for details.`
+          `ℹ️ Non-gating WCAG findings detected (${totalAdvisory} item(s)); review the report summary for details.`
         );
       }
 
       if (totalBestPractice > 0) {
         console.warn(
-          `ℹ️ Best-practice advisory findings (no WCAG tag) detected (${totalBestPractice} item(s)); review the Allure summary for details.`
+          `ℹ️ Best-practice advisory findings (no WCAG tag) detected (${totalBestPractice} item(s)); review the report summary for details.`
         );
       }
 
       if (totalViolations > 0) {
         if (A11Y_MODE === 'audit') {
-          console.warn(
-            'ℹ️ Accessibility audit summary available in Allure report (description pane).'
-          );
+          console.warn('ℹ️ Accessibility audit summary available in the run report (summary section).');
         } else {
           expect(
             totalViolations,
-            `Accessibility violations detected (gating: ${failOnLabel}). See the Allure description for a structured breakdown.`
+            `Accessibility violations detected (gating: ${failOnLabel}). See the report summary for a structured breakdown.`
           ).toBe(0);
         }
       }

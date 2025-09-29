@@ -27,7 +27,7 @@ test_cases:
   - name: "form_discovery_and_analysis"
     description: "Discover and analyze form structure and capabilities"
     priority: "high"
-    allure:
+    reporting:
       epic: "Interactive Elements"
       feature: "Form Discovery"
       story: "As a tester, I want to discover and understand form structure"
@@ -89,7 +89,7 @@ test_cases:
   - name: "form_field_validation_testing"
     description: "Test form field validation and user input handling"
     priority: "high"
-    allure:
+    reporting:
       epic: "Interactive Elements"
       feature: "Form Validation"
       story: "As a user, I want forms to validate my input correctly"
@@ -146,7 +146,7 @@ test_cases:
   - name: "form_interaction_patterns"
     description: "Test common form interaction patterns and workflows"
     priority: "medium"
-    allure:
+    reporting:
       epic: "Interactive Elements"
       feature: "Form Interactions"
       story: "As a user, I want intuitive form interaction patterns"
@@ -190,7 +190,7 @@ test_cases:
   - name: "wordpress_specific_form_testing"
     description: "Test WordPress-specific form features and integrations"
     priority: "medium"
-    allure:
+    reporting:
       epic: "Interactive Elements"
       feature: "WordPress Forms"
       story: "As a WordPress user, I want plugin forms to work correctly"
@@ -254,7 +254,7 @@ error_handling:
     - avoid_spam_generation: true
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     attach_form_screenshots: true
     include_validation_videos: true
     form_analysis_report: true

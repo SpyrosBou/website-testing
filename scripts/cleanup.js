@@ -59,6 +59,34 @@ function deleteByGlob(dir, patterns) {
   walk(dir);
 }
 
+function pruneOldReports(dir, keepCount = 10) {
+  if (!fs.existsSync(dir)) return { removed: [], kept: [] };
+  const entries = fs
+    .readdirSync(dir)
+    .map((name) => {
+      const fullPath = path.join(dir, name);
+      try {
+        const st = fs.statSync(fullPath);
+        if (st.isDirectory()) {
+          return { name, path: fullPath, mtime: st.mtimeMs };
+        }
+      } catch (_) {}
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.mtime - a.mtime);
+
+  const toDelete = entries.slice(keepCount);
+  for (const entry of toDelete) {
+    rmrf(entry.path);
+  }
+
+  return {
+    removed: toDelete.map((entry) => entry.name),
+    kept: entries.slice(0, keepCount).map((entry) => entry.name),
+  };
+}
+
 const cmd = process.argv[2];
 
 switch (cmd) {
@@ -90,14 +118,27 @@ switch (cmd) {
       console.log(`Cleaned results for site ${site}`);
     }
     break;
-  case 'clean-allure':
-    rmrf(path.join(process.cwd(), 'allure-results'));
-    rmrf(path.join(process.cwd(), 'allure-report'));
-    console.log('Cleaned Allure results and reports');
-    break;
   case 'clean-backup-html':
     rmrf(path.join(process.cwd(), 'playwright-report'));
     console.log('Cleaned backup HTML report');
+    break;
+  case 'clean-reports':
+    {
+      const reportsDir = path.join(process.cwd(), 'reports');
+      if (!fs.existsSync(reportsDir)) {
+        console.log('No reports directory found.');
+        break;
+      }
+      const { removed, kept } = pruneOldReports(reportsDir, 10);
+      if (removed.length === 0) {
+        console.log('No reports removed (10 most recent preserved).');
+      } else {
+        console.log(`Removed ${removed.length} report folder(s): ${removed.join(', ')}`);
+      }
+      if (kept.length > 0) {
+        console.log(`Current reports retained: ${kept.join(', ')}`);
+      }
+    }
     break;
   default:
     console.log('Unknown command');

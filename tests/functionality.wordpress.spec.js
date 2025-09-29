@@ -6,7 +6,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/allure-utils');
+const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
 
 const formatPluginSummaryHtml = (rows, detectedPlugins) => {
   const tableRows = rows

@@ -6,7 +6,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/allure-utils');
+const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
 const {
   extractWcagLevels,
   violationHasWcagCoverage,
@@ -385,7 +385,7 @@ test.describe('Responsive Accessibility', () => {
 
       if (aggregatedViolations.length > 0) {
         const count = aggregatedViolations.reduce((s, e) => s + e.count, 0);
-        const summaryMessage = `Accessibility violations detected for ${viewportName}. See Allure attachment 'responsive-a11y-${viewportName}-summary' (gating: ${failOnLabel}).`;
+        const summaryMessage = `Accessibility violations detected for ${viewportName}. See report summary attachment 'responsive-a11y-${viewportName}-summary' (gating: ${failOnLabel}).`;
         if (a11yMode === 'audit') {
           console.warn(`ℹ️ Accessibility audit summary (no failure): ${count} issue(s) across ${aggregatedViolations.length} page(s) for ${viewportName}.`);
         } else {

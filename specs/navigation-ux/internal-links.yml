@@ -25,7 +25,7 @@ test_cases:
   - name: "internal_link_validation"
     description: "Validate all internal links are functional and accessible"
     priority: "high"
-    allure:
+    reporting:
       epic: "Navigation & UX"
       feature: "Internal Link Validation"
       story: "As a user, I want all internal links to work correctly"
@@ -82,7 +82,7 @@ test_cases:
   - name: "navigation_menu_validation"
     description: "Validate navigation menu functionality and accessibility"
     priority: "high"
-    allure:
+    reporting:
       epic: "Navigation & UX"
       feature: "Navigation Menu"
       story: "As a user, I want functional navigation menus"
@@ -129,7 +129,7 @@ test_cases:
   - name: "breadcrumb_navigation"
     description: "Validate breadcrumb navigation where present"
     priority: "medium"
-    allure:
+    reporting:
       epic: "Navigation & UX"
       feature: "Breadcrumb Navigation"
       story: "As a user, I want breadcrumbs to show my location"
@@ -190,7 +190,7 @@ error_handling:
       delay: 1000
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     attach_link_report: true
     include_broken_links_summary: true
     navigation_structure_diagram: false  # Complex to generate

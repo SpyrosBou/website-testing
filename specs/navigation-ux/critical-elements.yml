@@ -22,7 +22,7 @@ test_cases:
   - name: "site_wide_critical_elements"
     description: "Validate elements that should be present across all pages"
     priority: "critical"
-    allure:
+    reporting:
       epic: "Navigation & UX"
       feature: "Critical Site Elements"
       story: "As a user, I want consistent site elements on all pages"
@@ -73,7 +73,7 @@ test_cases:
   - name: "page_specific_critical_elements"
     description: "Validate elements specific to different page types"
     priority: "high"
-    allure:
+    reporting:
       epic: "Navigation & UX"
       feature: "Page-Specific Elements"
       story: "As a user, I want page-specific elements to be functional"
@@ -118,7 +118,7 @@ test_cases:
   - name: "wordpress_theme_elements"
     description: "Validate WordPress theme-specific critical elements"
     priority: "medium"
-    allure:
+    reporting:
       epic: "Navigation & UX"
       feature: "WordPress Theme Elements"
       story: "As a developer, I want theme elements to render correctly"
@@ -158,7 +158,7 @@ test_cases:
   - name: "accessibility_critical_elements"
     description: "Validate critical accessibility elements"
     priority: "high"
-    allure:
+    reporting:
       epic: "Navigation & UX"
       feature: "Accessibility Elements"
       story: "As a user with disabilities, I want accessible navigation"
@@ -225,7 +225,7 @@ error_handling:
     - allow_mobile_variations: true
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     attach_element_screenshots: true
     include_accessibility_report: true
     responsive_comparison: true

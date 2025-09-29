@@ -46,7 +46,7 @@ test_cases:
   - name: "javascript_error_detection"
     description: "Monitor and detect JavaScript errors during page interactions"
     priority: "critical"
-    allure:
+    reporting:
       epic: "Interactive Elements"
       feature: "JavaScript Error Detection"
       story: "As a user, I want pages to function without JavaScript errors"
@@ -90,7 +90,7 @@ test_cases:
   - name: "interactive_element_testing"
     description: "Test interactive elements using semantic queries and user simulation"
     priority: "high"
-    allure:
+    reporting:
       epic: "Interactive Elements"
       feature: "Interactive Element Testing"
       story: "As a user, I want interactive elements to respond correctly"
@@ -149,7 +149,7 @@ test_cases:
   - name: "form_interaction_testing"
     description: "Test form interactions and validation using test data"
     priority: "high"
-    allure:
+    reporting:
       epic: "Interactive Elements"
       feature: "Form Interaction Testing"
       story: "As a user, I want forms to work correctly and validate input"
@@ -229,7 +229,7 @@ error_handling:
     - provide_debugging_context: true
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     attach_console_logs: true
     include_interaction_videos: true
     error_categorization: true

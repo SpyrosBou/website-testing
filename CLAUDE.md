@@ -36,11 +36,14 @@ npx playwright test tests/visual.visualregression.spec.js --update-snapshots
 
 ### Reporting Commands
 ```bash
-# Generate and open Allure report (primary reporting)
-npm run allure-serve
+# Open the latest HTML report
+npm run viewreport
 
-# Clean Allure results before fresh test run
-npm run clean-allure
+# List available report runs
+npm run viewreport -- --list
+
+# Prune report history (keeps 10 most recent)
+npm run clean-reports
 
 # Clean old test artifacts (>15 days)
 npm run clean-old-results
@@ -78,14 +81,14 @@ Each WordPress site requires a JSON configuration in `sites/` directory:
 - Configuration drives all test behavior and site-specific selectors
 - The `SITE_NAME` environment variable is set automatically by the test runner
 - Optional knobs: `linkCheck` (per-page link sampling controls), `ignoreConsoleErrors`/`resourceErrorBudget` (interactive audit filters), and `performanceBudgets` (soft gates for DOM timings)
-- Functionality specs read these settings and surface structured summaries in Allure via helpers in `utils/allure-utils.js` (HTTP response tables, link coverage, interactive console/resource breakdowns, etc.).
+- Functionality specs read these settings and surface structured summaries via `utils/reporting-utils.js` (HTTP response tables, link coverage, interactive console/resource breakdowns, etc.) in the custom HTML report.
 
 ### Test Runner Architecture
 The `run-tests.js` script orchestrates test execution:
 1. Loads and validates the requested site configuration from `sites/`.
 2. When `--discover` is supplied and the config uses `discover.strategy: "sitemap"`, fetches the sitemap, merges paths, and writes the updated `testPages` back to the JSON file.
 3. Sets `SITE_NAME` (and `SMOKE=1` for the smoke profile) before spawning Playwright with the requested spec filters/projects.
-4. Relies on `scripts/playwright-global-setup.js` to clear `allure-results/`, `allure-report/`, `playwright-report/`, and `test-results/` unless `PW_SKIP_RESULT_CLEAN=true`.
+4. Relies on `scripts/playwright-global-setup.js` to clear `playwright-report/` and `test-results/` unless `PW_SKIP_RESULT_CLEAN=true`.
 
 ### Key Utilities
 - `utils/test-runner.js` - Main test orchestration and site management
@@ -96,11 +99,10 @@ The `run-tests.js` script orchestrates test execution:
 - `utils/test-data-factory.js` - Test data generation for forms
 
 ### Report Organization
-- `allure-results/` - Raw test data (cleared before each run)
-- `allure-report/` - Generated Allure site (regenerate with `npm run allure-report`)
-- `playwright-report/` - Playwright HTML report for the latest run
-- `test-results/` - Screenshots, videos, traces scoped by test + project (cleared unless `PW_SKIP_RESULT_CLEAN=true`)
-- `tests/baseline-snapshots/` - Version-controlled visual baselines
+- `reports/` - Custom HTML report history (each run gets `run-<timestamp>/report.html` plus `data/` JSON).
+- `playwright-report/` - Playwright's fallback HTML report for the latest run (cleared by global setup).
+- `test-results/` - Screenshots, videos, traces scoped by test + project (cleared unless `PW_SKIP_RESULT_CLEAN=true`).
+- `tests/baseline-snapshots/` - Version-controlled visual baselines.
 
 ## WordPress-Specific Considerations
 

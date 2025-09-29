@@ -8,7 +8,7 @@ metadata:
   priority: "high|medium|low"
   dependencies: []  # List of required categories/utilities
   tags:
-    - "allure-epic-tag"
+    - "reporting-epic-tag"
     - "test-type-tag"
 
 configuration:
@@ -31,7 +31,7 @@ test_cases:
   - name: "test-case-name"
     description: "What this test case validates"
     priority: "critical|high|medium|low"
-    allure:
+    reporting:
       epic: "Test Epic Name"
       feature: "Specific Feature"
       story: "User Story"
@@ -73,7 +73,7 @@ error_handling:
       action: "log_and_continue"
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     include_steps: true
     include_attachments: true
     include_environment_info: true

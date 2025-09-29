@@ -12,8 +12,8 @@ This note captures the remaining tasks to harden our Playwright-based visual reg
 - Tighten thresholds
   - Keep stricter thresholds for static pages (content/UI), relax on homepages or dynamic areas via `visualOverrides`.
   - Audit current thresholds in `sites/*` and lower where stable.
-- Surface diff artifacts in Allure
-  - Link the Playwright diff/actual/expected files from our Allure HTML summary so reviewers can jump directly to images.
+- Surface diff artifacts in the custom report
+  - Link the Playwright diff/actual/expected files from our HTML summary in the custom report so reviewers can jump directly to images.
 
 ## Nice‑to‑Have
 - Baseline management guidance
@@ -30,12 +30,12 @@ This note captures the remaining tasks to harden our Playwright-based visual reg
 - Snapshot path template is set in `playwright.config.js` (baseline under `tests/baseline-snapshots/`).
 - Visual test lives at `tests/visual.visualregression.spec.js`. It already supports:
   - Per‑site thresholds (`visualThresholds`), per‑page overrides (`visualOverrides`), and masks (`dynamicMasks`).
-  - Per‑viewport Allure summaries (HTML + Markdown) with inline baseline/local/diff previews for quick scanning.
+  - Per‑viewport report summaries (HTML + Markdown) with inline baseline/local/diff previews for quick scanning.
 - Add diff links by mapping the test name + project to artifact paths inside `test-results/` and attaching `<a>` elements in the summary table.
 
 ## Docs to Keep Current
 - README: how to update baselines, how thresholds/masks/overrides work, reminder about keeping `testPages` current.
-- tests/CLAUDE.md: note that visual regression and responsive structure specs also attach Allure summaries.
+- tests/CLAUDE.md: note that visual regression and responsive structure specs also attach report summaries.
 
 ## Quick Commands
 - Update visual baselines for a site (visuals only):

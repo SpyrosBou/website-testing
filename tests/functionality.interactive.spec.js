@@ -8,7 +8,7 @@ const {
 } = require('../utils/test-helpers');
 const { TestDataFactory, createTestData } = require('../utils/test-data-factory');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
-const { attachSummary, escapeHtml } = require('../utils/allure-utils');
+const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
 
 const slugify = (value) =>
   String(value || '')

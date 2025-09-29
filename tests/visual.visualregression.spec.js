@@ -8,7 +8,7 @@ const {
   waitForPageStability,
   ErrorContext,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/allure-utils');
+const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
@@ -253,7 +253,7 @@ test.describe('Visual Regression', () => {
           });
         }
 
-        // Attach Allure summary for this viewport
+        // Attach report summary for this viewport
         const rowsHtml = visualSummaries
           .map((e) => {
             const className = e.result === 'pass' ? 'status-ok' : 'status-error';

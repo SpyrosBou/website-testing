@@ -26,10 +26,10 @@ Status: experimental; not executed by `run-tests.js` unless you manually generat
 
 - Metadata: category, version, description, priority, dependencies, tags
 - Configuration: timeout, retries, parallel, browsers, viewports
-- Test Cases: name, description, priority, allure { epic, feature, story, severity }
+- Test Cases: name, description, priority, reporting { epic, feature, story, severity }
 - Steps: setup[], assertions[], cleanup[] (action/parameters vary by test type)
 - Error Handling: soft_assertions, screenshot/video/trace_on_failure, recovery
-- Integration: Allure reporting, error_context capture
+- Integration: custom report summaries, error_context capture
 
 Use the templates in `specs/templates/` for field names and structure.
 
@@ -52,7 +52,7 @@ test_cases:
   - name: "page_availability_smoke"
     description: "Pages return 2xx and basic DOM is present"
     priority: "critical"
-    allure:
+    reporting:
       epic: "Infrastructure"
       feature: "Availability"
       severity: "critical"

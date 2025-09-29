@@ -46,7 +46,7 @@ test_cases:
   - name: "theme_detection_and_analysis"
     description: "Detect active theme and analyze its structure"
     priority: "medium"
-    allure:
+    reporting:
       epic: "WordPress Themes"
       feature: "Theme Detection"
       story: "As a tester, I want to understand the active theme structure"
@@ -80,7 +80,7 @@ test_cases:
   - name: "block_theme_testing"
     description: "Test block theme (FSE) specific functionality"
     priority: "medium"
-    allure:
+    reporting:
       epic: "WordPress Themes"
       feature: "Block Themes"
       story: "As a user, I want block themes to render correctly"
@@ -117,7 +117,7 @@ test_cases:
   - name: "classic_theme_testing"
     description: "Test classic theme specific elements and functionality"
     priority: "medium"
-    allure:
+    reporting:
       epic: "WordPress Themes"
       feature: "Classic Themes"
       story: "As a user, I want classic themes to function properly"
@@ -153,7 +153,7 @@ test_cases:
   - name: "responsive_design_testing"
     description: "Test theme responsive design across viewports"
     priority: "high"
-    allure:
+    reporting:
       epic: "WordPress Themes"
       feature: "Responsive Design"
       story: "As a mobile user, I want themes to work on all devices"
@@ -189,7 +189,7 @@ test_cases:
   - name: "theme_performance_testing"
     description: "Test theme performance and resource loading"
     priority: "low"
-    allure:
+    reporting:
       epic: "WordPress Themes"
       feature: "Theme Performance"
       story: "As a user, I want fast-loading themes"
@@ -251,7 +251,7 @@ error_handling:
     - screenshot_layout_issues: true
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     attach_viewport_screenshots: true
     include_performance_metrics: true
     theme_analysis_report: true

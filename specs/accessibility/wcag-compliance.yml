@@ -28,7 +28,7 @@ test_cases:
   - name: "automated_accessibility_scanning"
     description: "Run automated accessibility scans using axe-core"
     priority: "critical"
-    allure:
+    reporting:
       epic: "Accessibility"
       feature: "WCAG Compliance"
       story: "As a user with disabilities, I want accessible web content"
@@ -82,13 +82,13 @@ test_cases:
             - remediation_guidance: true
             - help_urls: true
             - affected_elements: true
-          format: "allure_attachment"
+          format: "reporting_attachment"
           description: "Generate detailed accessibility report"
 
   - name: "keyboard_navigation_testing"
     description: "Test keyboard navigation and focus management"
     priority: "high"
-    allure:
+    reporting:
       epic: "Accessibility"
       feature: "Keyboard Navigation"
       story: "As a keyboard user, I want to navigate using only the keyboard"
@@ -138,7 +138,7 @@ test_cases:
   - name: "semantic_structure_validation"
     description: "Validate semantic HTML structure and ARIA implementation"
     priority: "high"
-    allure:
+    reporting:
       epic: "Accessibility"
       feature: "Semantic Structure"
       story: "As a screen reader user, I want properly structured content"
@@ -188,7 +188,7 @@ test_cases:
   - name: "color_and_contrast_testing"
     description: "Test color contrast and visual accessibility"
     priority: "medium"
-    allure:
+    reporting:
       epic: "Accessibility"
       feature: "Color and Contrast"
       story: "As a user with visual impairments, I want sufficient color contrast"
@@ -255,7 +255,7 @@ error_handling:
     - log_keyboard_issues: true
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     attach_accessibility_report: true
     include_violation_screenshots: true
     wcag_guidelines_reference: true

@@ -64,7 +64,7 @@ test_cases:
   - name: "contact_form_plugin_testing"
     description: "Test contact form plugin functionality and compatibility"
     priority: "high"
-    allure:
+    reporting:
       epic: "WordPress Plugins"
       feature: "Contact Form Plugins"
       story: "As a user, I want contact forms to work correctly"
@@ -114,7 +114,7 @@ test_cases:
   - name: "seo_plugin_testing"
     description: "Test SEO plugin functionality and output"
     priority: "medium"
-    allure:
+    reporting:
       epic: "WordPress Plugins"
       feature: "SEO Plugins"
       story: "As a site owner, I want proper SEO optimization"
@@ -157,7 +157,7 @@ test_cases:
   - name: "caching_plugin_testing"
     description: "Test caching plugin compatibility and performance impact"
     priority: "low"
-    allure:
+    reporting:
       epic: "WordPress Plugins"
       feature: "Caching Plugins"
       story: "As a developer, I want caching plugins to work correctly"
@@ -190,7 +190,7 @@ test_cases:
   - name: "security_plugin_testing"
     description: "Test security plugin functionality and headers"
     priority: "medium"
-    allure:
+    reporting:
       epic: "WordPress Plugins"
       feature: "Security Plugins"
       story: "As a site owner, I want proper security measures"
@@ -244,7 +244,7 @@ error_handling:
     - continue_on_plugin_errors: true
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     attach_plugin_analysis: true
     include_performance_impact: true
     security_assessment: true

@@ -8,7 +8,7 @@ module.exports = async () => {
   }
 
   const cwd = process.cwd();
-  const targets = ['allure-results', 'allure-report', 'playwright-report', 'test-results'];
+  const targets = ['playwright-report', 'test-results'];
 
   for (const target of targets) {
     const targetPath = path.join(cwd, target);

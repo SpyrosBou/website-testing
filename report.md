@@ -4,7 +4,7 @@ This report consolidates findings from a review of the current accessibility tes
 
 ## Executive Summary
 
-- Your a11y foundation is solid: axe-core integration, impact-based gating (critical/serious), multi-viewport execution, and rich Allure summaries are all in place and well-implemented.
+- Your a11y foundation is solid: axe-core integration, impact-based gating (critical/serious), multi-viewport execution, and rich report summaries are all in place and well-implemented.
 - Two immediate corrections:
   - Remove unintended restriction to WCAG-tagged rules. Today both a11y specs call `withTags(WCAG_AXE_TAGS)`, limiting checks to WCAG-tagged rules. You intended to run the full ruleset and only annotate WCAG tags when present.
   - Ensure the homepage (`/`) is always included in `testPages` (and discovery output). The homepage is critical for catching global UI patterns.
@@ -27,7 +27,7 @@ Actions:
 
 Success Criteria:
 - Full-rule scans produce equal or more total findings; gating counts stay focused on impact.
-- Allure a11y cards show three buckets: Gating, WCAG advisories, Best-practice advisories.
+- Report a11y cards show three buckets: Gating, WCAG advisories, Best-practice advisories.
 
 ### 2) Homepage Coverage (Mandatory `/'`)
 
@@ -56,7 +56,7 @@ Goals:
 Implementation (new spec: `tests/a11y.keyboard.spec.js`):
 - Programmatically TAB through a limited set of focusables; assert focus visibility and page responsiveness.
 - Trigger common components (menu, modal, accordion, tabs) via keyboard (Enter/Space/Arrows) and validate ARIA state changes.
-- Surface WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7 references alongside the Allure summary so stakeholders know which criteria were exercised.
+- Surface WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7 references alongside the report summary so stakeholders know which criteria were exercised.
 
 ### B. Reflow and Zoom
 
@@ -65,7 +65,7 @@ Goals:
 
 Implementation (extend responsive structure spec or new `tests/a11y.reflow.spec.js`):
 - Set viewport width to ≈320px; check `document.scrollingElement.scrollWidth <= viewportWidth + tolerance` and verify main content landmarks are accessible.
-- Report WCAG 1.4.4 / 1.4.10 coverage directly in the Allure summary.
+- Report WCAG 1.4.4 / 1.4.10 coverage directly in the custom summary.
 
 ### C. Reduced Motion Support
 
@@ -91,7 +91,7 @@ Goals:
 
 Implementation (new spec: `tests/a11y.forms.spec.js`):
 - Validates accessible names for configured form fields, then submits the form blank to confirm aria-invalid, inline error copy, and global alerts surface appropriately.
-- Annotate Allure output with WCAG 1.3.1, 3.3.1–3.3.3, and 4.1.2 references.
+- Annotate report output with WCAG 1.3.1, 3.3.1–3.3.3, and 4.1.2 references.
 
 ### F. Accessibility Tree & Structure
 
@@ -108,7 +108,7 @@ Goals:
 - Enumerate iframes; run axe in same-origin frames; annotate cross-origin frames and validate accessible alternatives (titles/labels).
 
 Implementation:
-- Collect iframes; attempt frame.content(); when cross-origin, record a manual-check item in Allure with the frame URL and context.
+- Collect iframes; attempt frame.content(); when cross-origin, record a manual-check item in the report with the frame URL and context.
 - Surface WCAG 1.3.1 and 4.1.2 coverage badges in the summary so reviewers understand the compliance linkage.
 
 ## Execution Profiles & Scaling
@@ -125,7 +125,7 @@ Actions:
 
 ## Reporting Enhancements
 
-- Allure summaries:
+- Report summaries:
   - [x] Add “Best-practice advisories (no WCAG tag)” section under a11y cards.
   - [x] Include an iframe inventory table per page with scan coverage notes (same-origin vs cross-origin).
   - [x] Add badges/notes for keyboard, reduced motion, and reflow checks per page/viewport.
@@ -165,7 +165,7 @@ Phase 3 (as needed)
 
 ## Success Criteria
 
-- Allure reports show three a11y buckets with counts; homepage is tested in all suites.
+- Reports show three a11y buckets with counts; homepage is tested in all suites.
 - Keyboard, reduced-motion, and reflow checks present per page with clear pass/fail signals.
 - Nightly runs demonstrate broader coverage without flake spikes; daytime runs stay fast and reliable.
 
@@ -179,7 +179,7 @@ Phase 3 (as needed)
 ## Notes Specific to Agilitas
 
 - Add `'/'` to `sites/agilitas-live.json:testPages` and consider adding any pages where global components (banners, cookie notices, modals) consistently appear.
-- If the live site uses third-party embeds (e.g., video, social), prioritize the iframe inventory addition to capture coverage gaps in Allure for manual follow-up.
+- If the live site uses third-party embeds (e.g., video, social), prioritize the iframe inventory addition to capture coverage gaps in the report for manual follow-up.
 
 ---
 

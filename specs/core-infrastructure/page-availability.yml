@@ -22,7 +22,7 @@ test_cases:
   - name: "page_availability_check"
     description: "Verify all configured pages load successfully or handle errors gracefully"
     priority: "critical"
-    allure:
+    reporting:
       epic: "Core Infrastructure"
       feature: "Page Availability"
       story: "As a user, I want all website pages to be accessible"
@@ -97,7 +97,7 @@ error_handling:
       delay: 2000
 
 integration:
-  allure_reporting:
+  reporting_reporting:
     include_steps: true
     step_descriptions:
       - "Navigate to each configured page"

@@ -3,9 +3,9 @@
 ## Project Structure & Module Organization
 - `tests/` Playwright specs: responsive (`responsive.*.spec.js`), functionality (`functionality.*.spec.js`), and `baseline-snapshots/` for visual baselines.
 - `sites/` JSON site configs (e.g., `example-site.json`, `*-local.json`, `*-live.json`).
-- `utils/` helpers (`test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`, `allure-utils.js`).
+- `utils/` helpers (`test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`, `reporting-utils.js`).
 - `specs/` experimental YAML definitions + generator (not wired into the runner).
-- Reports/artifacts: `allure-results/`, `allure-report/`, `playwright-report/`, `test-results/` (git-ignored).
+- Reports/artifacts: `reports/`, `playwright-report/`, `test-results/` (git-ignored).
 
 ## Build, Test, and Development Commands
 - `npm run setup` — install deps and Playwright browsers.
@@ -13,9 +13,9 @@
 - `node run-tests.js --site=<name>` — run against a specific config.
 - `--responsive` / `--functionality` — filter suites (example: `node run-tests.js --site=daygroup-local --responsive`).
 - `--profile=smoke|full|nightly` — presets for common runs (smoke = responsive + Chrome + first page only).
-- `npm run allure-report` — generate and open Allure report.
-- Note: Allure requires Java. If Java is missing, use Playwright HTML report (`playwright-report/index.html`) or `npx playwright show-report`.
-- Cleanup: `npm run clean-allure`, `npm run clean-old-results`, `npm run clean-all-results`, `npm run clean-backup-html`.
+- `npm run viewreport` — open the latest HTML report generated under `reports/` (pass `--list` or `--file=<run>` for history).
+- Notes: reports live in `reports/run-*/report.html`; use `npm run clean-reports` to prune history, and `npm run clean-all-results` to clear Playwright artifacts.
+- Cleanup: `npm run clean-reports`, `npm run clean-old-results`, `npm run clean-all-results`, `npm run clean-backup-html`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
 - For CI smoke runs, consider `sites/nfsmediation-smoke.json` (homepage only) or use `nfsmediation-live`.
  - Deterministic CI option: set `SMOKE_SITE=static-smoke` to use the built-in static server (`scripts/static-server.js`) and `sites/static-smoke.json`.
@@ -29,7 +29,7 @@
 - Optional discovery: when `discover.strategy` is `sitemap`, run `npm run discover_pages -- --site=<name>` to fetch the sitemap, merge up to `maxPages` paths, and apply optional `include`/`exclude` filters without executing tests. Always keep `testPages` aligned with critical routes even when discovery is enabled.
 
 ## Testing Guidelines
-- Frameworks: `@playwright/test` + `@axe-core/playwright`; reporting via `allure-playwright`.
+- Frameworks: `@playwright/test` + `@axe-core/playwright`; reporting via the custom HTML reporter in `utils/custom-html-reporter.js`.
 - Default runs execute only the Chrome desktop Playwright project; pass `--project=all` or comma-separated names to broaden browser coverage.
 - Required env: set `SITE_NAME` implicitly via runner (`--site=<name>`). Running Playwright directly: `SITE_NAME=my-site npx playwright test`.
 - Add new tests under `tests/`.
@@ -43,13 +43,13 @@
   - `functionality.interactive.spec.js` (touches every `testPages` URL with lightweight focus/hover taps while capturing console/resource failures; add client-specific specs when you need real user journeys)
   - `functionality.wordpress.spec.js` (plugins, theme)
 - `functionality.accessibility.spec.js` (WCAG scans)
-- `a11y.forms.spec.js` (form labelling + validation checks driven by `siteConfig.forms`; Allure summary lists WCAG 1.3.1, 3.3.x, and 4.1.2 coverage)
-- `a11y.keyboard.spec.js` (focus order, skip links, keyboard traps, focus visibility; reports WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7)
-- `a11y.resilience.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2)
-- `a11y.structure.spec.js` (landmark + heading integrity; summaries cite WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10)
-- Each functionality spec publishes HTML + Markdown attachments via `utils/allure-utils.js`, so Allure reports include readable tables (availability, HTTP responses, link coverage, interactive errors, plugin/theme detection) instead of bare pass/fail icons.
-  - The manual accessibility suites now add a dedicated “WCAG coverage” banner to their summaries; mirror that pattern for any new audit so reviewers immediately know which success criteria were exercised.
-  - When adding a new spec, always publish a styled HTML + Markdown overview using `attachSummary` and pass `setDescription: true` on the run-level summary. This keeps the Allure Overview pane consistent across suites and makes results scannable without digging into individual attachments.
+- `a11y.forms.spec.js` (form labelling + validation checks driven by `siteConfig.forms`; summaries highlight WCAG 1.3.1, 3.3.x, and 4.1.2 coverage).
+- `a11y.keyboard.spec.js` (focus order, skip links, keyboard traps, focus visibility; summaries cite WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7).
+- `a11y.resilience.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2).
+- `a11y.structure.spec.js` (landmark + heading integrity; summaries cite WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10).
+- Each functionality spec publishes HTML + Markdown attachments via `utils/reporting-utils.js`, so the custom report includes readable tables (availability, HTTP responses, link coverage, interactive errors, plugin/theme detection) instead of bare pass/fail icons.
+  - The manual accessibility suites add a dedicated “WCAG coverage” banner to their summaries; mirror that pattern for any new audit so reviewers immediately know which success criteria were exercised.
+  - When adding a new spec, always publish a styled HTML + Markdown overview using `attachSummary` so the report stays scannable without diving into raw attachments.
 - WCAG-impact findings (e.g., contrast, keyboard traps) are never ignored in automated runs. If the suite flags one, treat it as a bug for the product/design team—do not whitelist it in configs just to satisfy CI.
 - Keyboard audit depth can be tuned per run by exporting `A11Y_KEYBOARD_STEPS` (defaults to 20 forward tabs and one reverse tab sanity check).
 - Structural sample size honours `a11yStructureSampleSize` (falls back to `a11yResponsiveSampleSize`).
@@ -60,14 +60,14 @@ All shared suites traverse the full `testPages` list. The interactive audit is i
   - CLI: `npx playwright test tests/visual.visualregression.spec.js --update-snapshots`
   - Runner helper: `node run-tests.js --update-baselines --site=<name>` or `npm run update-baselines -- --site=<name>`
 - Visual regression defaults to desktop viewports; expand with `--viewport=all` (or `VISUAL_VIEWPORTS`) when you need mobile/tablet snapshots.
-- Generate reports: `npm run allure-report`. Playwright artifacts for the latest run live in `test-results/` (cleared before each execution unless `PW_SKIP_RESULT_CLEAN=true`).
+- Generate reports: the custom HTML reporter runs automatically; view them with `npm run viewreport`. Playwright artifacts for the latest run live in `test-results/` (cleared before each execution unless `PW_SKIP_RESULT_CLEAN=true`).
 
 ### Accessibility Configuration (Optional)
 - Add to your site config to control gating and ignores:
   - `a11yFailOn`: array of impacts to fail on (default `['critical','serious']`).
   - `a11yIgnoreRules`: array of axe rule IDs to ignore (e.g., `"color-contrast"`).
 - `a11yMode`: set to `"gate"` (default) to aggregate violations and fail after the full run, or `"audit"` to log summaries without failing. Suites run in the selected Playwright project (Chrome by default); omit `--project` to execute across all configured browsers/devices.
-- When violations occur, tests attach an Allure text report per page/viewport summarizing rule IDs, help URLs, and node counts.
+- When violations occur, tests attach HTML + Markdown summaries per page/viewport (via `utils/reporting-utils.js`) summarizing rule IDs, help URLs, and node counts in the custom report.
 - `ignoreConsoleErrors`: substrings/regex patterns to filter known console noise during interactive scans.
 - `resourceErrorBudget`: number of failed network requests tolerated before the interactive spec soft-fails (default 0).
 - `testPages`: keep this array tightly aligned with the content that should stay live. Functionality/accessibility specs treat 4xx/5xx as failures, so update the JSON whenever URLs are removed or slugs change. Discovery is opt-in—configure `discover.strategy: "sitemap"` and run with `--discover` when you want to refresh paths.

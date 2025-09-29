@@ -8,7 +8,7 @@ const {
   safeElementInteraction,
 } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
-const { attachSummary, escapeHtml } = require('../utils/allure-utils');
+const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
@@ -144,7 +144,7 @@ test.describe('Responsive Structure & UX', () => {
               }
             }
 
-            // Collect per-page summary for Allure attachment
+            // Collect per-page summary for report attachment
             pageSummaries.push({
               page: testPage,
               loadTime,
@@ -159,7 +159,7 @@ test.describe('Responsive Structure & UX', () => {
           });
         }
 
-        // Attach styled Allure summary for this viewport
+        // Attach styled report summary for this viewport
         const rowsHtml = pageSummaries
           .map((e) => {
             const className = e.loadTime > e.threshold ? 'status-error' : 'status-ok';
@@ -256,7 +256,7 @@ test.describe('Responsive Structure & UX', () => {
         }
       }
 
-      // Attach Allure summary for cross-viewport consistency
+      // Attach report summary for cross-viewport consistency
       const rowsHtml = names
         .map((vp) => {
           const d = contentStructure[vp] || {};
@@ -341,7 +341,7 @@ test.describe('Responsive Structure & UX', () => {
         });
       }
 
-      // Attach Allure summary for WP-specific responsive features
+      // Attach report summary for WP-specific responsive features
       const rowsHtml = features
         .map((f) => {
           const b = (v) => (v ? '✅' : '⚠️');

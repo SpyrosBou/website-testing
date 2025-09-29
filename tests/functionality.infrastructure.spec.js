@@ -7,7 +7,7 @@ const {
   waitForPageStability,
 } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
-const { attachSummary, escapeHtml } = require('../utils/allure-utils');
+const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
 
 const statusClassName = (status) => {
   if (status >= 400) return 'status-error';

@@ -10,10 +10,8 @@ playwright/.cache/
 example-site/  # Generated when using example-site fallback
 playwright-report/
 
-# Allure Reports
-allure-results/
-allure-report/
-.allure/
+# Report artifacts
+reports/
 
 # Screenshots and media files (too large for repo, regenerated each test)
 *.png

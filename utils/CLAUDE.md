@@ -1,6 +1,6 @@
 # Utils Directory Guidance
 
-The utilities in this folder power site loading, sitemap discovery, Playwright orchestration, Allure attachments, and helper routines shared across the spec files. Treat these modules as low-level building blocks—tests in `tests/` should call into them rather than duplicating logic.
+The utilities in this folder power site loading, sitemap discovery, Playwright orchestration, report attachments, and helper routines shared across the spec files. Treat these modules as low-level building blocks—tests in `tests/` should call into them rather than duplicating logic.
 
 ## Key Modules
 
@@ -16,7 +16,7 @@ The utilities in this folder power site loading, sitemap discovery, Playwright o
 ### `test-runner.js`
 - CLI façade around Playwright:
   - Validates the site, prints helpful logging, and optionally performs sitemap discovery (persisting results back to `sites/<name>.json`).
-  - Clears `allure-results/` and `allure-report/`, creates `test-results/` scaffolding, and spawns `npx playwright test` with the correct filters/projects.
+  - Ensures `test-results/` scaffolding exists and clears old artifacts, and spawns `npx playwright test` with the correct filters/projects.
   - Sets `SITE_NAME` (and `SMOKE` when `--profile=smoke`) before launching Playwright.
   - Provides helper entry points: `displaySites()`, `runTestsForSite()`, and `updateBaselines()`.
 - Be mindful that `--discover` writes to disk; gate changes carefully and keep JSON formatting stable (`JSON.stringify(..., null, 2)` plus trailing newline).
@@ -39,14 +39,14 @@ The utilities in this folder power site loading, sitemap discovery, Playwright o
 - Normalises sample data used during interactive form checks (names, emails, etc.).
 - Exposes `createTestData` and `TestDataFactory` for site-specific overrides.
 
-### `allure-utils.js`
-- Wraps Allure attachment logic (`attachSummary`, `attachAllureText`) and consistent HTML styling for summary tables.
-- Use this when emitting new structured attachments so reports stay visually consistent.
+### `reporting-utils.js`
+- Wraps reporting attachment logic (`attachSummary`) and consistent HTML styling for summary tables consumed by the custom reporter.
+- Use this when emitting new structured attachments so the custom report stays visually consistent.
 
 ## Working With the Runner
 - Prefer adding new CLI flags in `run-tests.js` and plumbing them through `TestRunner` rather than shelling out from elsewhere.
 - `updateBaselines(site)` runs only `tests/visual.visualregression.spec.js` with `--update-snapshots`; keep that scoping tight so non-visual baselines remain untouched.
-- If you introduce new artefact folders, mirror the cleanup in both `TestRunner.cleanAllureResults()` and `scripts/playwright-global-setup.js`.
+- If you introduce new artefact folders, mirror the cleanup in both `TestRunner` and `scripts/playwright-global-setup.js`.
 
 ## Error Handling & Logging
 - Use `classifyError` and `isRetryableError` when you need custom retry policies; they already distinguish assertion vs. navigation vs. network issues.

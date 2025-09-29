@@ -258,9 +258,6 @@ class TestRunner {
       throw error;
     }
 
-    // Clean previous Allure results for fresh run
-    this.cleanAllureResults();
-
     // Create test-results directory
     const resultsDir = path.join(process.cwd(), 'test-results', 'screenshots');
     if (!fs.existsSync(resultsDir)) {
@@ -275,7 +272,11 @@ class TestRunner {
       .map((entry) => path.join('tests', entry.name));
 
     const groupExplicitlySelected =
-      options.visual || options.responsive || options.functionality || options.accessibility || options.full;
+      options.visual ||
+      options.responsive ||
+      options.functionality ||
+      options.accessibility ||
+      options.full;
 
     const runAllGroups = options.full || !groupExplicitlySelected;
     const selectedTests = new Set();
@@ -426,13 +427,24 @@ class TestRunner {
       playwright.on('close', (code) => {
         console.log('');
 
-        TestRunner.pruneEmptyAllureVideos();
-
-        const summary = TestRunner.summarizeAllureResults();
-        console.log('Quick Summary:');
-        console.log(`Tests broken: ${summary.broken}`);
-        console.log(`Tests failed: ${summary.failed}`);
-        console.log(`Tests passed: ${summary.passed}`);
+        const summary = TestRunner.readLatestReportSummary();
+        if (summary) {
+          console.log('Quick Summary:');
+          console.log(`Tests passed: ${summary.passed}`);
+          console.log(`Tests failed: ${summary.failed}`);
+          console.log(`Tests skipped: ${summary.skipped}`);
+          if (summary.timedOut) {
+            console.log(`Tests timed out: ${summary.timedOut}`);
+          }
+          if (summary.interrupted) {
+            console.log(`Tests interrupted: ${summary.interrupted}`);
+          }
+          if (typeof summary.flaky === 'number' && summary.flaky > 0) {
+            console.log(`Tests flaky: ${summary.flaky}`);
+          }
+        } else {
+          console.log('Quick Summary: (report not yet available)');
+        }
 
         console.log('');
         if (code === 0) {
@@ -440,8 +452,13 @@ class TestRunner {
         } else {
           console.log('❌ Test run completed with issues.');
         }
-        console.log('📊 Generate Allure report: npm run allure-report');
-        console.log('🧭 HTML report: ./playwright-report/index.html');
+        const viewTarget = summary?.reportFile || summary?.reportPath;
+        if (viewTarget) {
+          console.log(`📰 View report: npm run viewreport -- --file=${viewTarget}`);
+        } else {
+          console.log('📰 View report: npm run viewreport');
+        }
+        console.log('📁 Reports directory: ./reports/');
         console.log('📸 Test artifacts: ./test-results/');
 
         resolve({ code, siteName });
@@ -454,56 +471,33 @@ class TestRunner {
     });
   }
 
-  static summarizeAllureResults() {
-    const summary = {
-      broken: 0,
-      failed: 0,
-      passed: 0,
-      skipped: 0,
-      unknown: 0,
-    };
-
+  static readLatestReportSummary() {
     try {
-      const resultsDir = path.join(process.cwd(), 'allure-results');
-      if (!fs.existsSync(resultsDir)) {
-        return summary;
+      const summaryPath = path.join(process.cwd(), 'reports', 'latest-run.json');
+      if (!fs.existsSync(summaryPath)) {
+        return null;
       }
-
-      const resultFiles = fs
-        .readdirSync(resultsDir)
-        .filter((file) => file.endsWith('-result.json'));
-
-      for (const file of resultFiles) {
-        try {
-          const content = fs.readFileSync(path.join(resultsDir, file), 'utf8');
-          const data = JSON.parse(content);
-          switch ((data.status || '').toLowerCase()) {
-            case 'passed':
-              summary.passed += 1;
-              break;
-            case 'failed':
-              summary.failed += 1;
-              break;
-            case 'broken':
-              summary.broken += 1;
-              break;
-            case 'skipped':
-              summary.skipped += 1;
-              break;
-            default:
-              summary.unknown += 1;
-              break;
-          }
-        } catch (error) {
-          summary.unknown += 1;
-          console.warn(`⚠️  Unable to parse Allure result ${file}: ${error.message}`);
-        }
-      }
+      const raw = fs.readFileSync(summaryPath, 'utf8');
+      const data = JSON.parse(raw);
+      const counts = data.statusCounts || {};
+      const runFolder = data.runFolder || null;
+      const reportRelativePath = data.reportRelativePath || null;
+      return {
+        passed: counts.passed ?? 0,
+        failed: counts.failed ?? 0,
+        skipped: counts.skipped ?? 0,
+        timedOut: counts.timedOut ?? 0,
+        interrupted: counts.interrupted ?? 0,
+        flaky: counts.flaky ?? data.flaky ?? 0,
+        reportPath:
+          runFolder ||
+          (reportRelativePath ? reportRelativePath.replace(/\\/g, '/').split('/')[0] : null),
+        reportFile: reportRelativePath,
+      };
     } catch (error) {
-      console.warn(`⚠️  Unable to collect Allure summary: ${error.message}`);
+      console.warn(`⚠️  Unable to read latest report summary: ${error.message}`);
+      return null;
     }
-
-    return summary;
   }
 
   static inferDdevProjectPath(siteName, baseUrl) {
@@ -642,82 +636,6 @@ class TestRunner {
     }
   }
 
-  static cleanAllureResults() {
-    try {
-      const cwd = process.cwd();
-      const results = path.join(cwd, 'allure-results');
-      const report = path.join(cwd, 'allure-report');
-      fs.rmSync(results, { recursive: true, force: true });
-      fs.rmSync(report, { recursive: true, force: true });
-      console.log('🧹 Cleaned previous test results for fresh run');
-    } catch (_) {
-      // Ignore if directories don't exist
-    }
-  }
-
-  static pruneEmptyAllureVideos() {
-    const allureDir = path.join(process.cwd(), 'allure-results');
-    if (!fs.existsSync(allureDir)) return;
-
-    const entries = fs.readdirSync(allureDir);
-    const smallVideos = new Set();
-    const VIDEO_MIN_BYTES = 2048;
-
-    for (const name of entries) {
-      if (!name.endsWith('.webm')) continue;
-      const fullPath = path.join(allureDir, name);
-      let stats;
-      try {
-        stats = fs.statSync(fullPath);
-      } catch (_) {
-        continue;
-      }
-      if (stats.size > VIDEO_MIN_BYTES) continue;
-
-      try {
-        fs.rmSync(fullPath);
-        smallVideos.add(name);
-      } catch (_) {
-        // best-effort cleanup
-      }
-    }
-
-    if (smallVideos.size === 0) return;
-
-    const pruneNode = (node) => {
-      if (!node || typeof node !== 'object') return;
-      if (Array.isArray(node.attachments)) {
-        node.attachments = node.attachments.filter(
-          (attachment) => !smallVideos.has(attachment.source)
-        );
-      }
-      if (Array.isArray(node.steps)) node.steps.forEach(pruneNode);
-      if (Array.isArray(node.befores)) node.befores.forEach(pruneNode);
-      if (Array.isArray(node.afters)) node.afters.forEach(pruneNode);
-    };
-
-    const jsonFiles = entries.filter((name) => name.endsWith('.json'));
-    for (const jsonFile of jsonFiles) {
-      const fullPath = path.join(allureDir, jsonFile);
-      let data;
-      try {
-        data = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
-      } catch (_) {
-        continue;
-      }
-
-      pruneNode(data);
-
-      try {
-        fs.writeFileSync(fullPath, `${JSON.stringify(data, null, 2)}\n`);
-      } catch (_) {
-        // ignore
-      }
-    }
-
-    console.log(`🧹 Removed ${smallVideos.size} empty video attachment(s) from allure results`);
-  }
-
   // Removed unsafe process cleanup; no-op retained for compatibility
   static killOrphanedReportServers() {
     /* no-op */
@@ -729,7 +647,13 @@ class TestRunner {
     return new Promise((resolve, reject) => {
       const playwright = spawn(
         'npx',
-        ['playwright', 'test', 'tests/visual.visualregression.spec.js', '--update-snapshots', 'all'],
+        [
+          'playwright',
+          'test',
+          'tests/visual.visualregression.spec.js',
+          '--update-snapshots',
+          'all',
+        ],
         {
           stdio: 'inherit',
           env: { ...process.env, SITE_NAME: siteName },

@@ -28,22 +28,8 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: resolveWorkerCount(),
   reporter: [
-    [
-      'allure-playwright',
-      {
-        resultsDir: 'allure-results',
-        suiteTitle: 'WordPress Testing Suite',
-        detail: true,
-        outputFolder: 'allure-report',
-        environmentInfo: {
-          framework: 'playwright',
-          language: 'javascript',
-          project_type: 'wordpress_testing',
-        },
-      },
-    ],
-    ['html', { open: 'never' }], // Lightweight backup HTML report
-    ['list'], // Console output
+    ['./utils/custom-html-reporter', { outputFolder: 'reports', reportFileName: 'report.html' }],
+    ['list'],
   ],
   // Allow long-running accessibility sweeps without per-test limits
   timeout: 0,

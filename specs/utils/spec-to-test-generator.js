@@ -172,9 +172,6 @@ const { WordPressPageObjects } = require('../utils/wordpress-page-objects');`;
     const testCode = [];
     const timeout = testCase.timeout || spec.configuration?.timeout || 30000;
     
-    // Generate test header with Allure annotations
-    testCode.push(this.generateTestAnnotations(testCase));
-    
     testCode.push(this.indent(`test("${testCase.description}", async ({ page }) => {`));
     this.indentLevel++;
 
@@ -206,30 +203,6 @@ const { WordPressPageObjects } = require('../utils/wordpress-page-objects');`;
   }
 
   /**
-   * Generate Allure test annotations
-   */
-  generateTestAnnotations(testCase) {
-    const annotations = [];
-    
-    if (testCase.allure) {
-      if (testCase.allure.epic) {
-        annotations.push(this.indent(`await allure.epic("${testCase.allure.epic}");`));
-      }
-      if (testCase.allure.feature) {
-        annotations.push(this.indent(`await allure.feature("${testCase.allure.feature}");`));
-      }
-      if (testCase.allure.story) {
-        annotations.push(this.indent(`await allure.story("${testCase.allure.story}");`));
-      }
-      if (testCase.allure.severity) {
-        annotations.push(this.indent(`await allure.severity("${testCase.allure.severity}");`));
-      }
-    }
-
-    return annotations.join('\n');
-  }
-
-  /**
    * Generate page availability test
    */
   generatePageAvailabilityTest() {
@@ -246,9 +219,6 @@ const { WordPressPageObjects } = require('../utils/wordpress-page-objects');`;
           
           if (response.status() === 404) {
             console.log(\`⚠️  Page not found: \${testPage} - skipping further tests\`);
-            await allure.step(\`Page not found: \${testPage}\`, async () => {
-              await allure.attachment('Page Status', '404 - Not Found', 'text/plain');
-            });
             return; // Skip this page
           }
           
@@ -336,8 +306,6 @@ const { WordPressPageObjects } = require('../utils/wordpress-page-objects');`;
         \`\${link.url} (Status: \${link.status}) on page \${link.page}\`
       ).join('\\n');
       
-      await allure.attachment('Broken Links Report', report, 'text/plain');
-      
       // Use soft assertion to continue testing
       console.error(\`❌ Found \${brokenLinks.length} broken links:\\n\${report}\`);
       expect.soft(brokenLinks.length).toBe(0);
@@ -411,8 +379,6 @@ const { WordPressPageObjects } = require('../utils/wordpress-page-objects');`;
       const errorReport = consoleErrors.map(error => 
         \`Page: \${error.url}\\nError: \${error.message}\${error.stack ? '\\nStack: ' + error.stack.substring(0, 200) + '...' : ''}\`
       ).join('\\n\\n');
-      
-      await allure.attachment('JavaScript Errors', errorReport, 'text/plain');
       
       console.error(\`❌ Found \${consoleErrors.length} JavaScript errors\`);
       expect.soft(consoleErrors.length).toBe(0);
@@ -531,8 +497,6 @@ const { WordPressPageObjects } = require('../utils/wordpress-page-objects');`;
             const violationReport = criticalViolations.map(violation => 
               \`\${violation.id}: \${violation.description}\\nImpact: \${violation.impact}\\nHelp: \${violation.helpUrl}\\nNodes: \${violation.nodes.length}\`
             ).join('\\n\\n');
-            
-            await allure.attachment(\`Accessibility Violations - \${testPage}\`, violationReport, 'text/plain');
             
             console.error(\`❌ \${criticalViolations.length} critical accessibility violations on \${testPage}\`);
             expect.soft(criticalViolations.length).toBe(0);
