@@ -2,7 +2,8 @@
 const fs = require('fs');
 const path = require('path');
 const minimist = require('minimist');
-const openBrowser = require('open');
+const openModule = require('open');
+const openBrowser = openModule.default || openModule;
 
 const args = minimist(process.argv.slice(2));
 const reportsDir = path.join(process.cwd(), 'reports');
