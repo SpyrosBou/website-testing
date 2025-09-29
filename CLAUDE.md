@@ -73,6 +73,12 @@ The test suite is split into modular spec files for better maintainability and p
 - `functionality.wordpress.spec.js` - WordPress-specific plugin and theme testing
 - `functionality.accessibility.spec.js` - Comprehensive WCAG scanning
 
+**Accessibility Deep-Dive Tests**:
+- `a11y.forms.spec.js` - Form accessibility validation for configured forms
+- `a11y.keyboard.spec.js` - Keyboard navigation audit with focus indicator detection
+- `a11y.resilience.spec.js` - Reduced-motion, reflow/zoom, and iframe accessibility checks
+- `a11y.structure.spec.js` - Structural landmark validation (H1, main, heading outline)
+
 Shared suites (infrastructure, links, accessibility, responsive) assert against every `testPages` entry. Only the interactive audit stays intentionally light-touch so it remains stable across clients; reach for site-specific interactive specs when you need deep user journeys or authenticated flows.
 
 ### Site Configuration System
@@ -97,6 +103,11 @@ The `run-tests.js` script orchestrates test execution:
 - `utils/test-helpers.js` - Advanced error handling, retry mechanisms, browser lifecycle
 - `utils/wordpress-page-objects.js` - WordPress-specific page object patterns
 - `utils/test-data-factory.js` - Test data generation for forms
+- `utils/custom-html-reporter.js` - Custom HTML report generator with inline screenshots and structured summaries
+- `utils/reporting-utils.js` - Report attachment helpers for consistent HTML/Markdown output
+- `utils/report-templates.js` - HTML templates for the custom report
+- `utils/responsive-helpers.js` - Viewport definitions and WordPress selector patterns
+- `utils/a11y-*.js` - Accessibility testing utilities (runner, shared helpers, utils)
 
 ### Report Organization
 - `reports/` - Custom HTML report history (each run gets `run-<timestamp>/report.html` plus `data/` JSON).
@@ -111,6 +122,12 @@ The `run-tests.js` script orchestrates test execution:
 - URLs typically end with `.local` domain
 - May require longer timeouts due to local environment performance
 
+### DDEV Integration
+- The runner can auto-start DDEV projects when sites use `.ddev.site` domains
+- Use `--local` flag to enable DDEV preflight (sets `ENABLE_DDEV=true` and infers `DDEV_PROJECT_PATH` from `/home/warui/sites/<project>`)
+- Or manually set `ENABLE_DDEV=true` and `DDEV_PROJECT_PATH=/path/to/your/wp/project`
+- Runner attempts `ddev start` and waits up to 2 minutes for site response
+
 ### Theme and Plugin Compatibility
 - Test selectors should account for theme variations
 - Use multiple fallback selectors for critical elements
@@ -124,9 +141,9 @@ The `run-tests.js` script orchestrates test execution:
 - Admin bar and logged-in states should be avoided in tests
 
 ## Testing Profiles
-- `--profile=smoke` - Fast feedback: responsive tests, Chrome only, single page
+- `--profile=smoke` - Fast feedback: functionality-only, Chrome only, homepage only
 - `--profile=full` - Comprehensive: all tests, all browsers (default)
-- `--profile=nightly` - Extended testing for scheduled runs
+- `--profile=nightly` - Extended testing: runs visual + responsive + functionality + accessibility, forces `--a11y-sample=all`, bumps keyboard audit depth to 40 steps
 
 ## Critical Implementation Details
 
@@ -138,6 +155,8 @@ The test runner automatically sets:
 Helpers also recognise:
 - `PW_SKIP_RESULT_CLEAN` - Skip automatic artifact cleanup in global setup when `true`
 - `ENABLE_DDEV` and `DDEV_PROJECT_PATH` - Allow `test-runner` to start a ddev project if a `.ddev.site` base URL is unreachable
+- `VISUAL_VIEWPORTS` - Override viewports for visual regression (e.g., `desktop`, `mobile,tablet,desktop`, or `all`)
+- `A11Y_KEYBOARD_STEPS` - Override keyboard audit TAB depth (default: 20)
 
 ### Visual Regression Thresholds
 Sites can customize thresholds in configuration:
@@ -146,6 +165,37 @@ Sites can customize thresholds in configuration:
   "ui_elements": 0.1,    // 10% for UI components
   "content": 0.25,        // 25% for text content
   "dynamic": 0.5          // 50% for dynamic areas
+}
+```
+
+Default threshold is `0.05` (5%) when not configured. Use `visualOverrides` for per-page threshold adjustments.
+
+### Accessibility Configuration
+- `a11yFailOn` - Array of impact levels to gate on (default: `["critical","serious"]`)
+- `a11yIgnoreRules` - Array of axe rule IDs to ignore (e.g., `"color-contrast"`)
+- `a11yMode` - `"gate"` (default, fail on violations) or `"audit"` (log only, no failures)
+- `a11yResponsiveSampleSize` - Pages per viewport for responsive a11y (default: 3, or use `--a11y-sample=N` or `--a11y-sample=all`)
+- `a11yKeyboardSampleSize`, `a11yMotionSampleSize`, `a11yReflowSampleSize`, `a11yIframeSampleSize`, `a11yStructureSampleSize` - Optional overrides for specific audit types
+
+Use `--a11y-tags=wcag` to scope axe scans to WCAG-tagged rules only.
+
+### Link Checking Configuration
+```json
+"linkCheck": {
+  "maxPerPage": 20,        // Max links to check per page
+  "timeoutMs": 5000,       // Request timeout
+  "followRedirects": true, // Follow redirect chains
+  "methodFallback": true   // Retry with GET when HEAD fails
+}
+```
+
+### Performance Budgets
+Optional soft gates for DOM timing metrics:
+```json
+"performanceBudgets": {
+  "domContentLoaded": 2500,     // ms
+  "loadComplete": 4000,          // ms
+  "firstContentfulPaint": 2000   // ms
 }
 ```
 
@@ -160,3 +210,17 @@ For CI reliability, a static test server is available:
 - Server: `scripts/static-server.js` serves `fixtures/static-site/` on port 8080
 - Config: `sites/static-smoke.json` for deterministic smoke tests
 - CI auto-starts server when `SMOKE_SITE=static-smoke`
+
+## Page Discovery
+Add a `discover` block to site config for sitemap-based page discovery:
+```json
+"discover": {
+  "strategy": "sitemap",
+  "sitemapUrl": "https://example.com/sitemap_index.xml",
+  "maxPages": 25,
+  "include": ["^/services"],
+  "exclude": ["^/tag/"]
+}
+```
+
+Run with `--discover` to refresh `testPages` from sitemap before running tests.
