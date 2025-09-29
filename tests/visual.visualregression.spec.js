@@ -109,6 +109,7 @@ test.describe('Visual Regression', () => {
           : siteConfig.testPages;
         const visualSummaries = [];
         const diffEntries = [];
+        const pendingAttachments = [];
 
         for (const testPage of pagesToTest) {
           await test.step(`Visual ${viewportName}: ${testPage}`, async () => {
@@ -182,24 +183,16 @@ test.describe('Visual Regression', () => {
 
             const collectVisualArtifacts = async (includeDiffArtifacts = false) => {
               const artifactInfo = { baseline: null, actual: null, diff: null };
-              const attachImage = async (label, filePath, inlinePreview = false) => {
-                if (!filePath || !fs.existsSync(filePath)) return null;
-                const attachmentName = `${artifactsLabel}-${label}.png`;
-                const preview = inlinePreview ? toDataUri(filePath) : null;
-                try {
-                  await testInfo.attach(attachmentName, {
-                    path: filePath,
-                    contentType: 'image/png',
-                  });
-                } catch (_error) {
-                  // Ignore attachment failures; preview still useful.
-                }
-                return { name: attachmentName, preview };
-              };
+            const registerAttachment = (label, filePath) => {
+              if (!filePath || !fs.existsSync(filePath)) return null;
+              const attachmentName = `${artifactsLabel}-${label}.png`;
+              pendingAttachments.push({ name: attachmentName, path: filePath });
+              return { name: attachmentName };
+            };
 
               if (includeDiffArtifacts) {
                 const baselinePath = testInfo.snapshotPath(screenshotName);
-                artifactInfo.baseline = await attachImage('baseline', baselinePath, true);
+                artifactInfo.baseline = registerAttachment('baseline', baselinePath);
 
                 const baseName = artifactsLabel;
                 const actualCandidates = [
@@ -217,8 +210,8 @@ test.describe('Visual Regression', () => {
                 const actualPath = findExisting(actualCandidates);
                 const diffPath = findExisting(diffCandidates);
 
-                artifactInfo.actual = await attachImage('actual', actualPath, true);
-                artifactInfo.diff = await attachImage('diff', diffPath, true);
+                artifactInfo.actual = registerAttachment('actual', actualPath);
+                artifactInfo.diff = registerAttachment('diff', diffPath);
               }
 
               return artifactInfo;
@@ -295,20 +288,12 @@ test.describe('Visual Regression', () => {
             }
             const notes = `<ul class="checks">${noteItems.join('')}</ul>`;
             const hasArtifacts = Boolean(e.artifacts?.baseline || e.artifacts?.actual || e.artifacts?.diff);
+            const renderLink = (artifact, label) =>
+              artifact?.name
+                ? `<li><a href="attachment://${escapeHtml(artifact.name)}" target="_blank">${label}</a></li>`
+                : '';
             const artifactsCell = hasArtifacts
-              ? `
-                <div class="visual-previews">
-                  ${e.artifacts?.baseline?.preview
-                    ? `<figure class="visual-previews__item visual-previews__item--baseline"><img src="${e.artifacts.baseline.preview}" alt="Baseline screenshot"><figcaption>Baseline</figcaption></figure>`
-                    : ''}
-                  ${e.artifacts?.actual?.preview
-                    ? `<figure class="visual-previews__item visual-previews__item--actual"><img src="${e.artifacts.actual.preview}" alt="Actual screenshot"><figcaption>Local Build</figcaption></figure>`
-                    : ''}
-                  ${e.artifacts?.diff?.preview
-                    ? `<figure class="visual-previews__item visual-previews__item--diff"><img src="${e.artifacts.diff.preview}" alt="Diff screenshot"><figcaption>Diff Overlay</figcaption></figure>`
-                    : ''}
-                </div>
-              `
+              ? `<ul class="checks">${renderLink(e.artifacts?.baseline, 'Baseline')}${renderLink(e.artifacts?.actual, 'Actual')}${renderLink(e.artifacts?.diff, 'Diff')}</ul>`
               : '<span class="details">—</span>';
             return `
               <tr class="${className}">
@@ -334,9 +319,9 @@ test.describe('Visual Regression', () => {
 
         const mdRows = visualSummaries.map((e) => {
           const artifacts = [];
-          if (e.artifacts?.baseline) artifacts.push('Baseline');
-          if (e.artifacts?.actual) artifacts.push('Actual');
-          if (e.artifacts?.diff) artifacts.push('Diff');
+          if (e.artifacts?.baseline?.name) artifacts.push('Baseline');
+          if (e.artifacts?.actual?.name) artifacts.push('Actual');
+          if (e.artifacts?.diff?.name) artifacts.push('Diff');
           const artifactText = artifacts.length > 0 ? artifacts.join(', ') : '—';
           const diffDetailsMd = e.diffMetrics?.pixelDiff
             ? `${e.diffMetrics.pixelDiff.toLocaleString()} px${
@@ -361,6 +346,13 @@ test.describe('Visual Regression', () => {
           markdown,
           setDescription: true,
         });
+
+        for (const artifact of pendingAttachments) {
+          await testInfo.attach(artifact.name, {
+            path: artifact.path,
+            contentType: 'image/png',
+          });
+        }
 
         if (diffEntries.length > 0) {
           const pageList = diffEntries.map((entry) => `\`${entry.page}\``).join(', ');
