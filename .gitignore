@@ -61,3 +61,6 @@ Thumbs.db
 
 # Playwright browsers (auto-installed)
 /blob-report/
+
+# Terminal Paste Image folder
+.cp-images/
