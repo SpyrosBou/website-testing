@@ -244,6 +244,11 @@ class TestRunner {
       console.log(`Pages to test: ${siteConfig.testPages.join(', ')}`);
       console.log('');
 
+      if (options.discoverOnly) {
+        console.log('✅ Discovery complete; no Playwright tests executed.');
+        return { code: 0, siteName };
+      }
+
       // Optional local preflight for ddev-based sites
       await this.preflightLocalSite(siteConfig);
     } catch (error) {
