@@ -15,8 +15,8 @@ node run-tests.js --site=SITENAME --full            # Explicit full suite run
 node run-tests.js --site=SITENAME --visual           # Visual regression only (Chrome desktop by default)
 node run-tests.js --site=SITENAME --visual --project=all --viewport=all    # Expand browsers/viewports
 node run-tests.js --site=SITENAME --responsive       # Responsive structure tests only
-node run-tests.js --site=SITENAME --functionality    # Functionality tests only
-node run-tests.js --site=SITENAME --accessibility    # Accessibility tests only
+node run-tests.js --site=SITENAME --functionality    # Functionality tests only (includes functionality.accessibility.spec.js)
+node run-tests.js --site=SITENAME --accessibility    # All accessibility tests (responsive.a11y + functionality.accessibility + a11y.*)
 
 # List available sites
 node run-tests.js --list
@@ -27,7 +27,7 @@ npm run discover_pages -- --site=SITENAME
 # Run single test file directly with Playwright
 SITE_NAME=SITENAME npx playwright test tests/functionality.infrastructure.spec.js
 
-# Smoke test profile (fast, Chrome-only, functionality-only)
+# Smoke test profile (fast, Chrome-only, functionality-only, homepage-only)
 node run-tests.js --site=SITENAME --profile=smoke
 
 # Update visual regression baselines after intentional changes
@@ -41,6 +41,9 @@ npm run viewreport
 
 # List available report runs
 npm run viewreport -- --list
+
+# Open specific report run
+npm run viewreport -- --file=run-YYYYMMDD-HHMMSS
 
 # Prune report history (keeps 10 most recent)
 npm run clean-reports
@@ -61,25 +64,34 @@ npm run format      # Format code with Prettier
 ### Test Organization Strategy
 The test suite is split into modular spec files for better maintainability and parallel execution:
 
-**Responsive & Visual Tests**:
-- `responsive.structure.spec.js` - Layout and critical elements across viewports
+**Visual Tests**:
 - `visual.visualregression.spec.js` - Visual regression with masked dynamic content (defaults to desktop; extend via `--viewport` or `VISUAL_VIEWPORTS`)
-- `responsive.a11y.spec.js` - WCAG 2.1 AA accessibility compliance
+
+**Responsive Tests**:
+- `responsive.structure.spec.js` - Layout and critical elements across viewports (mobile/tablet/desktop)
+- `responsive.a11y.spec.js` - WCAG 2.1 AA accessibility compliance across viewports (triggered by `--accessibility` flag, NOT `--responsive`)
 
 **Functionality Tests** (Core behavior):
-- `functionality.infrastructure.spec.js` - Page availability, HTTP responses, performance
-- `functionality.links.spec.js` - Internal link validation
-- `functionality.interactive.spec.js` - Lightweight focus/hover audit across every `testPages` URL that logs console and network issues; add site-specific specs for real user journeys or form workflows
-- `functionality.wordpress.spec.js` - WordPress-specific plugin and theme testing
-- `functionality.accessibility.spec.js` - Comprehensive WCAG scanning
+- `functionality.infrastructure.spec.js` - Page availability, HTTP responses, performance budgets
+- `functionality.links.spec.js` - Internal link validation with sampling
+- `functionality.interactive.spec.js` - Lightweight focus/hover audit that logs console and network issues
+- `functionality.wordpress.spec.js` - WordPress-specific plugin and theme detection
+- `functionality.accessibility.spec.js` - Comprehensive axe-core WCAG scanning (triggered by BOTH `--functionality` and `--accessibility` flags)
 
-**Accessibility Deep-Dive Tests**:
+**Accessibility Deep-Dive Tests** (all triggered by `--accessibility` flag):
 - `a11y.forms.spec.js` - Form accessibility validation for configured forms
 - `a11y.keyboard.spec.js` - Keyboard navigation audit with focus indicator detection
 - `a11y.resilience.spec.js` - Reduced-motion, reflow/zoom, and iframe accessibility checks
 - `a11y.structure.spec.js` - Structural landmark validation (H1, main, heading outline)
 
-Shared suites (infrastructure, links, accessibility, responsive) assert against every `testPages` entry. Only the interactive audit stays intentionally light-touch so it remains stable across clients; reach for site-specific interactive specs when you need deep user journeys or authenticated flows.
+**How Test Filtering Works:**
+- `--visual` → Runs ONLY `visual.visualregression.spec.js`
+- `--responsive` → Runs ONLY `responsive.structure.spec.js` (NOT responsive.a11y.spec.js)
+- `--functionality` → Runs ALL `functionality.*.spec.js` files (5 files including functionality.accessibility.spec.js)
+- `--accessibility` → Runs ALL files matching pattern `/accessibility|a11y/i` (7 files: responsive.a11y + functionality.accessibility + all 4 a11y.* specs)
+- `--full` or no flags → Runs ALL test specs (12 files total)
+
+Shared suites (infrastructure, links, functionality.accessibility, responsive.structure, visual) assert against every `testPages` entry. The interactive audit stays intentionally lightweight so it remains stable across clients; create site-specific specs when you need deep user journeys or authenticated flows.
 
 ### Site Configuration System
 Each WordPress site requires a JSON configuration in `sites/` directory:
@@ -93,8 +105,9 @@ Each WordPress site requires a JSON configuration in `sites/` directory:
 The `run-tests.js` script orchestrates test execution:
 1. Loads and validates the requested site configuration from `sites/`.
 2. When `--discover` is supplied and the config uses `discover.strategy: "sitemap"`, fetches the sitemap, merges paths, and writes the updated `testPages` back to the JSON file.
-3. Sets `SITE_NAME` (and `SMOKE=1` for the smoke profile) before spawning Playwright with the requested spec filters/projects.
-4. Relies on `scripts/playwright-global-setup.js` to clear `playwright-report/` and `test-results/` unless `PW_SKIP_RESULT_CLEAN=true`.
+3. Categorizes test files based on filename patterns and selected flags (`--visual`, `--responsive`, `--functionality`, `--accessibility`).
+4. Sets `SITE_NAME` (and `SMOKE=1` for the smoke profile) before spawning Playwright with the requested spec filters/projects.
+5. Relies on `scripts/playwright-global-setup.js` to clear `playwright-report/` and `test-results/` unless `PW_SKIP_RESULT_CLEAN=true`.
 
 ### Key Utilities
 - `utils/test-runner.js` - Main test orchestration and site management
@@ -107,7 +120,7 @@ The `run-tests.js` script orchestrates test execution:
 - `utils/reporting-utils.js` - Report attachment helpers for consistent HTML/Markdown output
 - `utils/report-templates.js` - HTML templates for the custom report
 - `utils/responsive-helpers.js` - Viewport definitions and WordPress selector patterns
-- `utils/a11y-*.js` - Accessibility testing utilities (runner, shared helpers, utils)
+- `utils/a11y-runner.js`, `utils/a11y-shared.js`, `utils/a11y-utils.js` - Accessibility testing utilities
 
 ### Report Organization
 - `reports/` - Custom HTML report history (each run gets `run-<timestamp>/report.html` plus `data/` JSON).
@@ -141,21 +154,25 @@ The `run-tests.js` script orchestrates test execution:
 - Admin bar and logged-in states should be avoided in tests
 
 ## Testing Profiles
-- `--profile=smoke` - Fast feedback: functionality-only, Chrome only, homepage only
-- `--profile=full` - Comprehensive: all tests, all browsers (default)
-- `--profile=nightly` - Extended testing: runs visual + responsive + functionality + accessibility, forces `--a11y-sample=all`, bumps keyboard audit depth to 40 steps
+- `--profile=smoke` - Fast feedback: functionality-only, Chrome only, homepage only (sets `SMOKE=1` which makes responsive specs sample 1 page)
+- `--profile=full` - Comprehensive: all tests, all browsers (default behavior)
+- `--profile=nightly` - Extended testing: runs visual + responsive + functionality + accessibility, forces `--a11y-sample=all`, bumps keyboard audit depth to 40 steps (sets `NIGHTLY=1`)
 
 ## Critical Implementation Details
 
 ### Environment Variables
 The test runner automatically sets:
 - `SITE_NAME` - Required by all test files to load configuration
-- `SMOKE` - Set to `1` when `--profile=smoke` so responsive specs sample a single page
+- `SMOKE` - Set to `1` when `--profile=smoke` so responsive specs sample a single page instead of all testPages
+- `NIGHTLY` - Set to `1` when `--profile=nightly`
 
 Helpers also recognise:
 - `PW_SKIP_RESULT_CLEAN` - Skip automatic artifact cleanup in global setup when `true`
 - `ENABLE_DDEV` and `DDEV_PROJECT_PATH` - Allow `test-runner` to start a ddev project if a `.ddev.site` base URL is unreachable
+- `RESPONSIVE_VIEWPORTS` - Override viewports for responsive.structure tests (e.g., `desktop`, `mobile,tablet,desktop`, or `all`)
 - `VISUAL_VIEWPORTS` - Override viewports for visual regression (e.g., `desktop`, `mobile,tablet,desktop`, or `all`)
+- `A11Y_TAGS_MODE` - Scope axe scans to `wcag` rules only or `all` rules (default: `all`)
+- `A11Y_SAMPLE` - Override responsive a11y sample size (e.g., `3`, `10`, or `all`)
 - `A11Y_KEYBOARD_STEPS` - Override keyboard audit TAB depth (default: 20)
 
 ### Visual Regression Thresholds
