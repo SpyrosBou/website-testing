@@ -314,8 +314,12 @@ class TestRunner {
     // Set environment variables for test execution
     process.env.SITE_NAME = siteName;
 
-    const projectInputRaw =
-      typeof options.project === 'string'
+    const projectInputRaw = Array.isArray(options.project)
+      ? options.project
+          .map((entry) => String(entry || '').trim())
+          .filter(Boolean)
+          .join(',')
+      : typeof options.project === 'string'
         ? options.project.trim()
         : options.project === true
           ? 'Chrome'
