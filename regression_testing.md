@@ -28,18 +28,17 @@ This note captures the remaining tasks to harden our Playwright-based visual reg
 
 ## Implementation Hints
 - Snapshot path template is set in `playwright.config.js` (baseline under `tests/baseline-snapshots/`).
-- Visual test lives at `tests/responsive.visual.spec.js`. It already supports:
+- Visual test lives at `tests/visual.visualregression.spec.js`. It already supports:
   - Per‑site thresholds (`visualThresholds`), per‑page overrides (`visualOverrides`), and masks (`dynamicMasks`).
   - Per‑viewport Allure summaries (HTML + Markdown).
 - Add diff links by mapping the test name + project to artifact paths inside `test-results/` and attaching `<a>` elements in the summary table.
 
 ## Docs to Keep Current
 - README: how to update baselines, how thresholds/masks/overrides work, reminder about keeping `testPages` current.
-- tests/CLAUDE.md: note that responsive visual/structure specs also attach Allure summaries.
+- tests/CLAUDE.md: note that visual regression and responsive structure specs also attach Allure summaries.
 
 ## Quick Commands
 - Update visual baselines for a site (visuals only):
   - `npm run update-baselines -- --site=<name>`
-- Run responsive visuals only:
-  - `node run-tests.js --site=<name> --responsive --project=Chrome`
-
+- Run visual regression only (defaults to Chrome desktop):
+  - `node run-tests.js --site=<name> --visual`

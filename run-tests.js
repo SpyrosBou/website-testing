@@ -6,6 +6,16 @@ const TestRunner = require('./utils/test-runner');
 // Parse command line arguments
 const argv = minimist(process.argv.slice(2));
 
+const coerceFlag = (value) => {
+  if (value === undefined) return false;
+  if (typeof value === 'string') {
+    const normalised = value.trim().toLowerCase();
+    if (normalised === 'false' || normalised === '0') return false;
+    if (normalised === 'true' || normalised === '1' || normalised.length === 0) return true;
+  }
+  return Boolean(value);
+};
+
 function showUsage() {
   console.log(`
 WordPress Testing Suite Usage:
@@ -18,11 +28,13 @@ WordPress Testing Suite Usage:
 
 Available options:
   --site=SITE_NAME    Test specific site configuration
-  --profile=smoke|full|nightly  Preset options (smoke = responsive+Chrome)
-  --responsive        Run only responsive tests
-  --functionality     Run only functionality tests  
+  --profile=smoke|full|nightly  Preset options (smoke = functionality+Chrome)
+  --visual            Run only visual regression tests
+  --responsive        Run only responsive structure tests
+  --functionality     Run only functionality tests
   --accessibility     Run only accessibility-focused tests
-  --update-baselines  Update visual baselines for responsive visual tests
+  --full              Run the entire suite (visual + responsive + functionality + accessibility)
+  --update-baselines  Update visual baselines for visual regression tests
   --discover          Refresh the site's testPages from its sitemap before running
   --a11y-tags=all|wcag  Toggle axe rule scoping (default: all)
   --a11y-sample=N|all  Override responsive a11y sample size (default: 3 pages)
@@ -35,9 +47,10 @@ Examples:
   npm test                                       # Default run for example-site
   node run-tests.js --site=daygroup-local        # Test local development site
   node run-tests.js --site=daygroup-live         # Test live production site
-  node run-tests.js --site=nfsmediation-local --responsive
+  node run-tests.js --site=nfsmediation-local --visual
   node run-tests.js --site=daygroup-live --functionality
   node run-tests.js --site=daygroup-live --accessibility
+  node run-tests.js --site=daygroup-live --full
 `);
 }
 
@@ -64,9 +77,11 @@ async function runTests() {
   // Build options from CLI arguments and profile
   const profile = argv.profile;
   const options = {
-    responsive: argv.responsive,
-    functionality: argv.functionality,
-    accessibility: argv.accessibility,
+    visual: coerceFlag(argv.visual),
+    responsive: coerceFlag(argv.responsive),
+    functionality: coerceFlag(argv.functionality),
+    accessibility: coerceFlag(argv.accessibility),
+    full: coerceFlag(argv.full),
     headed: argv.headed,
     debug: argv.debug,
     project: argv.project,
@@ -80,20 +95,29 @@ async function runTests() {
 
   if (profile === 'smoke') {
     // Smoke = functionality-only, single browser, homepage only
+    options.visual = false;
     options.responsive = false;
     options.functionality = true;
+    options.accessibility = false;
+    options.full = false;
     options.project = options.project || 'Chrome';
     process.env.SMOKE = '1';
   }
 
   if (profile === 'nightly') {
+    options.visual = true;
     options.responsive = true;
     options.functionality = true;
     options.accessibility = true;
+    options.full = false;
     options.project = options.project || 'Chrome';
     options.a11ySample = options.a11ySample || 'all';
     options.a11yKeyboardSteps = options.a11yKeyboardSteps || '40';
     process.env.NIGHTLY = '1';
+  }
+
+  if (profile === 'full') {
+    options.full = true;
   }
 
   try {

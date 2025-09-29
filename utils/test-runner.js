@@ -269,34 +269,57 @@ class TestRunner {
       .filter((entry) => entry.isFile() && entry.name.endsWith('.spec.js'))
       .map((entry) => path.join('tests', entry.name));
 
+    const groupExplicitlySelected =
+      options.visual || options.responsive || options.functionality || options.accessibility || options.full;
+
+    const runAllGroups = options.full || !groupExplicitlySelected;
     const selectedTests = new Set();
-    if (options.responsive) {
-      for (const file of testEntries) {
-        if (path.basename(file).startsWith('responsive.')) {
-          selectedTests.add(file);
-        }
+
+    for (const file of testEntries) {
+      const baseName = path.basename(file);
+      const isVisual = baseName.startsWith('visual.');
+      const isResponsiveStructure = baseName.startsWith('responsive.') && !/a11y/i.test(baseName);
+      const isFunctionality = baseName.startsWith('functionality.');
+      const isAccessibility = /accessibility|a11y/i.test(baseName);
+
+      if (runAllGroups) {
+        selectedTests.add(file);
+        continue;
       }
-    }
-    if (options.functionality) {
-      for (const file of testEntries) {
-        if (path.basename(file).startsWith('functionality.')) {
-          selectedTests.add(file);
-        }
+
+      if (options.visual && isVisual) {
+        selectedTests.add(file);
+        continue;
       }
-    }
-    if (options.accessibility) {
-      for (const file of testEntries) {
-        const baseName = path.basename(file);
-        if (/accessibility|a11y/i.test(baseName)) {
-          selectedTests.add(file);
-        }
+      if (options.responsive && isResponsiveStructure) {
+        selectedTests.add(file);
+        continue;
+      }
+      if (options.functionality && isFunctionality) {
+        selectedTests.add(file);
+        continue;
+      }
+      if (options.accessibility && isAccessibility) {
+        selectedTests.add(file);
       }
     }
 
     const testTargets = selectedTests.size > 0 ? Array.from(selectedTests) : ['tests'];
 
+    const onlyVisualSelected =
+      !runAllGroups &&
+      options.visual &&
+      !options.responsive &&
+      !options.functionality &&
+      !options.accessibility;
+
     // Set environment variables for test execution
     process.env.SITE_NAME = siteName;
+
+    if (onlyVisualSelected && !options.project) {
+      options.project = 'Chrome';
+      console.log('ℹ️  Visual regression: defaulting to Chrome project (override with --project)');
+    }
 
     const spawnEnv = {
       ...process.env,
@@ -658,7 +681,7 @@ class TestRunner {
     return new Promise((resolve, reject) => {
       const playwright = spawn(
         'npx',
-        ['playwright', 'test', 'tests/responsive.visual.spec.js', '--update-snapshots', 'all'],
+        ['playwright', 'test', 'tests/visual.visualregression.spec.js', '--update-snapshots', 'all'],
         {
           stdio: 'inherit',
           env: { ...process.env, SITE_NAME: siteName },

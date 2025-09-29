@@ -34,7 +34,7 @@
 - Add new tests under `tests/`.
 - Responsive specs are split into:
   - `responsive.structure.spec.js` (layout/critical elements, cross-viewport consistency, WP features)
-  - `responsive.visual.spec.js` (visual regression with masks/thresholds)
+  - `visual.visualregression.spec.js` (visual regression with masks/thresholds)
   - `responsive.a11y.spec.js` (axe-core scans)
 - Functionality specs are split into:
   - `functionality.infrastructure.spec.js` (availability, responses, performance)
@@ -53,8 +53,9 @@
 All shared suites traverse the full `testPages` list. The interactive audit is intentionally light-touch—focus/hover taps plus console and network monitoring—so it remains stable across sites. Build site-specific interactive specs when you need deep journeys, logins, or bespoke flows.
 - Snapshot baselines go in `tests/baseline-snapshots/`.
 - Update visual baselines after intentional UI changes:
-  - CLI: `npx playwright test tests/responsive.visual.spec.js --update-snapshots`
+  - CLI: `npx playwright test tests/visual.visualregression.spec.js --update-snapshots`
   - Runner helper: `node run-tests.js --update-baselines --site=<name>` or `npm run update-baselines -- --site=<name>`
+- Visual regression defaults to desktop viewports; set `VISUAL_VIEWPORTS=mobile,tablet,desktop` to widen coverage when invoking the runner or Playwright directly.
 - Generate reports: `npm run allure-report`. Playwright artifacts for the latest run live in `test-results/` (cleared before each execution unless `PW_SKIP_RESULT_CLEAN=true`).
 
 ### Accessibility Configuration (Optional)

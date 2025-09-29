@@ -197,23 +197,32 @@ node run-tests.js --site=my-site --accessibility --a11y-sample=all
 # Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
 A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
 
-# Update visual baselines for a site (responsive visuals only)
+# Update visual baselines for a site (visual regression only)
 npm run update-baselines -- --site=my-site
 
 ### Profiles
 - `--profile=smoke` → functionality-only, Chrome-only, homepage only (fast).
-- `--profile=full` → default behavior (all enabled specs, all configured projects).
-- `--profile=nightly` → runs responsive + functionality + accessibility suites, forces `--a11y-sample=all`, and bumps the keyboard audit depth (`A11Y_KEYBOARD_STEPS=40`). Override those env vars if you need a different breadth for a given run.
+- `--profile=full` → default behavior (same as `--full`, all spec groups, all configured projects).
+- `--profile=nightly` → runs visual + responsive + functionality + accessibility suites, forces `--a11y-sample=all`, and bumps the keyboard audit depth (`A11Y_KEYBOARD_STEPS=40`). Override those env vars if you need a different breadth for a given run.
 
 ## Smoke Site Config
 - A minimal CI-friendly config is provided at `sites/nfsmediation-smoke.json` (points to `https://nfs.atelierdev.uk`, homepage only).
 - For CI, set the repository Actions variable `SMOKE_SITE=nfsmediation-live` or `nfsmediation-smoke`.
 
-# Run only responsive tests (all responsive specs)
+# Run only visual regression tests (defaults to Chrome desktop)
+node run-tests.js --site=my-site --visual
+
+# Expand visual regression to multiple viewports (comma-separated: mobile,tablet,desktop)
+VISUAL_VIEWPORTS=desktop,tablet node run-tests.js --site=my-site --visual
+
+# Run only responsive structure tests
 node run-tests.js --site=my-site --responsive
 
-# Run only functionality tests (all functionality specs)
+# Run only functionality tests
 node run-tests.js --site=my-site --functionality
+
+# Run full suite explicitly
+node run-tests.js --site=my-site --full
 
 # Run with browser visible (debugging)
 node run-tests.js --site=my-site --headed
@@ -225,7 +234,7 @@ node run-tests.js --site=my-site --project="Safari"  # WebKit engine
 
 # Start local ddev automatically (if applicable)
 # Use --local to enable ddev preflight and infer DDEV_PROJECT_PATH under /home/warui/sites
-node run-tests.js --site=my-site-local --responsive --local
+node run-tests.js --site=my-site-local --visual --local
 ```
 
 ## What Gets Tested

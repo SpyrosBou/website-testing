@@ -10,9 +10,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run setup
 
 # Run tests for specific site
-node run-tests.js --site=SITENAME              # All tests
-node run-tests.js --site=SITENAME --functionality   # Functionality tests only  
-node run-tests.js --site=SITENAME --responsive     # Responsive tests only
+node run-tests.js --site=SITENAME              # All tests (same as --full)
+node run-tests.js --site=SITENAME --full            # Explicit full suite run
+node run-tests.js --site=SITENAME --visual           # Visual regression only (defaults to Chrome desktop)
+VISUAL_VIEWPORTS=desktop,tablet node run-tests.js --site=SITENAME --visual  # Expand visual coverage
+node run-tests.js --site=SITENAME --responsive       # Responsive structure tests only
+node run-tests.js --site=SITENAME --functionality    # Functionality tests only
+node run-tests.js --site=SITENAME --accessibility    # Accessibility tests only
 
 # List available sites
 node run-tests.js --list
@@ -23,11 +27,11 @@ node run-tests.js --site=SITENAME --discover
 # Run single test file directly with Playwright
 SITE_NAME=SITENAME npx playwright test tests/functionality.infrastructure.spec.js
 
-# Smoke test profile (fast, Chrome-only, responsive tests)
+# Smoke test profile (fast, Chrome-only, functionality-only)
 node run-tests.js --site=SITENAME --profile=smoke
 
 # Update visual regression baselines after intentional changes
-npx playwright test tests/responsive.visual.spec.js --update-snapshots
+npx playwright test tests/visual.visualregression.spec.js --update-snapshots
 ```
 
 ### Reporting Commands
@@ -54,9 +58,9 @@ npm run format      # Format code with Prettier
 ### Test Organization Strategy
 The test suite is split into modular spec files for better maintainability and parallel execution:
 
-**Responsive Tests** (Multi-viewport testing):
+**Responsive & Visual Tests**:
 - `responsive.structure.spec.js` - Layout and critical elements across viewports
-- `responsive.visual.spec.js` - Visual regression with masked dynamic content
+- `visual.visualregression.spec.js` - Visual regression with masked dynamic content (defaults to desktop unless `VISUAL_VIEWPORTS` provided)
 - `responsive.a11y.spec.js` - WCAG 2.1 AA accessibility compliance
 
 **Functionality Tests** (Core behavior):

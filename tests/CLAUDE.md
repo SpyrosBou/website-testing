@@ -9,7 +9,7 @@ This directory houses the canonical Playwright specs executed by `run-tests.js`.
 - `functionality.wordpress.spec.js` — plugin/theme detection plus WordPress-specific sanity checks.
 - `functionality.accessibility.spec.js` — axe-core scans aggregated per site with configurable fail/ignore lists.
 - `responsive.structure.spec.js` — responsive layout smoke (mobile/tablet/desktop viewports) validating critical elements.
-- `responsive.visual.spec.js` — visual regression baselines per viewport/project with optional per-page thresholds and masks. Attaches a per-viewport Allure HTML + Markdown summary.
+- `visual.visualregression.spec.js` — visual regression baselines per viewport/project with optional per-page thresholds and masks. Attaches a per-viewport Allure HTML + Markdown summary.
 - `responsive.a11y.spec.js` — accessibility sampling across mobile/tablet/desktop, honouring `a11yFailOn`, `a11yIgnoreRules`, and `a11yMode`.
 
 ## Shared Test Patterns
@@ -44,7 +44,7 @@ This directory houses the canonical Playwright specs executed by `run-tests.js`.
 
 ### Responsive Suites
 - `responsive.structure` verifies header/navigation/footer visibility across mobile (375×667), tablet (768×1024), and desktop (1920×1080) viewports. In smoke mode it trims the `testPages` array to the first entry.
-- `responsive.visual` drives `expect(page).toHaveScreenshot` with per-site thresholds (`visualThresholds`, `visualOverrides`, `dynamicMasks`). Snapshots live under `tests/baseline-snapshots/<site>/<spec>/<name>.png`. Each run attaches a per-viewport visual summary to Allure.
+- `visual.visualregression` drives `expect(page).toHaveScreenshot` with per-site thresholds (`visualThresholds`, `visualOverrides`, `dynamicMasks`). Defaults to the desktop viewport; override with `VISUAL_VIEWPORTS=mobile,tablet,desktop` when you need broader coverage. Snapshots live under `tests/baseline-snapshots/<site>/<spec>/<name>.png`. Each run attaches a per-viewport visual summary to Allure.
 - `responsive.a11y` repeats axe-core scans across the three responsive breakpoints, sampling up to three pages per viewport (one when `SMOKE=1`).
 
 ## Adding or Modifying Tests
@@ -55,7 +55,7 @@ This directory houses the canonical Playwright specs executed by `run-tests.js`.
 - Keep form interactions idempotent—mock submissions where possible and avoid POSTing to production endpoints.
 
 ## Snapshot & Artifact Tips
-- Update responsive visual baselines with `node run-tests.js --site=<name> --update-baselines` (or `npm run update-baselines -- --site=<name>`). The helper delegates to Playwright's `--update-snapshots` for `responsive.visual.spec.js` only.
+- Update visual baselines with `node run-tests.js --site=<name> --update-baselines` (or `npm run update-baselines -- --site=<name>`). The helper delegates to Playwright's `--update-snapshots` for `visual.visualregression.spec.js` only.
 - Global setup removes `test-results/`, `playwright-report/`, and Allure folders before each run unless `PW_SKIP_RESULT_CLEAN=true`. Set that flag if you need to inspect artifacts across multiple runs.
 
 ## Smoke Profile Behaviour

@@ -45,7 +45,7 @@ The utilities in this folder power site loading, sitemap discovery, Playwright o
 
 ## Working With the Runner
 - Prefer adding new CLI flags in `run-tests.js` and plumbing them through `TestRunner` rather than shelling out from elsewhere.
-- `updateBaselines(site)` runs only `tests/responsive.visual.spec.js` with `--update-snapshots`; keep that scoping tight so non-visual baselines remain untouched.
+- `updateBaselines(site)` runs only `tests/visual.visualregression.spec.js` with `--update-snapshots`; keep that scoping tight so non-visual baselines remain untouched.
 - If you introduce new artefact folders, mirror the cleanup in both `TestRunner.cleanAllureResults()` and `scripts/playwright-global-setup.js`.
 
 ## Error Handling & Logging
