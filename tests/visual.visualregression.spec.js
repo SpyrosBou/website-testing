@@ -32,6 +32,44 @@ const DEFAULT_VISUAL_THRESHOLDS = {
   dynamic: 0.5,
 };
 
+const parseDiffMetrics = (message) => {
+  if (typeof message !== 'string' || message.length === 0) return null;
+
+  const pixelsRegex = /([\d,]+)\s+pixels\s+\(ratio\s+([\d.]+)\s+of all image pixels\) are different/gi;
+  let pixelsMatch;
+  let lastPixelsMatch = null;
+  while ((pixelsMatch = pixelsRegex.exec(message))) {
+    lastPixelsMatch = pixelsMatch;
+  }
+
+  const dimensionsRegex = /Expected an image\s+(\d+)px by (\d+)px,\s+received\s+(\d+)px by (\d+)px/gi;
+  let dimMatch;
+  let lastDimensionsMatch = null;
+  while ((dimMatch = dimensionsRegex.exec(message))) {
+    lastDimensionsMatch = dimMatch;
+  }
+
+  if (!lastPixelsMatch && !lastDimensionsMatch) return null;
+
+  const metrics = {};
+  if (lastPixelsMatch) {
+    metrics.pixelDiff = Number(lastPixelsMatch[1].replace(/,/g, ''));
+    metrics.pixelRatio = Number(lastPixelsMatch[2]);
+  }
+  if (lastDimensionsMatch) {
+    metrics.expectedSize = {
+      width: Number(lastDimensionsMatch[1]),
+      height: Number(lastDimensionsMatch[2]),
+    };
+    metrics.actualSize = {
+      width: Number(lastDimensionsMatch[3]),
+      height: Number(lastDimensionsMatch[4]),
+    };
+  }
+
+  return metrics;
+};
+
 test.describe('Visual Regression', () => {
   let siteConfig;
   let errorContext;
@@ -132,25 +170,36 @@ test.describe('Visual Regression', () => {
 
             const artifactsLabel = `${screenshotName.replace(/\.png$/i, '')}`;
 
+            const toDataUri = (filePath) => {
+              try {
+                const content = fs.readFileSync(filePath);
+                return `data:image/png;base64,${content.toString('base64')}`;
+              } catch (_error) {
+                return null;
+              }
+            };
+
             const collectVisualArtifacts = async (includeDiffArtifacts = false) => {
-              const artifactNames = { baseline: null, actual: null, diff: null };
-              const attachImage = async (label, filePath) => {
+              const artifactInfo = { baseline: null, actual: null, diff: null };
+              const attachImage = async (label, filePath, inlinePreview = false) => {
                 if (!filePath || !fs.existsSync(filePath)) return null;
                 const attachmentName = `${artifactsLabel}-${label}.png`;
+                const preview = inlinePreview ? toDataUri(filePath) : null;
                 try {
                   await testInfo.attach(attachmentName, {
                     path: filePath,
                     contentType: 'image/png',
                   });
-                  return attachmentName;
                 } catch (_error) {
-                  return null;
+                  // Ignore attachment failures; preview still useful.
                 }
+                return { name: attachmentName, preview };
               };
 
               if (includeDiffArtifacts) {
                 const baselinePath = testInfo.snapshotPath(screenshotName);
-                artifactNames.baseline = await attachImage('baseline', baselinePath);
+                artifactInfo.baseline = await attachImage('baseline', baselinePath, true);
+
                 const baseName = artifactsLabel;
                 const actualCandidates = [
                   testInfo.outputPath(`${baseName}-actual.png`),
@@ -167,13 +216,11 @@ test.describe('Visual Regression', () => {
                 const actualPath = findExisting(actualCandidates);
                 const diffPath = findExisting(diffCandidates);
 
-                artifactNames.actual = await attachImage('actual', actualPath);
-                artifactNames.diff = await attachImage('diff', diffPath);
-              } else {
-                artifactNames.baseline = null;
+                artifactInfo.actual = await attachImage('actual', actualPath, true);
+                artifactInfo.diff = await attachImage('diff', diffPath, true);
               }
 
-              return artifactNames;
+              return artifactInfo;
             };
 
             try {
@@ -197,12 +244,14 @@ test.describe('Visual Regression', () => {
                 `⚠️  Visual difference detected for ${testPage} (${viewportName}): ${error.message}`
               );
               const artifacts = await collectVisualArtifacts(true);
+              const diffMetrics = parseDiffMetrics(String(error.message || ''));
               visualSummaries.push({
                 page: testPage,
                 result: 'diff',
                 threshold,
                 screenshot: screenshotName,
                 error: String(error.message || '').slice(0, 200),
+                diffMetrics,
                 artifacts,
               });
             }
@@ -213,33 +262,58 @@ test.describe('Visual Regression', () => {
         const rowsHtml = visualSummaries
           .map((e) => {
             const className = e.result === 'pass' ? 'status-ok' : 'status-error';
-            const notes = e.result === 'pass' ? '<li class="check-pass">Matched baseline</li>' : `<li class="check-fail">Diff detected</li>${e.error ? `<li class=\"check-fail\">${escapeHtml(e.error)}</li>` : ''}`;
-            const artifactLinks = [];
-            if (e.artifacts?.baseline) {
-              artifactLinks.push(
-                `<li><a href="attachment://${escapeHtml(e.artifacts.baseline)}" target="_blank">Baseline</a></li>`
-              );
+            const noteItems = [];
+            if (e.result === 'pass') {
+              noteItems.push('<li class="check-pass">Matched baseline</li>');
+            } else {
+              noteItems.push('<li class="check-fail">Diff detected</li>');
+              if (e.diffMetrics?.pixelDiff) {
+                const percent = e.diffMetrics.pixelRatio
+                  ? `${(Number(e.diffMetrics.pixelRatio) * 100).toFixed(2)}%`
+                  : null;
+                noteItems.push(
+                  `<li class="details">Pixel delta: ${e.diffMetrics.pixelDiff.toLocaleString()}${percent ? ` (${percent})` : ''}</li>`
+                );
+              }
+              if (e.diffMetrics?.expectedSize && e.diffMetrics?.actualSize) {
+                const { expectedSize, actualSize } = e.diffMetrics;
+                const heightDelta = actualSize.height - expectedSize.height;
+                const widthDelta = actualSize.width - expectedSize.width;
+                noteItems.push(
+                  `<li class="details">Expected ${expectedSize.width}×${expectedSize.height}px, got ${actualSize.width}×${actualSize.height}px${
+                    heightDelta || widthDelta
+                      ? ` (${widthDelta ? `ΔW ${widthDelta}` : ''}${heightDelta ? `${widthDelta ? ', ' : ''}ΔH ${heightDelta}` : ''})`
+                      : ''
+                  }</li>`
+                );
+              }
+              if (e.error) {
+                noteItems.push(`<li class="details">${escapeHtml(e.error)}</li>`);
+              }
             }
-            if (e.artifacts?.actual) {
-              artifactLinks.push(
-                `<li><a href="attachment://${escapeHtml(e.artifacts.actual)}" target="_blank">Actual</a></li>`
-              );
-            }
-            if (e.artifacts?.diff) {
-              artifactLinks.push(
-                `<li><a href="attachment://${escapeHtml(e.artifacts.diff)}" target="_blank">Diff</a></li>`
-              );
-            }
-            const artifactsCell =
-              artifactLinks.length > 0
-                ? `<ul class="checks">${artifactLinks.join('')}</ul>`
-                : '<span class="details">—</span>';
+            const notes = `<ul class="checks">${noteItems.join('')}</ul>`;
+            const hasArtifacts = Boolean(e.artifacts?.baseline || e.artifacts?.actual || e.artifacts?.diff);
+            const artifactsCell = hasArtifacts
+              ? `
+                <div class="visual-previews">
+                  ${e.artifacts?.baseline?.preview
+                    ? `<figure class="visual-previews__item visual-previews__item--baseline"><img src="${e.artifacts.baseline.preview}" alt="Baseline screenshot"><figcaption>Baseline</figcaption></figure>`
+                    : ''}
+                  ${e.artifacts?.actual?.preview
+                    ? `<figure class="visual-previews__item visual-previews__item--actual"><img src="${e.artifacts.actual.preview}" alt="Actual screenshot"><figcaption>Local Build</figcaption></figure>`
+                    : ''}
+                  ${e.artifacts?.diff?.preview
+                    ? `<figure class="visual-previews__item visual-previews__item--diff"><img src="${e.artifacts.diff.preview}" alt="Diff screenshot"><figcaption>Diff Overlay</figcaption></figure>`
+                    : ''}
+                </div>
+              `
+              : '<span class="details">—</span>';
             return `
               <tr class="${className}">
                 <td><code>${escapeHtml(e.page)}</code></td>
                 <td>${escapeHtml(String(e.screenshot))}</td>
                 <td>${e.threshold}</td>
-                <td><ul class="checks">${notes}</ul></td>
+                <td>${notes}</td>
                 <td>${artifactsCell}</td>
               </tr>
             `;
@@ -256,16 +330,21 @@ test.describe('Visual Regression', () => {
           </section>
         `;
 
-        const mdRows = visualSummaries.map(
-          (e) => {
-            const artifacts = [];
-            if (e.artifacts?.baseline) artifacts.push('Baseline');
-            if (e.artifacts?.actual) artifacts.push('Actual');
-            if (e.artifacts?.diff) artifacts.push('Diff');
-            const artifactText = artifacts.length > 0 ? artifacts.join(', ') : '—';
-            return `| \`${e.page}\` | ${e.screenshot} | ${e.threshold} | ${e.result === 'pass' ? '✅ matched' : '⚠️ diff'} | ${artifactText} |`;
-          }
-        );
+        const mdRows = visualSummaries.map((e) => {
+          const artifacts = [];
+          if (e.artifacts?.baseline) artifacts.push('Baseline');
+          if (e.artifacts?.actual) artifacts.push('Actual');
+          if (e.artifacts?.diff) artifacts.push('Diff');
+          const artifactText = artifacts.length > 0 ? artifacts.join(', ') : '—';
+          const diffDetailsMd = e.diffMetrics?.pixelDiff
+            ? `${e.diffMetrics.pixelDiff.toLocaleString()} px${
+                e.diffMetrics.pixelRatio ? ` (${(e.diffMetrics.pixelRatio * 100).toFixed(2)}%)` : ''
+              }`
+            : e.result === 'pass'
+              ? '—'
+              : 'diff detected';
+          return `| \`${e.page}\` | ${e.screenshot} | ${e.threshold} | ${e.result === 'pass' ? '✅ matched' : `⚠️ ${diffDetailsMd}`} | ${artifactText} |`;
+        });
         const markdown = [
           `# Visual regression summary — ${viewportName}`,
           '',
@@ -278,7 +357,7 @@ test.describe('Visual Regression', () => {
           baseName: `visual-regression-${viewportName}-summary`,
           htmlBody,
           markdown,
-          setDescription: false,
+          setDescription: true,
         });
       });
     });

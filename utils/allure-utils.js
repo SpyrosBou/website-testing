@@ -51,6 +51,13 @@ const SUMMARY_STYLES = `
   .summary-report .details { color: #475467; font-size: 0.88rem; margin: 0.25rem 0; }
   .summary-report ul.details { margin: 0.25rem 0 0.5rem 1.1rem; padding-left: 1.1rem; }
   .summary-report ul.details li { margin: 0.2rem 0; }
+  .summary-report .visual-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 0.5rem; }
+  .summary-report .visual-previews figure { margin: 0; background: #f8fafc; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+  .summary-report .visual-previews img { width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5f5; background: #0f172a; }
+  .summary-report .visual-previews figcaption { font-size: 0.85rem; font-weight: 600; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-report .visual-previews__item--diff { grid-column: 1 / -1; }
+  .summary-report .visual-previews__item--diff figcaption { color: #b42318; }
+  .summary-report .visual-previews__empty { color: #475467; font-size: 0.85rem; }
 </style>
 `;
 
