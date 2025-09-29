@@ -61,6 +61,8 @@ const SUMMARY_STYLES = `
 </style>
 `;
 
+const DESCRIPTION_BYTE_LIMIT = 18_000_000;
+
 const wrapHtml = (content) => `${SUMMARY_STYLES}${content}`;
 
 const attachAllureText = async (name, content, type = 'text/plain') => {
@@ -74,7 +76,15 @@ const attachSummary = async ({ baseName, htmlBody, markdown, setDescription = fa
     const wrappedHtml = wrapHtml(htmlBody);
     await attachAllureText(`${baseName}.html`, wrappedHtml, 'text/html');
     if (setDescription && typeof allure?.descriptionHtml === 'function') {
-      allure.descriptionHtml(wrappedHtml);
+      const byteLength = Buffer.byteLength(wrappedHtml, 'utf8');
+      if (byteLength <= DESCRIPTION_BYTE_LIMIT) {
+        allure.descriptionHtml(wrappedHtml);
+      } else {
+        await attachAllureText(
+          `${baseName}-description-truncated.txt`,
+          `Skipped setting descriptionHtml: rendered summary is ${byteLength.toLocaleString()} bytes (limit ${DESCRIPTION_BYTE_LIMIT.toLocaleString()})`
+        );
+      }
     }
   }
   if (markdown) {

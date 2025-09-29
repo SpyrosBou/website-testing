@@ -357,7 +357,6 @@ test.describe('Visual Regression', () => {
           baseName: `visual-regression-${viewportName}-summary`,
           htmlBody,
           markdown,
-          setDescription: true,
         });
       });
     });
