@@ -311,19 +311,28 @@ class TestRunner {
 
     const testTargets = selectedTests.size > 0 ? Array.from(selectedTests) : ['tests'];
 
-    const onlyVisualSelected =
-      !runAllGroups &&
-      options.visual &&
-      !options.responsive &&
-      !options.functionality &&
-      !options.accessibility;
-
     // Set environment variables for test execution
     process.env.SITE_NAME = siteName;
 
-    if (onlyVisualSelected && !options.project) {
-      options.project = 'Chrome';
-      console.log('ℹ️  Visual regression: defaulting to Chrome project (override with --project)');
+    const projectInputRaw =
+      typeof options.project === 'string'
+        ? options.project.trim()
+        : options.project === true
+          ? 'Chrome'
+          : '';
+    const usingDefaultProject = !projectInputRaw;
+    const projectSpecifier = usingDefaultProject ? 'Chrome' : projectInputRaw;
+    const projectArgsList =
+      projectSpecifier.toLowerCase() === 'all'
+        ? []
+        : projectSpecifier
+            .split(',')
+            .map((entry) => entry.trim())
+            .filter(Boolean);
+    if (usingDefaultProject && projectSpecifier.toLowerCase() !== 'all') {
+      console.log('ℹ️  Defaulting to Chrome project (override with --project)');
+    } else if (projectSpecifier.toLowerCase() === 'all') {
+      console.log('ℹ️  Running across all configured Playwright projects');
     }
 
     const spawnEnv = {
@@ -331,6 +340,21 @@ class TestRunner {
       SITE_NAME: siteName,
       SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || '',
     };
+
+    const viewportInputRaw =
+      typeof options.viewport === 'string'
+        ? options.viewport.trim()
+        : options.viewport === true
+          ? 'desktop'
+          : '';
+    const viewportSpecifier = viewportInputRaw ? viewportInputRaw.toLowerCase() : 'desktop';
+    spawnEnv.RESPONSIVE_VIEWPORTS = viewportSpecifier;
+    if (!spawnEnv.VISUAL_VIEWPORTS) {
+      spawnEnv.VISUAL_VIEWPORTS = viewportSpecifier;
+    }
+    if (viewportSpecifier !== 'desktop') {
+      console.log(`ℹ️  Responsive viewports: ${viewportSpecifier}`);
+    }
 
     if (options.a11yTags) {
       spawnEnv.A11Y_TAGS_MODE = String(options.a11yTags).toLowerCase();
@@ -356,7 +380,11 @@ class TestRunner {
     // Add additional args
     if (options.headed) playwrightArgs.push('--headed');
     if (options.debug) playwrightArgs.push('--debug');
-    if (options.project) playwrightArgs.push(`--project=${options.project}`);
+    if (projectArgsList.length > 0) {
+      for (const projectName of projectArgsList) {
+        playwrightArgs.push(`--project=${projectName}`);
+      }
+    }
 
     if (spawnEnv.A11Y_TAGS_MODE && spawnEnv.A11Y_TAGS_MODE !== 'all') {
       console.log(`ℹ️  Accessibility tags mode: ${spawnEnv.A11Y_TAGS_MODE}`);

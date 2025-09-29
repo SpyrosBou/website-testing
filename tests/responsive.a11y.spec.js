@@ -188,6 +188,17 @@ const VIEWPORTS = {
   desktop: { width: 1920, height: 1080, name: 'desktop' },
 };
 
+const resolveResponsiveViewports = () => {
+  const raw = (process.env.RESPONSIVE_VIEWPORTS || 'desktop').trim();
+  if (!raw) return ['desktop'];
+  if (raw.toLowerCase() === 'all') return Object.keys(VIEWPORTS);
+
+  return raw
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => Boolean(VIEWPORTS[entry]));
+};
+
 test.describe('Responsive Accessibility', () => {
   let siteConfig;
   let errorContext;
@@ -206,7 +217,14 @@ test.describe('Responsive Accessibility', () => {
     await teardownTestPage(page, context, errorContext);
   });
 
-  Object.entries(VIEWPORTS).forEach(([viewportName, viewport]) => {
+  const enabledViewportKeys = resolveResponsiveViewports();
+  if (enabledViewportKeys.length === 0) {
+    throw new Error('No valid responsive viewports selected.');
+  }
+
+  enabledViewportKeys.forEach((viewportKey) => {
+    const viewport = VIEWPORTS[viewportKey];
+    const viewportName = viewport.name;
     test(`Accessibility across viewports - ${viewportName}`, async ({ page }) => {
       test.setTimeout(7200000);
       await page.setViewportSize({ width: viewport.width, height: viewport.height });

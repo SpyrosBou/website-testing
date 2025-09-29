@@ -37,15 +37,15 @@ This directory houses the canonical Playwright specs executed by `run-tests.js`.
 - Uses `WordPressPageObjects` and `TestDataFactory` helpers for lightweight form interactions when configured.
 
 ### Functionality: Accessibility
-- Runs axe-core scans for every `testPages` entry in desktop Chrome.
+- Runs axe-core scans for every `testPages` entry in desktop Chrome by default (pass `--project` to broaden coverage).
 - Respects `a11yFailOn` (default `['critical','serious']`), `a11yIgnoreRules`, and `a11yMode` (`gate` vs `audit`).
 - Aggregates violations and fails at the end of the test unless `a11yMode === 'audit'`.
 - Attaches per-page/viewport text reports outlining impacted rule IDs, node counts, and help URLs.
 
 ### Responsive Suites
-- `responsive.structure` verifies header/navigation/footer visibility across mobile (375×667), tablet (768×1024), and desktop (1920×1080) viewports. In smoke mode it trims the `testPages` array to the first entry.
-- `visual.visualregression` drives `expect(page).toHaveScreenshot` with per-site thresholds (`visualThresholds`, `visualOverrides`, `dynamicMasks`). Defaults to the desktop viewport; override with `VISUAL_VIEWPORTS=mobile,tablet,desktop` when you need broader coverage. Snapshots live under `tests/baseline-snapshots/<site>/<spec>/<name>.png`. Each run attaches a per-viewport visual summary to Allure.
-- `responsive.a11y` repeats axe-core scans across the three responsive breakpoints, sampling up to three pages per viewport (one when `SMOKE=1`).
+- `responsive.structure` verifies header/navigation/footer visibility across the selected responsive viewports (defaults to desktop; supply `--viewport=mobile,tablet,desktop` to expand). In smoke mode it trims the `testPages` array to the first entry.
+- `visual.visualregression` drives `expect(page).toHaveScreenshot` with per-site thresholds (`visualThresholds`, `visualOverrides`, `dynamicMasks`). Thresholds now default to `0.05`, and the suite honours `--viewport`/`VISUAL_VIEWPORTS` for additional device snapshots. Snapshots live under `tests/baseline-snapshots/<site>/<spec>/<name>.png`. Each run attaches a per-viewport visual summary to Allure.
+- `responsive.a11y` repeats axe-core scans for the selected responsive viewports (defaults to desktop, optional mobile/tablet via `--viewport`). Samples up to three pages per viewport (one when `SMOKE=1`).
 
 ## Adding or Modifying Tests
 - Always retrieve the site config via `SiteLoader.loadSite(process.env.SITE_NAME)` inside `beforeEach` to ensure environment parity with the runner.

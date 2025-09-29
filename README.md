@@ -200,6 +200,9 @@ A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
 # Update visual baselines for a site (visual regression only)
 npm run update-baselines -- --site=my-site
 
+# Refresh test pages from sitemap (no tests run)
+npm run discover_pages -- --site=my-site
+
 ### Profiles
 - `--profile=smoke` → functionality-only, Chrome-only, homepage only (fast).
 - `--profile=full` → default behavior (same as `--full`, all spec groups, all configured projects).
@@ -212,8 +215,9 @@ npm run update-baselines -- --site=my-site
 # Run only visual regression tests (defaults to Chrome desktop)
 node run-tests.js --site=my-site --visual
 
-# Expand visual regression to multiple viewports (comma-separated: mobile,tablet,desktop)
-VISUAL_VIEWPORTS=desktop,tablet node run-tests.js --site=my-site --visual
+# Expand coverage (examples)
+node run-tests.js --site=my-site --visual --project=all --viewport=all
+node run-tests.js --site=my-site --visual --project=Chrome,Firefox --viewport=desktop,tablet
 
 # Run only responsive structure tests
 node run-tests.js --site=my-site --responsive
@@ -227,10 +231,11 @@ node run-tests.js --site=my-site --full
 # Run with browser visible (debugging)
 node run-tests.js --site=my-site --headed
 
-# Test specific browser
+# Test specific browser (defaults to Chrome when omitted)
 node run-tests.js --site=my-site --project="Chrome"
 node run-tests.js --site=my-site --project="Firefox"
 node run-tests.js --site=my-site --project="Safari"  # WebKit engine
+node run-tests.js --site=my-site --project=all         # Run every configured Playwright project
 
 # Start local ddev automatically (if applicable)
 # Use --local to enable ddev preflight and infer DDEV_PROJECT_PATH under /home/warui/sites
@@ -241,8 +246,10 @@ node run-tests.js --site=my-site-local --visual --local
 
 ### Responsive Testing (Industry-Standard Approach)
 
-- ✅ **Multi-Viewport Testing**: Each desktop browser tests mobile (375x667), tablet (768x1024), and desktop (1920x1080) viewports
-- ✅ **Cross-Browser Coverage**: Chrome, Firefox, and Safari (macOS) for comprehensive engine testing
+- 🔧 **Default footprint**: Chrome desktop only for fast feedback
+- 🔁 **Opt-in breadth**: Use `--project=all` or comma-separated lists, and `--viewport=all` to add browsers/devices
+- ✅ **Multi-Viewport Testing** (when enabled): mobile (375×667), tablet (768×1024), and desktop (1920×1080)
+- ✅ **Cross-Browser Coverage** (when enabled): Chrome, Firefox, and Safari/WebKit
 - ✅ Critical elements are visible across devices
 - ✅ Mobile menu functionality
 - ✅ **Visual Regression Detection** - Automatic screenshot comparison

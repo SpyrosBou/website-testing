@@ -26,15 +26,16 @@
 - Tests live in `tests/` and end with `*.spec.js` using `test.describe` / `test`.
 - Site configs: one file per site in `sites/`; prefer `my-site-local.json` and `my-site-live.json` naming.
 - Keep helpers cohesive in `utils/`; avoid ad-hoc scripts elsewhere.
-- Optional discovery: when `discover.strategy` is `sitemap`, run `node run-tests.js --site=<name> --discover` to fetch the sitemap, merge up to `maxPages` paths, and apply optional `include`/`exclude` filters. Without `--discover` the runner leaves `testPages` unchanged. Always keep `testPages` aligned with critical routes even when discovery is enabled.
+- Optional discovery: when `discover.strategy` is `sitemap`, run `npm run discover_pages -- --site=<name>` to fetch the sitemap, merge up to `maxPages` paths, and apply optional `include`/`exclude` filters without executing tests. Always keep `testPages` aligned with critical routes even when discovery is enabled.
 
 ## Testing Guidelines
 - Frameworks: `@playwright/test` + `@axe-core/playwright`; reporting via `allure-playwright`.
+- Default runs execute only the Chrome desktop Playwright project; pass `--project=all` or comma-separated names to broaden browser coverage.
 - Required env: set `SITE_NAME` implicitly via runner (`--site=<name>`). Running Playwright directly: `SITE_NAME=my-site npx playwright test`.
 - Add new tests under `tests/`.
 - Responsive specs are split into:
   - `responsive.structure.spec.js` (layout/critical elements, cross-viewport consistency, WP features)
-  - `visual.visualregression.spec.js` (visual regression with masks/thresholds)
+- `visual.visualregression.spec.js` (visual regression with masks/thresholds; defaults to desktop unless expanded via `--viewport`/`VISUAL_VIEWPORTS`)
   - `responsive.a11y.spec.js` (axe-core scans)
 - Functionality specs are split into:
   - `functionality.infrastructure.spec.js` (availability, responses, performance)
@@ -55,7 +56,7 @@ All shared suites traverse the full `testPages` list. The interactive audit is i
 - Update visual baselines after intentional UI changes:
   - CLI: `npx playwright test tests/visual.visualregression.spec.js --update-snapshots`
   - Runner helper: `node run-tests.js --update-baselines --site=<name>` or `npm run update-baselines -- --site=<name>`
-- Visual regression defaults to desktop viewports; set `VISUAL_VIEWPORTS=mobile,tablet,desktop` to widen coverage when invoking the runner or Playwright directly.
+- Visual regression defaults to desktop viewports; expand with `--viewport=all` (or `VISUAL_VIEWPORTS`) when you need mobile/tablet snapshots.
 - Generate reports: `npm run allure-report`. Playwright artifacts for the latest run live in `test-results/` (cleared before each execution unless `PW_SKIP_RESULT_CLEAN=true`).
 
 ### Accessibility Configuration (Optional)

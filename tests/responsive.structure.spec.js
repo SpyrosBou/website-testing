@@ -18,6 +18,17 @@ const VIEWPORTS = {
 
 const PERFORMANCE_THRESHOLDS = { mobile: 3000, tablet: 2500, desktop: 2000 };
 
+const resolveResponsiveViewports = () => {
+  const raw = (process.env.RESPONSIVE_VIEWPORTS || 'desktop').trim();
+  if (!raw) return ['desktop'];
+  if (raw.toLowerCase() === 'all') return Object.keys(VIEWPORTS);
+
+  return raw
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => Boolean(VIEWPORTS[entry]));
+};
+
 test.describe('Responsive Structure & UX', () => {
   let siteConfig;
   let errorContext;
@@ -36,7 +47,14 @@ test.describe('Responsive Structure & UX', () => {
     await teardownTestPage(page, context, errorContext);
   });
 
-  Object.entries(VIEWPORTS).forEach(([viewportName, viewport]) => {
+  const enabledViewportKeys = resolveResponsiveViewports();
+  if (enabledViewportKeys.length === 0) {
+    throw new Error('No valid responsive viewports selected.');
+  }
+
+  enabledViewportKeys.forEach((viewportKey) => {
+    const viewport = VIEWPORTS[viewportKey];
+    const viewportName = viewport.name;
     test.describe(`Layout & critical elements - ${viewportName}`, () => {
       test.beforeEach(async ({ page }) => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -198,7 +216,13 @@ test.describe('Responsive Structure & UX', () => {
 
       const testPage = siteConfig.testPages[0];
       const contentStructure = {};
-      for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
+      if (enabledViewportKeys.length < 2) {
+        test.skip(true, 'Cross-viewport checks require multiple viewports.');
+      }
+
+      for (const viewportKey of enabledViewportKeys) {
+        const viewport = VIEWPORTS[viewportKey];
+        const viewportName = viewport.name;
         await test.step(`Analyzing ${viewportName}`, async () => {
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
           const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
@@ -286,7 +310,9 @@ test.describe('Responsive Structure & UX', () => {
     test('WordPress theme responsive patterns', async ({ page }) => {
       test.setTimeout(7200000);
       const features = [];
-      for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
+      for (const viewportKey of enabledViewportKeys) {
+        const viewport = VIEWPORTS[viewportKey];
+        const viewportName = viewport.name;
         await test.step(`WP features: ${viewportName}`, async () => {
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
           const response = await safeNavigate(page, siteConfig.baseUrl);

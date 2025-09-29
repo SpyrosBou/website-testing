@@ -34,6 +34,8 @@ Available options:
   --functionality     Run only functionality tests
   --accessibility     Run only accessibility-focused tests
   --full              Run the entire suite (visual + responsive + functionality + accessibility)
+  --project=NAME|all  Choose Playwright project(s); defaults to Chrome (desktop)
+  --viewport=list|all Comma-separated responsive viewports (mobile,tablet,desktop); defaults to desktop
   --update-baselines  Update visual baselines for visual regression tests
   --discover          Refresh the site's testPages from its sitemap before running
   --a11y-tags=all|wcag  Toggle axe rule scoping (default: all)
@@ -51,6 +53,7 @@ Examples:
   node run-tests.js --site=daygroup-live --functionality
   node run-tests.js --site=daygroup-live --accessibility
   node run-tests.js --site=daygroup-live --full
+  node run-tests.js --site=daygroup-live --visual --project=all --viewport=all
 `);
 }
 
@@ -85,6 +88,7 @@ async function runTests() {
     headed: argv.headed,
     debug: argv.debug,
     project: argv.project,
+    viewport: argv.viewport || argv.viewports,
     profile,
     discover: Boolean(argv.discover),
     local: Boolean(argv.local),

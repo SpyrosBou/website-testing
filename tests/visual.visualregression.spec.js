@@ -27,9 +27,9 @@ const resolveViewports = () => {
 };
 
 const DEFAULT_VISUAL_THRESHOLDS = {
-  ui_elements: 0.1,
-  content: 0.25,
-  dynamic: 0.5,
+  ui_elements: 0.05,
+  content: 0.05,
+  dynamic: 0.05,
 };
 
 const parseDiffMetrics = (message) => {
