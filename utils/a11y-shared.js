@@ -1,4 +1,4 @@
-const DEFAULT_ACCESSIBILITY_SAMPLE = 3;
+const DEFAULT_ACCESSIBILITY_SAMPLE = 'all';
 
 const ensureHomepageFirst = (pages = []) => {
   const filtered = Array.isArray(pages) ? pages.filter((page) => typeof page === 'string') : [];
@@ -47,11 +47,11 @@ const resolveSampleSetting = (
   if (process.env.SMOKE) return smokeSize;
 
   const envSetting = parseSampleSetting(process.env[envKey]);
-  if (envSetting) return envSetting;
+  if (envSetting !== null) return envSetting;
 
   for (const key of configKeys) {
     const configSetting = parseSampleSetting(siteConfig?.[key]);
-    if (configSetting) return configSetting;
+    if (configSetting !== null) return configSetting;
   }
 
   return defaultSize;

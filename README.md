@@ -10,7 +10,7 @@ On every run (`node run-tests.js --site=your-site`):
 
 - The suite loads the config, opens each page, and checks the layout on mobile, tablet, and desktop sizes.
 - It makes sure critical pieces like headers, menus, and footers are visible, and it compares screenshots to catch visual regressions.
-- It looks for broken links, slow or failing responses, JavaScript errors, and accessibility issues using axe-core.
+- It looks for broken links, slow or failing responses, JavaScript errors, and accessibility issues using axe-core plus targeted keyboard/resilience/form/structure audits that call out the relevant WCAG success criteria.
 - It saves an Allure report under `allure-report/` (Java required) which is the primary way to review structured, readable results. A lightweight Playwright HTML report is also written to `playwright-report/` as a backup.
 
 To try it locally: run `npm run setup`, copy `sites/example-site.json` to your own file, update the URLs, then execute `node run-tests.js --site=<your-site>`. The HTML report will show you exactly what passed and what needs attention before users notice.
@@ -276,13 +276,15 @@ All other shared suites (infrastructure, links, accessibility, responsive struct
 ### Accessibility Deep-Dive
 
 - ✅ **Responsive Axe scans** honour impact-based gating and now surface three buckets: gating, WCAG advisories, and best-practice advisories.
-- ✅ **Keyboard-only navigation audit** exercises the first ten focus stops per page, verifies focus never lands on hidden elements, and records skip-link coverage.
-- ✅ **Reduced-motion coverage** forces `prefers-reduced-motion: reduce` and flags long-running or infinite animations that remain active.
-- ✅ **Reflow/zoom resilience** renders pages at a 320 px viewport and reports horizontal overflow sources that break responsive layouts.
-- ✅ **Iframe inventory** captures accessible metadata for embeddings, flagging unlabeled or cross-origin frames that require manual follow-up.
+- ✅ **Keyboard-only navigation audit** exercises the first ten focus stops per page, verifies focus never lands on hidden elements, and records skip-link coverage (mapped to WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7).
+- ✅ **Reduced-motion coverage** forces `prefers-reduced-motion: reduce` and flags long-running or infinite animations that remain active (WCAG 2.2.2, 2.3.3).
+- ✅ **Reflow/zoom resilience** renders pages at a 320 px viewport and reports horizontal overflow sources that break responsive layouts (WCAG 1.4.4, 1.4.10).
+- ✅ **Iframe inventory** captures accessible metadata for embeddings, flagging unlabeled or cross-origin frames that require manual follow-up (WCAG 1.3.1, 4.1.2).
 - Focus-indicator detection now compares before/after screenshots (via `pixelmatch`) so the suite only warns when the visual state truly fails to change.
-- ✅ **Forms accessibility audit** validates configured forms for accessible labels and meaningful validation feedback on error.
-- ✅ **Structural landmark checks** confirm each page exposes a single H1, a `main` landmark, and a sensible heading outline.
+- ✅ **Forms accessibility audit** validates configured forms for accessible labels and meaningful validation feedback on error (WCAG 1.3.1, 3.3.1, 3.3.2, 3.3.3, 4.1.2).
+- ✅ **Structural landmark checks** confirm each page exposes a single H1, a `main` landmark, and a sensible heading outline (WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10).
+
+Each Allure summary now includes a “WCAG coverage” banner for these manual audits so reviewers can see at a glance which success criteria the findings relate to.
 
 ## Test Results
 
@@ -299,6 +301,7 @@ Allure (required)
   - Generate and open: `npm run allure-report`
   - Live server: `npm run allure-serve`
 - Specs attach structured HTML + Markdown summaries so the Allure Overview spells out which checks passed, which pages were scanned, and any warnings logged.
+- Manual audits (keyboard, reduced motion, reflow, forms, structure) annotate those summaries with WCAG badges so you know exactly which success criteria were examined.
 - When you add a new suite, build its run-level summary with `attachSummary({ ..., setDescription: true })` so the styled HTML card appears directly in the Allure Overview. Keeping that pattern consistent makes triage faster and avoids unstyled blobs in the report body.
 - Treat WCAG findings surfaced by the suites as defects to address. We do **not** suppress or whitelist contrast (or any other WCAG-level) violations in the harness; our automated results must stay faithful to a real audit even when product/design decides to accept the risk.
 

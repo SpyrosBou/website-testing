@@ -43,9 +43,12 @@
   - `functionality.interactive.spec.js` (touches every `testPages` URL with lightweight focus/hover taps while capturing console/resource failures; add client-specific specs when you need real user journeys)
   - `functionality.wordpress.spec.js` (plugins, theme)
 - `functionality.accessibility.spec.js` (WCAG scans)
-- `a11y.forms.spec.js` (form labelling + validation checks driven by `siteConfig.forms`)
-- `a11y.structure.spec.js` (landmark + heading integrity)
+- `a11y.forms.spec.js` (form labelling + validation checks driven by `siteConfig.forms`; Allure summary lists WCAG 1.3.1, 3.3.x, and 4.1.2 coverage)
+- `a11y.keyboard.spec.js` (focus order, skip links, keyboard traps, focus visibility; reports WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7)
+- `a11y.resilience.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2)
+- `a11y.structure.spec.js` (landmark + heading integrity; summaries cite WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10)
 - Each functionality spec publishes HTML + Markdown attachments via `utils/allure-utils.js`, so Allure reports include readable tables (availability, HTTP responses, link coverage, interactive errors, plugin/theme detection) instead of bare pass/fail icons.
+  - The manual accessibility suites now add a dedicated “WCAG coverage” banner to their summaries; mirror that pattern for any new audit so reviewers immediately know which success criteria were exercised.
   - When adding a new spec, always publish a styled HTML + Markdown overview using `attachSummary` and pass `setDescription: true` on the run-level summary. This keeps the Allure Overview pane consistent across suites and makes results scannable without digging into individual attachments.
 - WCAG-impact findings (e.g., contrast, keyboard traps) are never ignored in automated runs. If the suite flags one, treat it as a bug for the product/design team—do not whitelist it in configs just to satisfy CI.
 - Keyboard audit depth can be tuned per run by exporting `A11Y_KEYBOARD_STEPS` (defaults to 20 forward tabs and one reverse tab sanity check).

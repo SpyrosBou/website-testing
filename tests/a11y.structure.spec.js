@@ -12,6 +12,21 @@ const {
   DEFAULT_ACCESSIBILITY_SAMPLE,
 } = require('../utils/a11y-shared');
 
+const STRUCTURE_WCAG_REFERENCES = [
+  { id: '1.3.1', name: 'Info and Relationships' },
+  { id: '2.4.1', name: 'Bypass Blocks' },
+  { id: '2.4.6', name: 'Headings and Labels' },
+  { id: '2.4.10', name: 'Section Headings' },
+];
+
+const renderWcagBadgesHtml = (references) =>
+  references
+    .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+    .join(' ');
+
+const renderWcagListMarkdown = (references) =>
+  references.map((ref) => `- ${ref.id} ${ref.name}`);
+
 const analyseStructureHtml = (reports) => {
   if (!reports.length) return '';
 
@@ -78,6 +93,7 @@ const analyseStructureHtml = (reports) => {
     <section class="summary-report summary-a11y">
       <h2>Accessibility structure audit summary</h2>
       <p class="details">Validated landmarks and heading structure across ${reports.length} page(s).</p>
+      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(STRUCTURE_WCAG_REFERENCES)}</p>
       <table>
         <thead>
           <tr><th>Page</th><th>H1 count</th><th>Main landmark</th><th>Heading skips</th><th>Gating issues</th><th>Advisories</th></tr>
@@ -103,6 +119,10 @@ const analyseStructureMarkdown = (reports) => {
       } | ${report.advisories.length} |`
     ),
   ];
+
+  lines.push('', '### WCAG coverage');
+  lines.push(...renderWcagListMarkdown(STRUCTURE_WCAG_REFERENCES));
+  lines.push('');
 
   reports.forEach((report) => {
     if (!report.gating.length && !report.advisories.length) return;
@@ -267,4 +287,3 @@ test.describe('Accessibility: Structural landmarks', () => {
     expect(gatingTotal, 'Structural accessibility gating issues detected').toBe(0);
   });
 });
-

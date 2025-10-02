@@ -245,8 +245,50 @@ test.describe('Responsive Accessibility', () => {
       for (const testPage of samplesToTest) {
         await test.step(`Accessibility ${viewportName}: ${testPage}`, async () => {
           const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
-          if (response.status() !== 200) return;
-          await waitForPageStability(page);
+          if (!response || response.status() >= 400) {
+            perViewportEntries.push({
+              page: testPage,
+              gating: [
+                {
+                  id: 'http-error',
+                  impact: 'critical',
+                  helpUrl: '',
+                  nodes: [],
+                  description: `Page responded with HTTP ${response ? response.status() : 'unknown'}; axe scan skipped.`,
+                  tags: [],
+                },
+              ],
+              advisory: [],
+              bestPractice: [],
+            });
+            console.error(
+              `⚠️  HTTP ${response ? response.status() : 'unknown'} while loading ${testPage} (${viewportName}); gating failure recorded.`
+            );
+            return;
+          }
+
+          const stability = await waitForPageStability(page);
+          if (!stability.ok) {
+            perViewportEntries.push({
+              page: testPage,
+              gating: [
+                {
+                  id: 'stability-timeout',
+                  impact: 'critical',
+                  helpUrl: '',
+                  nodes: [],
+                  description: `Page did not stabilise (${stability.message}); axe scan skipped.`,
+                  tags: [],
+                },
+              ],
+              advisory: [],
+              bestPractice: [],
+            });
+            console.error(
+              `⚠️  ${stability.message} for ${testPage} (${viewportName}); gating failure recorded.`
+            );
+            return;
+          }
 
           try {
             const results = await createAxeBuilder(page).analyze();

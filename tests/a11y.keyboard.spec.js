@@ -14,6 +14,22 @@ const {
   selectAccessibilityTestPages,
 } = require('../utils/a11y-shared');
 
+const KEYBOARD_WCAG_REFERENCES = [
+  { id: '2.1.1', name: 'Keyboard' },
+  { id: '2.1.2', name: 'No Keyboard Trap' },
+  { id: '2.4.1', name: 'Bypass Blocks' },
+  { id: '2.4.3', name: 'Focus Order' },
+  { id: '2.4.7', name: 'Focus Visible' },
+];
+
+const renderWcagBadgesHtml = (references) =>
+  references
+    .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+    .join(' ');
+
+const renderWcagListMarkdown = (references) =>
+  references.map((ref) => `- ${ref.id} ${ref.name}`);
+
 const DEFAULT_MAX_TAB_ITERATIONS = 20;
 const FOCUS_DIFF_THRESHOLD = 0.02;
 
@@ -304,6 +320,7 @@ const formatKeyboardSummaryHtml = (reports) => {
     <section class="summary-report summary-a11y">
       <h2>Keyboard-only navigation summary</h2>
       <p class="details">Assessed ${reports.length} page(s) for focus traversal, skip navigation, and visible focus indicators.</p>
+      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(KEYBOARD_WCAG_REFERENCES)}</p>
       ${headerTable}
       ${cards}
     </section>
@@ -325,6 +342,10 @@ const formatKeyboardSummaryMarkdown = (reports) => {
       return `| \`${report.page}\` | ${report.focusableCount} | ${report.visitedCount} | ${skipLinkStatus} | ${report.gating.length} | ${report.advisories.length} |`;
     }),
   ];
+
+  lines.push('', '### WCAG coverage');
+  lines.push(...renderWcagListMarkdown(KEYBOARD_WCAG_REFERENCES));
+  lines.push('');
 
   reports.forEach((report) => {
     if (!report.gating.length && !report.advisories.length) return;

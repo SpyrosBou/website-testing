@@ -28,6 +28,22 @@ const parseSelectorList = (selectorString = '') =>
     .map((value) => value.trim())
     .filter(Boolean);
 
+const FORMS_WCAG_REFERENCES = [
+  { id: '1.3.1', name: 'Info and Relationships' },
+  { id: '3.3.1', name: 'Error Identification' },
+  { id: '3.3.2', name: 'Labels or Instructions' },
+  { id: '3.3.3', name: 'Error Suggestion' },
+  { id: '4.1.2', name: 'Name, Role, Value' },
+];
+
+const renderWcagBadgesHtml = (references) =>
+  references
+    .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+    .join(' ');
+
+const renderWcagListMarkdown = (references) =>
+  references.map((ref) => `- ${ref.id} ${ref.name}`);
+
 const summariseFormsMarkdown = (reports) => {
   if (!reports.length) return '';
 
@@ -40,6 +56,10 @@ const summariseFormsMarkdown = (reports) => {
       `| ${report.formName} | \`${report.page}\` | ${report.gating.length} | ${report.advisories.length} |`
     ),
   ];
+
+  lines.push('', '### WCAG coverage');
+  lines.push(...renderWcagListMarkdown(FORMS_WCAG_REFERENCES));
+  lines.push('');
 
   reports.forEach((report) => {
     if (!report.gating.length && !report.advisories.length) return;
@@ -117,6 +137,7 @@ const summariseFormsHtml = (reports) => {
     <section class="summary-report summary-a11y">
       <h2>Accessibility forms audit summary</h2>
       <p class="details">Checked ${reports.length} form(s) for accessible labelling and validation feedback.</p>
+      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(FORMS_WCAG_REFERENCES)}</p>
       <table>
         <thead>
           <tr><th>Form</th><th>Page</th><th>Gating issues</th><th>Advisories</th></tr>

@@ -56,6 +56,7 @@ Goals:
 Implementation (new spec: `tests/a11y.keyboard.spec.js`):
 - Programmatically TAB through a limited set of focusables; assert focus visibility and page responsiveness.
 - Trigger common components (menu, modal, accordion, tabs) via keyboard (Enter/Space/Arrows) and validate ARIA state changes.
+- Surface WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7 references alongside the Allure summary so stakeholders know which criteria were exercised.
 
 ### B. Reflow and Zoom
 
@@ -64,6 +65,7 @@ Goals:
 
 Implementation (extend responsive structure spec or new `tests/a11y.reflow.spec.js`):
 - Set viewport width to ≈320px; check `document.scrollingElement.scrollWidth <= viewportWidth + tolerance` and verify main content landmarks are accessible.
+- Report WCAG 1.4.4 / 1.4.10 coverage directly in the Allure summary.
 
 ### C. Reduced Motion Support
 
@@ -72,6 +74,7 @@ Goals:
 
 Implementation (new spec or an a11y pass toggle):
 - `page.emulateMedia({ reducedMotion: 'reduce' })` then validate key interactions (menus, accordions) function without animated dependencies.
+- Highlight relevance to WCAG 2.2.2 and 2.3.3 in the attached summary.
 
 ### D. Dynamic UI Patterns
 
@@ -88,6 +91,7 @@ Goals:
 
 Implementation (new spec: `tests/a11y.forms.spec.js`):
 - Validates accessible names for configured form fields, then submits the form blank to confirm aria-invalid, inline error copy, and global alerts surface appropriately.
+- Annotate Allure output with WCAG 1.3.1, 3.3.1–3.3.3, and 4.1.2 references.
 
 ### F. Accessibility Tree & Structure
 
@@ -96,6 +100,7 @@ Goals:
 
 Implementation (new spec: `tests/a11y.structure.spec.js`):
 - Inspects landmarks + heading outline per page, gating on missing `main`/H1 and flagging heading-level skips as advisories.
+- Add WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10 references to the summary for quick traceability.
 
 ### G. Iframes & Embeds
 
@@ -104,6 +109,7 @@ Goals:
 
 Implementation:
 - Collect iframes; attempt frame.content(); when cross-origin, record a manual-check item in Allure with the frame URL and context.
+- Surface WCAG 1.3.1 and 4.1.2 coverage badges in the summary so reviewers understand the compliance linkage.
 
 ## Execution Profiles & Scaling
 

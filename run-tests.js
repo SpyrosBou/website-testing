@@ -39,7 +39,7 @@ Available options:
   --update-baselines  Update visual baselines for visual regression tests
   --discover          Refresh the site's testPages from its sitemap before running
   --a11y-tags=all|wcag  Toggle axe rule scoping (default: all)
-  --a11y-sample=N|all  Override responsive a11y sample size (default: 3 pages)
+  --a11y-sample=N|all  Override responsive a11y sample size (default: all pages)
   --a11y-keyboard-steps=N  Override keyboard audit TAB depth (default: 20)
   --local             Enable DDEV preflight for local sites (sets ENABLE_DDEV=true and attempts to infer DDEV_PROJECT_PATH)
   --list              List all available site configurations

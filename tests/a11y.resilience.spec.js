@@ -12,6 +12,29 @@ const {
   selectAccessibilityTestPages,
 } = require('../utils/a11y-shared');
 
+const renderWcagBadgesHtml = (references) =>
+  references
+    .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+    .join(' ');
+
+const renderWcagListMarkdown = (references) =>
+  references.map((ref) => `- ${ref.id} ${ref.name}`);
+
+const REDUCED_MOTION_WCAG_REFERENCES = [
+  { id: '2.2.2', name: 'Pause, Stop, Hide' },
+  { id: '2.3.3', name: 'Animation from Interactions' },
+];
+
+const REFLOW_WCAG_REFERENCES = [
+  { id: '1.4.4', name: 'Resize Text' },
+  { id: '1.4.10', name: 'Reflow' },
+];
+
+const IFRAME_WCAG_REFERENCES = [
+  { id: '1.3.1', name: 'Info and Relationships' },
+  { id: '4.1.2', name: 'Name, Role, Value' },
+];
+
 const REDUCED_MOTION_THRESHOLD_MS = 150;
 const MAX_OVERFLOW_TOLERANCE_PX = 16;
 const RELOW_VIEWPORT = { width: 320, height: 900 };
@@ -172,6 +195,7 @@ const formatReducedMotionSummaryHtml = (reports) => {
     <section class="summary-report summary-a11y">
       <h2>Reduced motion preference summary</h2>
       <p class="details">Audited ${reports.length} page(s) with prefers-reduced-motion set to "reduce".</p>
+      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(REDUCED_MOTION_WCAG_REFERENCES)}</p>
       ${table}
       ${cards}
     </section>
@@ -192,6 +216,10 @@ const formatReducedMotionSummaryMarkdown = (reports) => {
       } | ${report.gating.length} | ${report.advisories.length} |`
     ),
   ];
+
+  lines.push('', '### WCAG coverage');
+  lines.push(...renderWcagListMarkdown(REDUCED_MOTION_WCAG_REFERENCES));
+  lines.push('');
 
   reports.forEach((report) => {
     if (!report.gating.length && !report.advisories.length && !report.significant.length) return;
@@ -283,6 +311,7 @@ const formatReflowSummaryHtml = (reports) => {
     <section class="summary-report summary-a11y">
       <h2>Reflow/320px layout summary</h2>
       <p class="details">Viewport set to 320px width. Highlighting pages with horizontal overflow greater than ${MAX_OVERFLOW_TOLERANCE_PX}px.</p>
+      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(REFLOW_WCAG_REFERENCES)}</p>
       ${table}
       ${cards}
     </section>
@@ -301,6 +330,10 @@ const formatReflowSummaryMarkdown = (reports) => {
       `| \`${report.page}\` | ${report.scrollWidth}px | ${report.horizontalOverflow}px | ${report.gating.length} | ${report.advisories.length} |`
     ),
   ];
+
+  lines.push('', '### WCAG coverage');
+  lines.push(...renderWcagListMarkdown(REFLOW_WCAG_REFERENCES));
+  lines.push('');
 
   reports.forEach((report) => {
     if (!report.gating.length && !report.advisories.length && !report.offenders.length) return;
@@ -396,6 +429,7 @@ const formatIframeSummaryHtml = (reports) => {
     <section class="summary-report summary-a11y">
       <h2>Iframe accessibility summary</h2>
       <p class="details">Evaluated accessible metadata for embedded frames.</p>
+      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(IFRAME_WCAG_REFERENCES)}</p>
       ${table}
       ${cards}
     </section>
@@ -412,6 +446,10 @@ const formatIframeSummaryMarkdown = (reports) => {
     '| --- | --- | --- | --- |',
     ...reports.map((report) => `| \`${report.page}\` | ${report.frames.length} | ${report.gating.length} | ${report.advisories.length} |`),
   ];
+
+  lines.push('', '### WCAG coverage');
+  lines.push(...renderWcagListMarkdown(IFRAME_WCAG_REFERENCES));
+  lines.push('');
 
   reports.forEach((report) => {
     if (!report.gating.length && !report.advisories.length && !report.frames.length) return;
