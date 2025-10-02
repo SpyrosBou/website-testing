@@ -31,7 +31,7 @@ module.exports = defineConfig({
     ['./utils/custom-html-reporter', { outputFolder: 'reports', reportFileName: 'report.html' }],
     ['list'],
   ],
-  // Allow long-running accessibility sweeps without per-test limits
+  // Disable per-test timeout so large accessibility runs can complete
   timeout: 0,
   expect: {
     timeout: 15000,

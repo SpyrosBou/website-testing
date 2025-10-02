@@ -327,7 +327,7 @@ async function safeNavigate(page, url, options = {}) {
 async function waitForPageStability(page, options = {}) {
   const {
     timeout = 10000,
-    strategies = ['domcontentloaded', 'load', 'networkidle'],
+    strategies = ['networkidle', 'domcontentloaded', 'load'],
     softFail = true,
   } = options;
 
