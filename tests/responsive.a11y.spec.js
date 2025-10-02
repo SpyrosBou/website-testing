@@ -268,7 +268,11 @@ test.describe('Responsive Accessibility', () => {
             return;
           }
 
-          const stability = await waitForPageStability(page);
+          const stability = await waitForPageStability(page, {
+            strategies: Array.isArray(siteConfig.a11yStabilityStrategies)
+              ? siteConfig.a11yStabilityStrategies
+              : ['domcontentloaded', 'load', 'networkidle'],
+          });
           if (!stability.ok) {
             perViewportEntries.push({
               page: testPage,

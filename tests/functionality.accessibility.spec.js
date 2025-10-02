@@ -733,7 +733,12 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
           return;
         }
 
-        const stability = await waitForPageStability(page, { timeout: STABILITY_TIMEOUT_MS });
+        const stability = await waitForPageStability(page, {
+          timeout: STABILITY_TIMEOUT_MS,
+          strategies: Array.isArray(siteConfig.a11yStabilityStrategies)
+            ? siteConfig.a11yStabilityStrategies
+            : ['domcontentloaded', 'load', 'networkidle'],
+        });
         pageReport.stability = stability;
         if (!stability.ok) {
           pageReport.status = 'stability-timeout';
