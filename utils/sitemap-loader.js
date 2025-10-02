@@ -8,8 +8,24 @@ const fetchFn = globalThis.fetch
       return fetch(...args);
     };
 
-const DEFAULT_MAX_PAGES = 20;
-const DEFAULT_MAX_DEPTH = 2;
+const DEFAULT_MAX_PAGES = Number.POSITIVE_INFINITY;
+const DEFAULT_MAX_DEPTH = Number.POSITIVE_INFINITY;
+
+const parseLimit = (value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed || trimmed === 'all' || trimmed === 'infinite' || trimmed === 'infinity') {
+      return Number.POSITIVE_INFINITY;
+    }
+  }
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric <= 0) return Number.POSITIVE_INFINITY;
+
+  return Math.floor(numeric);
+};
 
 function ensureArray(value) {
   if (!value) return [];
@@ -154,7 +170,9 @@ async function collectUrls(url, options, visited, depth) {
       }
       return results;
     }
-    return locs.slice(0, options.maxPages);
+    return options.maxPages === Number.POSITIVE_INFINITY
+      ? locs
+      : locs.slice(0, options.maxPages);
   } catch (_error) {
     console.error(`⚠️  Unable to parse sitemap at ${url}: ${_error.message}`);
     return [];
@@ -184,10 +202,22 @@ async function discoverFromSitemap(siteConfig, discoverConfig = {}) {
   }
 
   const sitemapUrl = discoverConfig.sitemapUrl || `${baseUrl.replace(/\/$/, '')}/sitemap.xml`;
+  const resolvedMaxPages = parseLimit(discoverConfig.maxPages);
+  const resolvedMaxDepth = parseLimit(discoverConfig.maxDepth);
   const options = {
-    maxPages: discoverConfig.maxPages || DEFAULT_MAX_PAGES,
-    maxDepth: discoverConfig.maxDepth || DEFAULT_MAX_DEPTH,
+    maxPages: resolvedMaxPages ?? DEFAULT_MAX_PAGES,
+    maxDepth: resolvedMaxDepth ?? DEFAULT_MAX_DEPTH,
   };
+  if (Number.isFinite(options.maxPages)) {
+    console.log(
+      `ℹ️  --discover: Limiting sitemap ingestion to ${options.maxPages} page(s) (discover.maxPages).`
+    );
+  }
+  if (Number.isFinite(options.maxDepth)) {
+    console.log(
+      `ℹ️  --discover: Limiting sitemap traversal depth to ${options.maxDepth} level(s) (discover.maxDepth).`
+    );
+  }
   const includePatterns = compilePatterns(discoverConfig.include);
   const excludePatterns = compilePatterns(discoverConfig.exclude);
 

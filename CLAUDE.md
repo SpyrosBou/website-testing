@@ -191,7 +191,7 @@ Default threshold is `0.05` (5%) when not configured. Use `visualOverrides` for 
 - `a11yFailOn` - Array of impact levels to gate on (default: `["critical","serious"]`)
 - `a11yIgnoreRules` - Array of axe rule IDs to ignore (e.g., `"color-contrast"`)
 - `a11yMode` - `"gate"` (default, fail on violations) or `"audit"` (log only, no failures)
-- `a11yResponsiveSampleSize` - Pages per viewport for responsive a11y (default: 3, or use `--a11y-sample=N` or `--a11y-sample=all`)
+- `a11yResponsiveSampleSize` - Pages per viewport for responsive a11y (default: all pages; override via `--a11y-sample=N` or `--a11y-sample=all`)
 - `a11yKeyboardSampleSize`, `a11yMotionSampleSize`, `a11yReflowSampleSize`, `a11yIframeSampleSize`, `a11yStructureSampleSize` - Optional overrides for specific audit types
 
 Use `--a11y-tags=wcag` to scope axe scans to WCAG-tagged rules only.

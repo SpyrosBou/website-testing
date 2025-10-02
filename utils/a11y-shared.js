@@ -46,12 +46,15 @@ const resolveSampleSetting = (
 ) => {
   if (process.env.SMOKE) return smokeSize;
 
-  const envSetting = parseSampleSetting(process.env[envKey]);
+  const envSettingRaw = process.env[envKey];
+  const envSetting = parseSampleSetting(envSettingRaw);
   if (envSetting !== null) return envSetting;
 
   for (const key of configKeys) {
-    const configSetting = parseSampleSetting(siteConfig?.[key]);
-    if (configSetting !== null) return configSetting;
+    if (key in (siteConfig || {})) {
+      const configSetting = parseSampleSetting(siteConfig[key]);
+      if (configSetting !== null) return configSetting;
+    }
   }
 
   return defaultSize;
@@ -65,7 +68,29 @@ const selectAccessibilityTestPages = (siteConfig, options = {}) => {
     return pages;
   }
 
-  return pages.slice(0, sampleSetting);
+  const limitedPages = pages.slice(0, sampleSetting);
+  if (pages.length > limitedPages.length) {
+    const envKey = options.envKey || 'A11Y_SAMPLE';
+    const envOverride = process.env[envKey];
+    let limiter = 'default accessibility sampling limit';
+
+    if (process.env.SMOKE) {
+      limiter = 'smoke profile (SMOKE=1)';
+    } else if (envOverride) {
+      limiter = `${envKey}=${envOverride}`;
+    } else if (Array.isArray(options.configKeys)) {
+      const matchedKey = options.configKeys.find((key) => parseSampleSetting(siteConfig?.[key]));
+      if (matchedKey) {
+        limiter = `site config ${matchedKey}=${siteConfig[matchedKey]}`;
+      }
+    }
+
+    console.log(
+      `ℹ️  Accessibility sampling limited to ${limitedPages.length} page(s) (${limiter}).`
+    );
+  }
+
+  return limitedPages;
 };
 
 module.exports = {

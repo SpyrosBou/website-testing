@@ -9,7 +9,7 @@ This directory houses the canonical Playwright specs executed by `run-tests.js`.
 
 **Responsive Tests**:
 - `responsive.structure.spec.js` — Critical element visibility across mobile/tablet/desktop viewports. Triggered by `--responsive` flag.
-- `responsive.a11y.spec.js` — Axe-core scans across responsive viewports (samples 3 pages by default). Triggered by `--accessibility` flag (NOT `--responsive`).
+- `responsive.a11y.spec.js` — Axe-core scans across responsive viewports (covers every configured page by default). Triggered by `--accessibility` flag (NOT `--responsive`).
 
 **Functionality Tests**:
 - `functionality.infrastructure.spec.js` — HTTP status, content-type, structural elements, performance metrics.
@@ -54,7 +54,7 @@ The runner categorizes specs based on filename patterns:
 
 ### Responsive: Accessibility
 - Runs axe-core scans across responsive viewports (defaults to desktop).
-- Samples up to 3 pages per viewport by default (controlled by `A11Y_SAMPLE` env var or site config `a11yResponsiveSampleSize`).
+- Scans the full `testPages` list by default; limit coverage explicitly via `A11Y_SAMPLE` or site config `a11yResponsiveSampleSize` (the test logs whenever sampling is truncated).
 - Respects `a11yFailOn`, `a11yIgnoreRules`, and `a11yMode` from site config.
 - **Important**: Triggered by `--accessibility` flag, NOT `--responsive`.
 
