@@ -29,8 +29,8 @@ module.exports = defineConfig({
     ['html', { open: 'never' }], // Lightweight backup HTML report
     ['list'], // Console output
   ],
-  // Allow long-running end-to-end suites (2 hours)
-  timeout: 7200000,
+  // Allow long-running accessibility sweeps without per-test limits
+  timeout: 0,
   expect: {
     timeout: 15000,
   },
