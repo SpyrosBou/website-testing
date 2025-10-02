@@ -1,0 +1,54 @@
+{
+  "anchorId": "chrome-accessibility-across-viewports-desktop-ed5e36",
+  "testId": "4ae8a7764029e29e444f-7d69d5352cd026a27a3f",
+  "title": "Accessibility across viewports - desktop",
+  "titlePath": [
+    "",
+    "Chrome",
+    "responsive.a11y.spec.js",
+    "Responsive Accessibility",
+    "Accessibility across viewports - desktop"
+  ],
+  "location": {
+    "file": "/home/warui/projects/website-testing/tests/responsive.a11y.spec.js",
+    "line": 228,
+    "column": 5
+  },
+  "projectName": "Chrome",
+  "status": "failed",
+  "expectedStatus": "passed",
+  "flaky": false,
+  "durationMs": 0,
+  "durationFriendly": "0ms",
+  "annotations": [],
+  "tags": [],
+  "attempts": [
+    {
+      "status": "failed",
+      "startTime": "2025-10-02T13:11:08.327Z",
+      "startTimeFriendly": "10/2/2025, 2:11:08 PM",
+      "durationMs": 0,
+      "durationFriendly": "0ms",
+      "attachments": [],
+      "summaries": [],
+      "stdout": [],
+      "stderr": [],
+      "errors": [
+        {
+          "message": "Error: worker process exited unexpectedly (code=0, signal=null)",
+          "stack": ""
+        }
+      ],
+      "workerIndex": -1
+    }
+  ],
+  "summaryBlocks": [],
+  "stdout": [],
+  "stderr": [],
+  "errors": [
+    {
+      "message": "Error: worker process exited unexpectedly (code=0, signal=null)",
+      "stack": ""
+    }
+  ]
+}

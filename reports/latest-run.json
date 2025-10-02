@@ -1,0 +1,23 @@
+{
+  "runId": "run-20251002-142930",
+  "runFolder": "run-20251002-142930",
+  "reportRelativePath": "run-20251002-142930/report.html",
+  "startedAt": "2025-10-02T13:29:30.081Z",
+  "completedAt": "2025-10-02T14:55:52.008Z",
+  "durationMs": 5181927,
+  "statusCounts": {
+    "passed": 3,
+    "failed": 4,
+    "skipped": 1,
+    "timedOut": 0,
+    "interrupted": 0,
+    "unknown": 0,
+    "flaky": 0
+  },
+  "totalTests": 8,
+  "site": {
+    "name": "createarts-live",
+    "baseUrl": null
+  },
+  "profile": null
+}

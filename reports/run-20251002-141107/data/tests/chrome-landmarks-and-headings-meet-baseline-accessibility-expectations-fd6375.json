@@ -1,0 +1,54 @@
+{
+  "anchorId": "chrome-landmarks-and-headings-meet-baseline-accessibility-expectations-fd6375",
+  "testId": "cfe552544e511383cb6f-89f82da0b0f02684486c",
+  "title": "Landmarks and headings meet baseline accessibility expectations",
+  "titlePath": [
+    "",
+    "Chrome",
+    "a11y.structure.spec.js",
+    "Accessibility: Structural landmarks",
+    "Landmarks and headings meet baseline accessibility expectations"
+  ],
+  "location": {
+    "file": "/home/warui/projects/website-testing/tests/a11y.structure.spec.js",
+    "line": 179,
+    "column": 3
+  },
+  "projectName": "Chrome",
+  "status": "failed",
+  "expectedStatus": "passed",
+  "flaky": false,
+  "durationMs": 0,
+  "durationFriendly": "0ms",
+  "annotations": [],
+  "tags": [],
+  "attempts": [
+    {
+      "status": "failed",
+      "startTime": "2025-10-02T13:11:08.244Z",
+      "startTimeFriendly": "10/2/2025, 2:11:08 PM",
+      "durationMs": 0,
+      "durationFriendly": "0ms",
+      "attachments": [],
+      "summaries": [],
+      "stdout": [],
+      "stderr": [],
+      "errors": [
+        {
+          "message": "Error: worker process exited unexpectedly (code=0, signal=null)",
+          "stack": ""
+        }
+      ],
+      "workerIndex": -1
+    }
+  ],
+  "summaryBlocks": [],
+  "stdout": [],
+  "stderr": [],
+  "errors": [
+    {
+      "message": "Error: worker process exited unexpectedly (code=0, signal=null)",
+      "stack": ""
+    }
+  ]
+}

@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>run-20250929-184404 – Playwright Test Report</title>
+  <style>
+:root {
+  color-scheme: light;
+  --bg-body: #f5f7fb;
+  --bg-card: #ffffff;
+  --border-color: #d0d7de;
+  --text-primary: #1d2939;
+  --text-muted: #475467;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --radius-md: 12px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-body);
+}
+
+a { color: inherit; }
+
+header.report-header {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 2.5rem 2rem;
+}
+
+header.report-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+header.report-header p {
+  margin: 0.35rem 0 0;
+  color: #cbd5f5;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.summary-card__label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.summary-card__value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-top: 0.35rem;
+}
+
+.summary-card.tone-passed { border-color: #86efac; }
+.summary-card.tone-failed { border-color: #fca5a5; }
+.summary-card.tone-flaky { border-color: #fde68a; }
+
+.run-metadata {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.run-metadata dl {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 1fr;
+  gap: 0.65rem 1.25rem;
+  margin: 0;
+}
+
+.metadata-row {
+  display: contents;
+}
+
+.run-metadata dt {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.run-metadata dd {
+  margin: 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.status-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.filter-chip input {
+  accent-color: #2563eb;
+}
+
+.filter-chip .filter-count {
+  font-weight: 600;
+}
+
+.search-filter input {
+  padding: 0.6rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  min-width: 260px;
+  font-size: 0.95rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.test-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.test-card.status-failed { border-color: #f87171; }
+.test-card.status-timedOut { border-color: #fbbf24; }
+.test-card.status-passed { border-color: #4ade80; }
+.test-card.status-skipped { border-color: #a8a29e; }
+.test-card.is-flaky { border-style: dashed; }
+
+.test-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.test-card__header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.test-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 0.3rem;
+}
+
+.test-card__location code {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.test-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 1rem 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 0.8rem;
+  border: 1px solid #cbd5f5;
+}
+
+.test-summaries {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.summary-block {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.summary-block header {
+  padding: 0.75rem 1rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.summary-block__body {
+  padding: 1rem;
+  background: #fff;
+}
+
+.test-attempts {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.attempt-card {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1rem;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.attempt-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.attempt-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.attachment {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.attachment__meta {
+  background: #f1f5f9;
+  padding: 0.6rem 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.attachment__body {
+  padding: 0.9rem;
+}
+
+.attachment figure {
+  margin: 0;
+}
+
+.attachment img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid #cbd5f5;
+}
+
+.attachment pre {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+
+.attachment-download {
+  display: inline-block;
+  padding: 0.6rem 0.9rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+}
+
+.attachment.omitted .attachment__body {
+  color: #b91c1c;
+}
+
+.test-errors header,
+.test-logs header {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.test-errors pre,
+.test-logs pre {
+  margin: 0;
+  background: #111827;
+  color: #f8fafc;
+  padding: 0.75rem;
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 720px) {
+  main {
+    padding: 1.5rem;
+  }
+  .test-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .run-metadata dl {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+  
+<style>
+  .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
+  .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
+  .summary-report section { margin: 0.75rem 0; }
+  .summary-report table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+  .summary-report th,
+  .summary-report td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
+  .summary-report th { background: #f6f8fa; }
+  .summary-report details { margin: 0.5rem 0; }
+  .summary-report details > summary { cursor: pointer; }
+  .summary-report tr.status-ok td { background: #edf7ed; }
+  .summary-report tr.status-redirect td { background: #fff4ce; }
+  .summary-report tr.status-error td { background: #ffe5e5; }
+  .summary-report tr.impact-critical td { background: #ffe5e5; }
+  .summary-report tr.impact-serious td { background: #fff4ce; }
+  .summary-report ul { margin: 0.25rem 0; padding-left: 1.2rem; }
+  .summary-report li { margin: 0.15rem 0; }
+  .summary-report li.check-pass::marker { color: #137333; }
+  .summary-report li.check-fail::marker { color: #d93025; }
+  .summary-report .details { color: #4e5969; }
+  .summary-report .note { margin-top: 0.25rem; font-size: 0.85rem; color: #344054; }
+  .summary-report code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .summary-report .legend { margin: 0.5rem 0; }
+  .summary-report .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
+  .summary-report .badge.ok { background: #edf7ed; }
+  .summary-report .badge.redirect { background: #fff4ce; }
+  .summary-report .badge.error { background: #ffe5e5; }
+  .summary-report .badge-critical { background: #ffe5e5; }
+  .summary-report .badge-serious { background: #fff4ce; }
+  .summary-report .badge-best-practice { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .badge-neutral { background: #eef2f6; }
+  .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
+  .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .summary-report .status-summary li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+  .summary-report .status-pill { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid #d0d7de; background: #f6f8fa; color: #1d2939; text-transform: capitalize; }
+  .summary-report .status-pill.success { background: #edf7ed; border-color: #cce4cc; color: #1d7a1d; }
+  .summary-report .status-pill.error { background: #ffe5e5; border-color: #f3b5b3; color: #b42318; }
+  .summary-report .status-pill.warning { background: #fff4ce; border-color: #f7d070; color: #6a4d00; }
+  .summary-report .status-pill.neutral { background: #eef2f6; border-color: #d0d7de; color: #344054; }
+  .summary-report .status-pill.info { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .page-card { border: 1px solid #d0d7de; border-radius: 8px; padding: 0.85rem 1rem; margin: 1rem 0; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+  .summary-report .page-card__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .summary-report .page-card__header h3 { margin: 0; font-size: 1.1rem; }
+  .summary-report .page-card__meta { margin-bottom: 0.5rem; }
+  .summary-report .page-card__meta p { margin: 0.25rem 0; }
+  .summary-report .page-card__table { margin-top: 0.75rem; }
+  .summary-report .details { color: #475467; font-size: 0.88rem; margin: 0.25rem 0; }
+  .summary-report ul.details { margin: 0.25rem 0 0.5rem 1.1rem; padding-left: 1.1rem; }
+  .summary-report ul.details li { margin: 0.2rem 0; }
+  .summary-report .visual-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 0.5rem; }
+  .summary-report .visual-previews figure { margin: 0; background: #f8fafc; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+  .summary-report .visual-previews img { width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5f5; background: #0f172a; }
+  .summary-report .visual-previews figcaption { font-size: 0.85rem; font-weight: 600; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-report .visual-previews__item--diff { grid-column: 1 / -1; }
+  .summary-report .visual-previews__item--diff figcaption { color: #b42318; }
+  .summary-report .visual-previews__empty { color: #475467; font-size: 0.85rem; }
+</style>
+
+</head>
+<body>
+  <header class="report-header">
+    <h1>nfsmediation-live – Playwright Test Run</h1>
+    <p>run-20250929-184404 • 4s</p>
+  </header>
+  <main>
+    
+    <section class="summary-cards" aria-label="Run summary">
+      
+            <article class="summary-card tone-total">
+              <div class="summary-card__label">Total Tests</div>
+              <div class="summary-card__value">1</div>
+            </article>
+          
+
+            <article class="summary-card tone-passed">
+              <div class="summary-card__label">Passed</div>
+              <div class="summary-card__value">1</div>
+            </article>
+          
+
+            <article class="summary-card tone-muted">
+              <div class="summary-card__label">Failed</div>
+              <div class="summary-card__value">0</div>
+            </article>
+          
+
+            <article class="summary-card tone-skipped">
+              <div class="summary-card__label">Skipped</div>
+              <div class="summary-card__value">0</div>
+            </article>
+          
+
+            <article class="summary-card tone-muted">
+              <div class="summary-card__label">Flaky</div>
+              <div class="summary-card__value">0</div>
+            </article>
+          
+    </section>
+  
+    
+    <section class="run-metadata" aria-label="Run metadata">
+      <dl>
+        
+              <div class="metadata-row">
+                <dt>Site</dt>
+                <dd>nfsmediation-live</dd>
+              </div>
+            
+
+              <div class="metadata-row">
+                <dt>Profile</dt>
+                <dd>smoke</dd>
+              </div>
+            
+
+              <div class="metadata-row">
+                <dt>Projects</dt>
+                <dd>Chrome</dd>
+              </div>
+            
+
+              <div class="metadata-row">
+                <dt>Started</dt>
+                <dd>9/29/2025, 6:44:04 PM</dd>
+              </div>
+            
+
+              <div class="metadata-row">
+                <dt>Completed</dt>
+                <dd>9/29/2025, 6:44:08 PM</dd>
+              </div>
+            
+
+              <div class="metadata-row">
+                <dt>Duration</dt>
+                <dd>4s</dd>
+              </div>
+            
+
+              <div class="metadata-row">
+                <dt>Environment</dt>
+                <dd>linux 6.6.87.2-microsoft-standard-WSL2 • x64 • Node v22.20.0</dd>
+              </div>
+            
+      </dl>
+    </section>
+  
+    
+    <div class="filters">
+      <div class="status-filters" role="group" aria-label="Filter by status">
+        
+      <label class="filter-chip status-passed">
+        <input type="checkbox" name="status" value="passed" checked />
+        <span>Passed <span class="filter-count">1</span></span>
+      </label>
+    
+      </div>
+      <div class="search-filter">
+        <label for="report-search" class="visually-hidden">Filter tests</label>
+        <input id="report-search" type="search" placeholder="Filter by test name, project, tags, or text" />
+      </div>
+    </div>
+  
+    <section class="tests-list" aria-label="Test results">
+      
+    <article class="test-card status-passed " id="chrome-wcag-2-1-a-aa-scans-661fcd">
+      <header class="test-card__header">
+        <div>
+          <h3>WCAG 2.1 A/AA scans</h3>
+          <div class="test-card__meta">
+            <span class="meta-item">Chrome</span>
+            <span class="meta-item">Passed</span>
+            
+            <span class="meta-item">4s</span>
+          </div>
+        </div>
+        <div class="test-card__location">
+          <code>/home/warui/projects/website-testing/tests/functionality.accessibility.spec.js:584</code>
+        </div>
+      </header>
+
+      
+
+      
+    <section class="test-summaries" aria-label="Summary attachments">
+      
+              <article class="summary-block">
+                <header>a11y-root</header>
+                <div class="summary-block__body">
+<style>
+  .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
+  .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
+  .summary-report section { margin: 0.75rem 0; }
+  .summary-report table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+  .summary-report th,
+  .summary-report td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
+  .summary-report th { background: #f6f8fa; }
+  .summary-report details { margin: 0.5rem 0; }
+  .summary-report details > summary { cursor: pointer; }
+  .summary-report tr.status-ok td { background: #edf7ed; }
+  .summary-report tr.status-redirect td { background: #fff4ce; }
+  .summary-report tr.status-error td { background: #ffe5e5; }
+  .summary-report tr.impact-critical td { background: #ffe5e5; }
+  .summary-report tr.impact-serious td { background: #fff4ce; }
+  .summary-report ul { margin: 0.25rem 0; padding-left: 1.2rem; }
+  .summary-report li { margin: 0.15rem 0; }
+  .summary-report li.check-pass::marker { color: #137333; }
+  .summary-report li.check-fail::marker { color: #d93025; }
+  .summary-report .details { color: #4e5969; }
+  .summary-report .note { margin-top: 0.25rem; font-size: 0.85rem; color: #344054; }
+  .summary-report code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .summary-report .legend { margin: 0.5rem 0; }
+  .summary-report .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
+  .summary-report .badge.ok { background: #edf7ed; }
+  .summary-report .badge.redirect { background: #fff4ce; }
+  .summary-report .badge.error { background: #ffe5e5; }
+  .summary-report .badge-critical { background: #ffe5e5; }
+  .summary-report .badge-serious { background: #fff4ce; }
+  .summary-report .badge-best-practice { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .badge-neutral { background: #eef2f6; }
+  .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
+  .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .summary-report .status-summary li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+  .summary-report .status-pill { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid #d0d7de; background: #f6f8fa; color: #1d2939; text-transform: capitalize; }
+  .summary-report .status-pill.success { background: #edf7ed; border-color: #cce4cc; color: #1d7a1d; }
+  .summary-report .status-pill.error { background: #ffe5e5; border-color: #f3b5b3; color: #b42318; }
+  .summary-report .status-pill.warning { background: #fff4ce; border-color: #f7d070; color: #6a4d00; }
+  .summary-report .status-pill.neutral { background: #eef2f6; border-color: #d0d7de; color: #344054; }
+  .summary-report .status-pill.info { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .page-card { border: 1px solid #d0d7de; border-radius: 8px; padding: 0.85rem 1rem; margin: 1rem 0; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+  .summary-report .page-card__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .summary-report .page-card__header h3 { margin: 0; font-size: 1.1rem; }
+  .summary-report .page-card__meta { margin-bottom: 0.5rem; }
+  .summary-report .page-card__meta p { margin: 0.25rem 0; }
+  .summary-report .page-card__table { margin-top: 0.75rem; }
+  .summary-report .details { color: #475467; font-size: 0.88rem; margin: 0.25rem 0; }
+  .summary-report ul.details { margin: 0.25rem 0 0.5rem 1.1rem; padding-left: 1.1rem; }
+  .summary-report ul.details li { margin: 0.2rem 0; }
+  .summary-report .visual-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 0.5rem; }
+  .summary-report .visual-previews figure { margin: 0; background: #f8fafc; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+  .summary-report .visual-previews img { width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5f5; background: #0f172a; }
+  .summary-report .visual-previews figcaption { font-size: 0.85rem; font-weight: 600; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-report .visual-previews__item--diff { grid-column: 1 / -1; }
+  .summary-report .visual-previews__item--diff figcaption { color: #b42318; }
+  .summary-report .visual-previews__empty { color: #475467; font-size: 0.85rem; }
+</style>
+
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>/</h3>
+        <span class="status-pill success">No gating violations</span>
+      </div>
+      <div class="page-card__meta">
+        <p class="details"><strong>Stability:</strong> Reached <code>networkidle</code> in 519ms.</p>
+        <p class="details"><strong>Gating:</strong> CRITICAL/SERIOUS</p>
+        
+        
+      </div>
+      <p class="details">No CRITICAL/SERIOUS accessibility violations detected.</p><h4>Best-practice advisories (no WCAG tag) (2)</h4>
+    <div class="page-card__table">
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>WCAG level</th><th>Sample targets</th></tr>
+        </thead>
+        <tbody>
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>heading-order</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.our-services &gt; h4</code></td>
+        </tr>
+      
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>region</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/region?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.skip-link</code></td>
+        </tr>
+      </tbody>
+      </table>
+    </div>
+  
+    </section>
+  </div>
+              </article>
+            
+
+              <article class="summary-block markdown">
+                <header>a11y-root (Markdown)</header>
+                <pre>### /
+
+- Status: No gating violations
+- Gating: CRITICAL/SERIOUS
+- Stability: Reached networkidle in 519ms
+
+- No CRITICAL/SERIOUS accessibility violations detected.
+
+#### / — Best-practice advisories (no WCAG tag) (2 issues)
+
+| Impact | Rule | Nodes | WCAG level | Help | Sample targets |
+| --- | --- | --- | --- | --- | --- |
+| moderate | heading-order | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright) | `.our-services &gt; h4` |
+| moderate | region | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/region?application=playwright) | `.skip-link` |
+</pre>
+              </article>
+            
+
+              <article class="summary-block">
+                <header>a11y-summary</header>
+                <div class="summary-block__body">
+<style>
+  .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
+  .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
+  .summary-report section { margin: 0.75rem 0; }
+  .summary-report table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+  .summary-report th,
+  .summary-report td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
+  .summary-report th { background: #f6f8fa; }
+  .summary-report details { margin: 0.5rem 0; }
+  .summary-report details > summary { cursor: pointer; }
+  .summary-report tr.status-ok td { background: #edf7ed; }
+  .summary-report tr.status-redirect td { background: #fff4ce; }
+  .summary-report tr.status-error td { background: #ffe5e5; }
+  .summary-report tr.impact-critical td { background: #ffe5e5; }
+  .summary-report tr.impact-serious td { background: #fff4ce; }
+  .summary-report ul { margin: 0.25rem 0; padding-left: 1.2rem; }
+  .summary-report li { margin: 0.15rem 0; }
+  .summary-report li.check-pass::marker { color: #137333; }
+  .summary-report li.check-fail::marker { color: #d93025; }
+  .summary-report .details { color: #4e5969; }
+  .summary-report .note { margin-top: 0.25rem; font-size: 0.85rem; color: #344054; }
+  .summary-report code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .summary-report .legend { margin: 0.5rem 0; }
+  .summary-report .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
+  .summary-report .badge.ok { background: #edf7ed; }
+  .summary-report .badge.redirect { background: #fff4ce; }
+  .summary-report .badge.error { background: #ffe5e5; }
+  .summary-report .badge-critical { background: #ffe5e5; }
+  .summary-report .badge-serious { background: #fff4ce; }
+  .summary-report .badge-best-practice { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .badge-neutral { background: #eef2f6; }
+  .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
+  .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .summary-report .status-summary li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+  .summary-report .status-pill { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid #d0d7de; background: #f6f8fa; color: #1d2939; text-transform: capitalize; }
+  .summary-report .status-pill.success { background: #edf7ed; border-color: #cce4cc; color: #1d7a1d; }
+  .summary-report .status-pill.error { background: #ffe5e5; border-color: #f3b5b3; color: #b42318; }
+  .summary-report .status-pill.warning { background: #fff4ce; border-color: #f7d070; color: #6a4d00; }
+  .summary-report .status-pill.neutral { background: #eef2f6; border-color: #d0d7de; color: #344054; }
+  .summary-report .status-pill.info { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .page-card { border: 1px solid #d0d7de; border-radius: 8px; padding: 0.85rem 1rem; margin: 1rem 0; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+  .summary-report .page-card__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .summary-report .page-card__header h3 { margin: 0; font-size: 1.1rem; }
+  .summary-report .page-card__meta { margin-bottom: 0.5rem; }
+  .summary-report .page-card__meta p { margin: 0.25rem 0; }
+  .summary-report .page-card__table { margin-top: 0.75rem; }
+  .summary-report .details { color: #475467; font-size: 0.88rem; margin: 0.25rem 0; }
+  .summary-report ul.details { margin: 0.25rem 0 0.5rem 1.1rem; padding-left: 1.1rem; }
+  .summary-report ul.details li { margin: 0.2rem 0; }
+  .summary-report .visual-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 0.5rem; }
+  .summary-report .visual-previews figure { margin: 0; background: #f8fafc; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+  .summary-report .visual-previews img { width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5f5; background: #0f172a; }
+  .summary-report .visual-previews figcaption { font-size: 0.85rem; font-weight: 600; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-report .visual-previews__item--diff { grid-column: 1 / -1; }
+  .summary-report .visual-previews__item--diff figcaption { color: #b42318; }
+  .summary-report .visual-previews__empty { color: #475467; font-size: 0.85rem; }
+</style>
+
+    <section class="summary-report summary-a11y">
+      <h2>Accessibility run summary</h2>
+      <p>Analyzed <strong>1</strong> page(s) with a 20s stability budget per strategy.</p>
+      <ul class="status-summary"><li><span class="status-pill success">No gating violations</span><span>1 page(s)</span></li></ul>
+      <p class="details">Gating threshold: CRITICAL/SERIOUS</p>
+      
+      <p class="details">Best-practice advisories (no WCAG tag) surfaced on 1 page(s).</p>
+      <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span><span class="badge badge-wcag">WCAG A/AA/AAA</span><span class="badge badge-best-practice">Best-practice advisory</span></p>
+    </section>
+    
+    
+    
+    <section class="summary-report summary-a11y">
+      <h3>Best-practice advisory summary (2 unique rules)</h3>
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Pages</th><th>Nodes</th><th>WCAG level</th><th>Help</th></tr>
+        </thead>
+        <tbody>
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>heading-order</td>
+          <td>1</td>
+          <td>1</td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+        </tr>
+      
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>region</td>
+          <td>1</td>
+          <td>1</td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/region?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+        </tr>
+      </tbody>
+      </table>
+    </section>
+  
+    <section class="summary-report summary-a11y">
+      <h3>Per-page breakdown</h3>
+    </section>
+    
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>/</h3>
+        <span class="status-pill success">No gating violations</span>
+      </div>
+      <div class="page-card__meta">
+        <p class="details"><strong>Stability:</strong> Reached <code>networkidle</code> in 519ms.</p>
+        <p class="details"><strong>Gating:</strong> CRITICAL/SERIOUS</p>
+        
+        
+      </div>
+      <p class="details">No CRITICAL/SERIOUS accessibility violations detected.</p><h4>Best-practice advisories (no WCAG tag) (2)</h4>
+    <div class="page-card__table">
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>WCAG level</th><th>Sample targets</th></tr>
+        </thead>
+        <tbody>
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>heading-order</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.our-services &gt; h4</code></td>
+        </tr>
+      
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>region</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/region?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.skip-link</code></td>
+        </tr>
+      </tbody>
+      </table>
+    </div>
+  
+    </section>
+  
+  </div>
+              </article>
+            
+
+              <article class="summary-block markdown">
+                <header>a11y-summary (Markdown)</header>
+                <pre># Accessibility run summary
+
+- Total pages: 1
+- Pages with violations: 0
+- Stability timeouts: 0
+- HTTP errors: 0
+- Scan errors: 0
+- Passed without gating issues: 1
+- Gating threshold: CRITICAL/SERIOUS
+- Pages with non-gating WCAG findings: 0
+- Pages with best-practice advisories (no WCAG tag): 1
+
+## Per-page breakdown
+
+| Page | Status | Notes |
+| --- | --- | --- |
+| `/` | No gating violations | Stability via networkidle; 2 best-practice advisory finding(s) |
+
+### Best-practice advisory summary (2 unique rules)
+
+| Impact | Rule | Pages | Nodes | WCAG level | Help |
+| --- | --- | --- | --- | --- | --- |
+| moderate | heading-order | 1 | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright) |
+| moderate | region | 1 | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/region?application=playwright) |
+
+
+#### / — Best-practice advisories (no WCAG tag) (2 issues)
+
+| Impact | Rule | Nodes | WCAG level | Help | Sample targets |
+| --- | --- | --- | --- | --- | --- |
+| moderate | heading-order | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright) | `.our-services &gt; h4` |
+| moderate | region | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/region?application=playwright) | `.skip-link` |
+</pre>
+              </article>
+            
+    </section>
+  
+      
+    <section class="test-attempts" aria-label="Attempts">
+      
+            <article class="attempt-card status-passed">
+              <header>
+                <div class="attempt-title">Attempt 1</div>
+                <div class="attempt-meta">
+                  <span>Passed</span>
+                  <span>4s</span>
+                  <span>9/29/2025, 6:44:04 PM</span>
+                </div>
+              </header>
+              
+    <section class="test-summaries" aria-label="Summary attachments">
+      
+              <article class="summary-block">
+                <header>a11y-root</header>
+                <div class="summary-block__body">
+<style>
+  .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
+  .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
+  .summary-report section { margin: 0.75rem 0; }
+  .summary-report table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+  .summary-report th,
+  .summary-report td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
+  .summary-report th { background: #f6f8fa; }
+  .summary-report details { margin: 0.5rem 0; }
+  .summary-report details > summary { cursor: pointer; }
+  .summary-report tr.status-ok td { background: #edf7ed; }
+  .summary-report tr.status-redirect td { background: #fff4ce; }
+  .summary-report tr.status-error td { background: #ffe5e5; }
+  .summary-report tr.impact-critical td { background: #ffe5e5; }
+  .summary-report tr.impact-serious td { background: #fff4ce; }
+  .summary-report ul { margin: 0.25rem 0; padding-left: 1.2rem; }
+  .summary-report li { margin: 0.15rem 0; }
+  .summary-report li.check-pass::marker { color: #137333; }
+  .summary-report li.check-fail::marker { color: #d93025; }
+  .summary-report .details { color: #4e5969; }
+  .summary-report .note { margin-top: 0.25rem; font-size: 0.85rem; color: #344054; }
+  .summary-report code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .summary-report .legend { margin: 0.5rem 0; }
+  .summary-report .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
+  .summary-report .badge.ok { background: #edf7ed; }
+  .summary-report .badge.redirect { background: #fff4ce; }
+  .summary-report .badge.error { background: #ffe5e5; }
+  .summary-report .badge-critical { background: #ffe5e5; }
+  .summary-report .badge-serious { background: #fff4ce; }
+  .summary-report .badge-best-practice { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .badge-neutral { background: #eef2f6; }
+  .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
+  .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .summary-report .status-summary li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+  .summary-report .status-pill { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid #d0d7de; background: #f6f8fa; color: #1d2939; text-transform: capitalize; }
+  .summary-report .status-pill.success { background: #edf7ed; border-color: #cce4cc; color: #1d7a1d; }
+  .summary-report .status-pill.error { background: #ffe5e5; border-color: #f3b5b3; color: #b42318; }
+  .summary-report .status-pill.warning { background: #fff4ce; border-color: #f7d070; color: #6a4d00; }
+  .summary-report .status-pill.neutral { background: #eef2f6; border-color: #d0d7de; color: #344054; }
+  .summary-report .status-pill.info { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .page-card { border: 1px solid #d0d7de; border-radius: 8px; padding: 0.85rem 1rem; margin: 1rem 0; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+  .summary-report .page-card__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .summary-report .page-card__header h3 { margin: 0; font-size: 1.1rem; }
+  .summary-report .page-card__meta { margin-bottom: 0.5rem; }
+  .summary-report .page-card__meta p { margin: 0.25rem 0; }
+  .summary-report .page-card__table { margin-top: 0.75rem; }
+  .summary-report .details { color: #475467; font-size: 0.88rem; margin: 0.25rem 0; }
+  .summary-report ul.details { margin: 0.25rem 0 0.5rem 1.1rem; padding-left: 1.1rem; }
+  .summary-report ul.details li { margin: 0.2rem 0; }
+  .summary-report .visual-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 0.5rem; }
+  .summary-report .visual-previews figure { margin: 0; background: #f8fafc; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+  .summary-report .visual-previews img { width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5f5; background: #0f172a; }
+  .summary-report .visual-previews figcaption { font-size: 0.85rem; font-weight: 600; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-report .visual-previews__item--diff { grid-column: 1 / -1; }
+  .summary-report .visual-previews__item--diff figcaption { color: #b42318; }
+  .summary-report .visual-previews__empty { color: #475467; font-size: 0.85rem; }
+</style>
+
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>/</h3>
+        <span class="status-pill success">No gating violations</span>
+      </div>
+      <div class="page-card__meta">
+        <p class="details"><strong>Stability:</strong> Reached <code>networkidle</code> in 519ms.</p>
+        <p class="details"><strong>Gating:</strong> CRITICAL/SERIOUS</p>
+        
+        
+      </div>
+      <p class="details">No CRITICAL/SERIOUS accessibility violations detected.</p><h4>Best-practice advisories (no WCAG tag) (2)</h4>
+    <div class="page-card__table">
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>WCAG level</th><th>Sample targets</th></tr>
+        </thead>
+        <tbody>
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>heading-order</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.our-services &gt; h4</code></td>
+        </tr>
+      
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>region</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/region?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.skip-link</code></td>
+        </tr>
+      </tbody>
+      </table>
+    </div>
+  
+    </section>
+  </div>
+              </article>
+            
+
+              <article class="summary-block markdown">
+                <header>a11y-root (Markdown)</header>
+                <pre>### /
+
+- Status: No gating violations
+- Gating: CRITICAL/SERIOUS
+- Stability: Reached networkidle in 519ms
+
+- No CRITICAL/SERIOUS accessibility violations detected.
+
+#### / — Best-practice advisories (no WCAG tag) (2 issues)
+
+| Impact | Rule | Nodes | WCAG level | Help | Sample targets |
+| --- | --- | --- | --- | --- | --- |
+| moderate | heading-order | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright) | `.our-services &gt; h4` |
+| moderate | region | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/region?application=playwright) | `.skip-link` |
+</pre>
+              </article>
+            
+
+              <article class="summary-block">
+                <header>a11y-summary</header>
+                <div class="summary-block__body">
+<style>
+  .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
+  .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
+  .summary-report section { margin: 0.75rem 0; }
+  .summary-report table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+  .summary-report th,
+  .summary-report td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
+  .summary-report th { background: #f6f8fa; }
+  .summary-report details { margin: 0.5rem 0; }
+  .summary-report details > summary { cursor: pointer; }
+  .summary-report tr.status-ok td { background: #edf7ed; }
+  .summary-report tr.status-redirect td { background: #fff4ce; }
+  .summary-report tr.status-error td { background: #ffe5e5; }
+  .summary-report tr.impact-critical td { background: #ffe5e5; }
+  .summary-report tr.impact-serious td { background: #fff4ce; }
+  .summary-report ul { margin: 0.25rem 0; padding-left: 1.2rem; }
+  .summary-report li { margin: 0.15rem 0; }
+  .summary-report li.check-pass::marker { color: #137333; }
+  .summary-report li.check-fail::marker { color: #d93025; }
+  .summary-report .details { color: #4e5969; }
+  .summary-report .note { margin-top: 0.25rem; font-size: 0.85rem; color: #344054; }
+  .summary-report code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .summary-report .legend { margin: 0.5rem 0; }
+  .summary-report .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
+  .summary-report .badge.ok { background: #edf7ed; }
+  .summary-report .badge.redirect { background: #fff4ce; }
+  .summary-report .badge.error { background: #ffe5e5; }
+  .summary-report .badge-critical { background: #ffe5e5; }
+  .summary-report .badge-serious { background: #fff4ce; }
+  .summary-report .badge-best-practice { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .badge-neutral { background: #eef2f6; }
+  .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
+  .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .summary-report .status-summary li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+  .summary-report .status-pill { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid #d0d7de; background: #f6f8fa; color: #1d2939; text-transform: capitalize; }
+  .summary-report .status-pill.success { background: #edf7ed; border-color: #cce4cc; color: #1d7a1d; }
+  .summary-report .status-pill.error { background: #ffe5e5; border-color: #f3b5b3; color: #b42318; }
+  .summary-report .status-pill.warning { background: #fff4ce; border-color: #f7d070; color: #6a4d00; }
+  .summary-report .status-pill.neutral { background: #eef2f6; border-color: #d0d7de; color: #344054; }
+  .summary-report .status-pill.info { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .page-card { border: 1px solid #d0d7de; border-radius: 8px; padding: 0.85rem 1rem; margin: 1rem 0; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+  .summary-report .page-card__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .summary-report .page-card__header h3 { margin: 0; font-size: 1.1rem; }
+  .summary-report .page-card__meta { margin-bottom: 0.5rem; }
+  .summary-report .page-card__meta p { margin: 0.25rem 0; }
+  .summary-report .page-card__table { margin-top: 0.75rem; }
+  .summary-report .details { color: #475467; font-size: 0.88rem; margin: 0.25rem 0; }
+  .summary-report ul.details { margin: 0.25rem 0 0.5rem 1.1rem; padding-left: 1.1rem; }
+  .summary-report ul.details li { margin: 0.2rem 0; }
+  .summary-report .visual-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 0.5rem; }
+  .summary-report .visual-previews figure { margin: 0; background: #f8fafc; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+  .summary-report .visual-previews img { width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5f5; background: #0f172a; }
+  .summary-report .visual-previews figcaption { font-size: 0.85rem; font-weight: 600; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-report .visual-previews__item--diff { grid-column: 1 / -1; }
+  .summary-report .visual-previews__item--diff figcaption { color: #b42318; }
+  .summary-report .visual-previews__empty { color: #475467; font-size: 0.85rem; }
+</style>
+
+    <section class="summary-report summary-a11y">
+      <h2>Accessibility run summary</h2>
+      <p>Analyzed <strong>1</strong> page(s) with a 20s stability budget per strategy.</p>
+      <ul class="status-summary"><li><span class="status-pill success">No gating violations</span><span>1 page(s)</span></li></ul>
+      <p class="details">Gating threshold: CRITICAL/SERIOUS</p>
+      
+      <p class="details">Best-practice advisories (no WCAG tag) surfaced on 1 page(s).</p>
+      <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span><span class="badge badge-wcag">WCAG A/AA/AAA</span><span class="badge badge-best-practice">Best-practice advisory</span></p>
+    </section>
+    
+    
+    
+    <section class="summary-report summary-a11y">
+      <h3>Best-practice advisory summary (2 unique rules)</h3>
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Pages</th><th>Nodes</th><th>WCAG level</th><th>Help</th></tr>
+        </thead>
+        <tbody>
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>heading-order</td>
+          <td>1</td>
+          <td>1</td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+        </tr>
+      
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>region</td>
+          <td>1</td>
+          <td>1</td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/region?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+        </tr>
+      </tbody>
+      </table>
+    </section>
+  
+    <section class="summary-report summary-a11y">
+      <h3>Per-page breakdown</h3>
+    </section>
+    
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>/</h3>
+        <span class="status-pill success">No gating violations</span>
+      </div>
+      <div class="page-card__meta">
+        <p class="details"><strong>Stability:</strong> Reached <code>networkidle</code> in 519ms.</p>
+        <p class="details"><strong>Gating:</strong> CRITICAL/SERIOUS</p>
+        
+        
+      </div>
+      <p class="details">No CRITICAL/SERIOUS accessibility violations detected.</p><h4>Best-practice advisories (no WCAG tag) (2)</h4>
+    <div class="page-card__table">
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>WCAG level</th><th>Sample targets</th></tr>
+        </thead>
+        <tbody>
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>heading-order</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.our-services &gt; h4</code></td>
+        </tr>
+      
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>region</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/region?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.skip-link</code></td>
+        </tr>
+      </tbody>
+      </table>
+    </div>
+  
+    </section>
+  
+  </div>
+              </article>
+            
+
+              <article class="summary-block markdown">
+                <header>a11y-summary (Markdown)</header>
+                <pre># Accessibility run summary
+
+- Total pages: 1
+- Pages with violations: 0
+- Stability timeouts: 0
+- HTTP errors: 0
+- Scan errors: 0
+- Passed without gating issues: 1
+- Gating threshold: CRITICAL/SERIOUS
+- Pages with non-gating WCAG findings: 0
+- Pages with best-practice advisories (no WCAG tag): 1
+
+## Per-page breakdown
+
+| Page | Status | Notes |
+| --- | --- | --- |
+| `/` | No gating violations | Stability via networkidle; 2 best-practice advisory finding(s) |
+
+### Best-practice advisory summary (2 unique rules)
+
+| Impact | Rule | Pages | Nodes | WCAG level | Help |
+| --- | --- | --- | --- | --- | --- |
+| moderate | heading-order | 1 | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright) |
+| moderate | region | 1 | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/region?application=playwright) |
+
+
+#### / — Best-practice advisories (no WCAG tag) (2 issues)
+
+| Impact | Rule | Nodes | WCAG level | Help | Sample targets |
+| --- | --- | --- | --- | --- | --- |
+| moderate | heading-order | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright) | `.our-services &gt; h4` |
+| moderate | region | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/region?application=playwright) | `.skip-link` |
+</pre>
+              </article>
+            
+    </section>
+  
+              <div class="attempt-attachments">
+    <div class="attachment">
+      <div class="attachment__meta">
+        <span class="attachment__name">a11y-root.summary.html</span>
+        <span class="attachment__meta-details">text/html • 6.63 KB</span>
+      </div>
+      <div class="attachment__body"><div class="attachment-html">
+<style>
+  .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
+  .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
+  .summary-report section { margin: 0.75rem 0; }
+  .summary-report table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+  .summary-report th,
+  .summary-report td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
+  .summary-report th { background: #f6f8fa; }
+  .summary-report details { margin: 0.5rem 0; }
+  .summary-report details > summary { cursor: pointer; }
+  .summary-report tr.status-ok td { background: #edf7ed; }
+  .summary-report tr.status-redirect td { background: #fff4ce; }
+  .summary-report tr.status-error td { background: #ffe5e5; }
+  .summary-report tr.impact-critical td { background: #ffe5e5; }
+  .summary-report tr.impact-serious td { background: #fff4ce; }
+  .summary-report ul { margin: 0.25rem 0; padding-left: 1.2rem; }
+  .summary-report li { margin: 0.15rem 0; }
+  .summary-report li.check-pass::marker { color: #137333; }
+  .summary-report li.check-fail::marker { color: #d93025; }
+  .summary-report .details { color: #4e5969; }
+  .summary-report .note { margin-top: 0.25rem; font-size: 0.85rem; color: #344054; }
+  .summary-report code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .summary-report .legend { margin: 0.5rem 0; }
+  .summary-report .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
+  .summary-report .badge.ok { background: #edf7ed; }
+  .summary-report .badge.redirect { background: #fff4ce; }
+  .summary-report .badge.error { background: #ffe5e5; }
+  .summary-report .badge-critical { background: #ffe5e5; }
+  .summary-report .badge-serious { background: #fff4ce; }
+  .summary-report .badge-best-practice { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .badge-neutral { background: #eef2f6; }
+  .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
+  .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .summary-report .status-summary li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+  .summary-report .status-pill { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid #d0d7de; background: #f6f8fa; color: #1d2939; text-transform: capitalize; }
+  .summary-report .status-pill.success { background: #edf7ed; border-color: #cce4cc; color: #1d7a1d; }
+  .summary-report .status-pill.error { background: #ffe5e5; border-color: #f3b5b3; color: #b42318; }
+  .summary-report .status-pill.warning { background: #fff4ce; border-color: #f7d070; color: #6a4d00; }
+  .summary-report .status-pill.neutral { background: #eef2f6; border-color: #d0d7de; color: #344054; }
+  .summary-report .status-pill.info { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .page-card { border: 1px solid #d0d7de; border-radius: 8px; padding: 0.85rem 1rem; margin: 1rem 0; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+  .summary-report .page-card__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .summary-report .page-card__header h3 { margin: 0; font-size: 1.1rem; }
+  .summary-report .page-card__meta { margin-bottom: 0.5rem; }
+  .summary-report .page-card__meta p { margin: 0.25rem 0; }
+  .summary-report .page-card__table { margin-top: 0.75rem; }
+  .summary-report .details { color: #475467; font-size: 0.88rem; margin: 0.25rem 0; }
+  .summary-report ul.details { margin: 0.25rem 0 0.5rem 1.1rem; padding-left: 1.1rem; }
+  .summary-report ul.details li { margin: 0.2rem 0; }
+  .summary-report .visual-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 0.5rem; }
+  .summary-report .visual-previews figure { margin: 0; background: #f8fafc; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+  .summary-report .visual-previews img { width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5f5; background: #0f172a; }
+  .summary-report .visual-previews figcaption { font-size: 0.85rem; font-weight: 600; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-report .visual-previews__item--diff { grid-column: 1 / -1; }
+  .summary-report .visual-previews__item--diff figcaption { color: #b42318; }
+  .summary-report .visual-previews__empty { color: #475467; font-size: 0.85rem; }
+</style>
+
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>/</h3>
+        <span class="status-pill success">No gating violations</span>
+      </div>
+      <div class="page-card__meta">
+        <p class="details"><strong>Stability:</strong> Reached <code>networkidle</code> in 519ms.</p>
+        <p class="details"><strong>Gating:</strong> CRITICAL/SERIOUS</p>
+        
+        
+      </div>
+      <p class="details">No CRITICAL/SERIOUS accessibility violations detected.</p><h4>Best-practice advisories (no WCAG tag) (2)</h4>
+    <div class="page-card__table">
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>WCAG level</th><th>Sample targets</th></tr>
+        </thead>
+        <tbody>
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>heading-order</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.our-services &gt; h4</code></td>
+        </tr>
+      
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>region</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/region?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.skip-link</code></td>
+        </tr>
+      </tbody>
+      </table>
+    </div>
+  
+    </section>
+  </div></div>
+    </div>
+  
+
+    <div class="attachment">
+      <div class="attachment__meta">
+        <span class="attachment__name">a11y-root.summary.md</span>
+        <span class="attachment__meta-details">text/markdown • 611 B</span>
+      </div>
+      <div class="attachment__body"><pre>### /
+
+- Status: No gating violations
+- Gating: CRITICAL/SERIOUS
+- Stability: Reached networkidle in 519ms
+
+- No CRITICAL/SERIOUS accessibility violations detected.
+
+#### / — Best-practice advisories (no WCAG tag) (2 issues)
+
+| Impact | Rule | Nodes | WCAG level | Help | Sample targets |
+| --- | --- | --- | --- | --- | --- |
+| moderate | heading-order | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright) | `.our-services &gt; h4` |
+| moderate | region | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/region?application=playwright) | `.skip-link` |
+</pre></div>
+    </div>
+  
+
+    <div class="attachment">
+      <div class="attachment__meta">
+        <span class="attachment__name">a11y-summary.summary.html</span>
+        <span class="attachment__meta-details">text/html • 8.55 KB</span>
+      </div>
+      <div class="attachment__body"><div class="attachment-html">
+<style>
+  .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
+  .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
+  .summary-report section { margin: 0.75rem 0; }
+  .summary-report table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+  .summary-report th,
+  .summary-report td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
+  .summary-report th { background: #f6f8fa; }
+  .summary-report details { margin: 0.5rem 0; }
+  .summary-report details > summary { cursor: pointer; }
+  .summary-report tr.status-ok td { background: #edf7ed; }
+  .summary-report tr.status-redirect td { background: #fff4ce; }
+  .summary-report tr.status-error td { background: #ffe5e5; }
+  .summary-report tr.impact-critical td { background: #ffe5e5; }
+  .summary-report tr.impact-serious td { background: #fff4ce; }
+  .summary-report ul { margin: 0.25rem 0; padding-left: 1.2rem; }
+  .summary-report li { margin: 0.15rem 0; }
+  .summary-report li.check-pass::marker { color: #137333; }
+  .summary-report li.check-fail::marker { color: #d93025; }
+  .summary-report .details { color: #4e5969; }
+  .summary-report .note { margin-top: 0.25rem; font-size: 0.85rem; color: #344054; }
+  .summary-report code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .summary-report .legend { margin: 0.5rem 0; }
+  .summary-report .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 0.4rem; border: 1px solid #d0d7de; }
+  .summary-report .badge.ok { background: #edf7ed; }
+  .summary-report .badge.redirect { background: #fff4ce; }
+  .summary-report .badge.error { background: #ffe5e5; }
+  .summary-report .badge-critical { background: #ffe5e5; }
+  .summary-report .badge-serious { background: #fff4ce; }
+  .summary-report .badge-best-practice { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .badge-neutral { background: #eef2f6; }
+  .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
+  .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .summary-report .status-summary li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+  .summary-report .status-pill { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid #d0d7de; background: #f6f8fa; color: #1d2939; text-transform: capitalize; }
+  .summary-report .status-pill.success { background: #edf7ed; border-color: #cce4cc; color: #1d7a1d; }
+  .summary-report .status-pill.error { background: #ffe5e5; border-color: #f3b5b3; color: #b42318; }
+  .summary-report .status-pill.warning { background: #fff4ce; border-color: #f7d070; color: #6a4d00; }
+  .summary-report .status-pill.neutral { background: #eef2f6; border-color: #d0d7de; color: #344054; }
+  .summary-report .status-pill.info { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+  .summary-report .page-card { border: 1px solid #d0d7de; border-radius: 8px; padding: 0.85rem 1rem; margin: 1rem 0; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+  .summary-report .page-card__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .summary-report .page-card__header h3 { margin: 0; font-size: 1.1rem; }
+  .summary-report .page-card__meta { margin-bottom: 0.5rem; }
+  .summary-report .page-card__meta p { margin: 0.25rem 0; }
+  .summary-report .page-card__table { margin-top: 0.75rem; }
+  .summary-report .details { color: #475467; font-size: 0.88rem; margin: 0.25rem 0; }
+  .summary-report ul.details { margin: 0.25rem 0 0.5rem 1.1rem; padding-left: 1.1rem; }
+  .summary-report ul.details li { margin: 0.2rem 0; }
+  .summary-report .visual-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 0.5rem; }
+  .summary-report .visual-previews figure { margin: 0; background: #f8fafc; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+  .summary-report .visual-previews img { width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5f5; background: #0f172a; }
+  .summary-report .visual-previews figcaption { font-size: 0.85rem; font-weight: 600; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-report .visual-previews__item--diff { grid-column: 1 / -1; }
+  .summary-report .visual-previews__item--diff figcaption { color: #b42318; }
+  .summary-report .visual-previews__empty { color: #475467; font-size: 0.85rem; }
+</style>
+
+    <section class="summary-report summary-a11y">
+      <h2>Accessibility run summary</h2>
+      <p>Analyzed <strong>1</strong> page(s) with a 20s stability budget per strategy.</p>
+      <ul class="status-summary"><li><span class="status-pill success">No gating violations</span><span>1 page(s)</span></li></ul>
+      <p class="details">Gating threshold: CRITICAL/SERIOUS</p>
+      
+      <p class="details">Best-practice advisories (no WCAG tag) surfaced on 1 page(s).</p>
+      <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span><span class="badge badge-wcag">WCAG A/AA/AAA</span><span class="badge badge-best-practice">Best-practice advisory</span></p>
+    </section>
+    
+    
+    
+    <section class="summary-report summary-a11y">
+      <h3>Best-practice advisory summary (2 unique rules)</h3>
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Pages</th><th>Nodes</th><th>WCAG level</th><th>Help</th></tr>
+        </thead>
+        <tbody>
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>heading-order</td>
+          <td>1</td>
+          <td>1</td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+        </tr>
+      
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>region</td>
+          <td>1</td>
+          <td>1</td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/region?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+        </tr>
+      </tbody>
+      </table>
+    </section>
+  
+    <section class="summary-report summary-a11y">
+      <h3>Per-page breakdown</h3>
+    </section>
+    
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>/</h3>
+        <span class="status-pill success">No gating violations</span>
+      </div>
+      <div class="page-card__meta">
+        <p class="details"><strong>Stability:</strong> Reached <code>networkidle</code> in 519ms.</p>
+        <p class="details"><strong>Gating:</strong> CRITICAL/SERIOUS</p>
+        
+        
+      </div>
+      <p class="details">No CRITICAL/SERIOUS accessibility violations detected.</p><h4>Best-practice advisories (no WCAG tag) (2)</h4>
+    <div class="page-card__table">
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>WCAG level</th><th>Sample targets</th></tr>
+        </thead>
+        <tbody>
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>heading-order</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.our-services &gt; h4</code></td>
+        </tr>
+      
+        <tr class="impact-moderate">
+          <td>moderate</td>
+          <td>region</td>
+          <td>1</td>
+          <td><a href="https://dequeuniversity.com/rules/axe/4.10/region?application=playwright" target="_blank" rel="noopener noreferrer">rule docs</a></td>
+          <td><span class="badge badge-neutral">No WCAG tag</span></td>
+          <td><code>.skip-link</code></td>
+        </tr>
+      </tbody>
+      </table>
+    </div>
+  
+    </section>
+  
+  </div></div>
+    </div>
+  
+
+    <div class="attachment">
+      <div class="attachment__meta">
+        <span class="attachment__name">a11y-summary.summary.md</span>
+        <span class="attachment__meta-details">text/markdown • 1.28 KB</span>
+      </div>
+      <div class="attachment__body"><pre># Accessibility run summary
+
+- Total pages: 1
+- Pages with violations: 0
+- Stability timeouts: 0
+- HTTP errors: 0
+- Scan errors: 0
+- Passed without gating issues: 1
+- Gating threshold: CRITICAL/SERIOUS
+- Pages with non-gating WCAG findings: 0
+- Pages with best-practice advisories (no WCAG tag): 1
+
+## Per-page breakdown
+
+| Page | Status | Notes |
+| --- | --- | --- |
+| `/` | No gating violations | Stability via networkidle; 2 best-practice advisory finding(s) |
+
+### Best-practice advisory summary (2 unique rules)
+
+| Impact | Rule | Pages | Nodes | WCAG level | Help |
+| --- | --- | --- | --- | --- | --- |
+| moderate | heading-order | 1 | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright) |
+| moderate | region | 1 | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/region?application=playwright) |
+
+
+#### / — Best-practice advisories (no WCAG tag) (2 issues)
+
+| Impact | Rule | Nodes | WCAG level | Help | Sample targets |
+| --- | --- | --- | --- | --- | --- |
+| moderate | heading-order | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/heading-order?application=playwright) | `.our-services &gt; h4` |
+| moderate | region | 1 | n/a | [link](https://dequeuniversity.com/rules/axe/4.10/region?application=playwright) | `.skip-link` |
+</pre></div>
+    </div>
+  </div>
+              
+              
+    <section class="test-logs stdout" aria-label="Stdout">
+      <header>Stdout</header>
+      <pre>🧭 Navigating to: https://nfs.atelierdev.uk/
+
+✅ Page stability achieved using networkidle (519ms)
+
+✅ No CRITICAL/SERIOUS accessibility violations on /
+
+🧹 Cleaning up page: https://nfs.atelierdev.uk/
+
+📝 Page closed event triggered
+</pre>
+    </section>
+  
+              
+    <section class="test-logs stderr" aria-label="Stderr">
+      <header>Stderr</header>
+      <pre>ℹ️  2 best-practice advisory finding(s) (no WCAG tag) on /
+
+ℹ️ Best-practice advisory findings (no WCAG tag) detected (2 item(s)); review the report summary for details.
+</pre>
+    </section>
+  
+            </article>
+          
+    </section>
+  
+      
+      
+      
+    </article>
+  
+    </section>
+  </main>
+  <script>
+(function () {
+  const statusInputs = Array.from(document.querySelectorAll('.status-filters input[type="checkbox"]'));
+  const searchInput = document.getElementById('report-search');
+  const tests = Array.from(document.querySelectorAll('.test-card'));
+
+  function applyFilters() {
+    const activeStatuses = statusInputs.filter((input) => input.checked).map((input) => input.value);
+    const searchTerm = searchInput.value.trim().toLowerCase();
+
+    tests.forEach((card) => {
+      const status = Array.from(card.classList).find((cls) => cls.startsWith('status-'))?.replace('status-', '');
+      const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes(status);
+      const content = card.innerText.toLowerCase();
+      const matchesSearch = !searchTerm || content.includes(searchTerm);
+      card.setAttribute('data-hidden', !(matchesStatus && matchesSearch));
+    });
+  }
+
+  statusInputs.forEach((input) => input.addEventListener('change', applyFilters));
+  searchInput.addEventListener('input', applyFilters);
+  applyFilters();
+})();
+</script>
+</body>
+</html>

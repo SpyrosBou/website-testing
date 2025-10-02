@@ -1,0 +1,54 @@
+{
+  "anchorId": "chrome-forms-provide-accessible-labelling-and-validation-feedback-e6ac5d",
+  "testId": "8b95f2ed8ddcfee09713-715853be02c0fefb5fd8",
+  "title": "Forms provide accessible labelling and validation feedback",
+  "titlePath": [
+    "",
+    "Chrome",
+    "a11y.forms.spec.js",
+    "Accessibility: Forms",
+    "Forms provide accessible labelling and validation feedback"
+  ],
+  "location": {
+    "file": "/home/warui/projects/website-testing/tests/a11y.forms.spec.js",
+    "line": 298,
+    "column": 3
+  },
+  "projectName": "Chrome",
+  "status": "failed",
+  "expectedStatus": "passed",
+  "flaky": false,
+  "durationMs": 0,
+  "durationFriendly": "0ms",
+  "annotations": [],
+  "tags": [],
+  "attempts": [
+    {
+      "status": "failed",
+      "startTime": "2025-10-02T13:11:08.072Z",
+      "startTimeFriendly": "10/2/2025, 2:11:08 PM",
+      "durationMs": 0,
+      "durationFriendly": "0ms",
+      "attachments": [],
+      "summaries": [],
+      "stdout": [],
+      "stderr": [],
+      "errors": [
+        {
+          "message": "Error: worker process exited unexpectedly (code=0, signal=null)",
+          "stack": ""
+        }
+      ],
+      "workerIndex": -1
+    }
+  ],
+  "summaryBlocks": [],
+  "stdout": [],
+  "stderr": [],
+  "errors": [
+    {
+      "message": "Error: worker process exited unexpectedly (code=0, signal=null)",
+      "stack": ""
+    }
+  ]
+}
