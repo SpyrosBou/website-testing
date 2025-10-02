@@ -4,13 +4,29 @@ const os = require('os');
 // Detect if Safari is available (macOS only)
 const isMacOS = os.platform() === 'darwin';
 
+const resolveWorkerCount = () => {
+  const rawValue = String(process.env.PWTEST_WORKERS || '').trim();
+  const normalised = rawValue.toLowerCase();
+  if (!rawValue || normalised === 'auto') {
+    return undefined; // let Playwright fan out across all logical cores
+  }
+  if (/^\d+%$/.test(rawValue)) {
+    return rawValue;
+  }
+  const numeric = Number(rawValue);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric;
+  }
+  return undefined;
+};
+
 module.exports = defineConfig({
   globalSetup: require.resolve('./scripts/playwright-global-setup'),
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: resolveWorkerCount(),
   reporter: [
     [
       'allure-playwright',

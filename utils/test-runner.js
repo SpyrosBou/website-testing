@@ -345,6 +345,13 @@ class TestRunner {
       SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || '',
     };
 
+    if (!spawnEnv.PWTEST_WORKERS || String(spawnEnv.PWTEST_WORKERS).trim().length === 0) {
+      spawnEnv.PWTEST_WORKERS = 'auto';
+      console.log('ℹ️  Worker pool: auto (all logical cores exposed)');
+    } else {
+      console.log(`ℹ️  Worker pool: ${spawnEnv.PWTEST_WORKERS}`);
+    }
+
     const viewportInputRaw =
       typeof options.viewport === 'string'
         ? options.viewport.trim()
@@ -370,6 +377,10 @@ class TestRunner {
       spawnEnv.A11Y_SAMPLE = String(options.a11ySample).toLowerCase();
     } else if (!spawnEnv.A11Y_SAMPLE && siteConfig.a11yResponsiveSampleSize) {
       spawnEnv.A11Y_SAMPLE = String(siteConfig.a11yResponsiveSampleSize).toLowerCase();
+    }
+
+    if (!spawnEnv.A11Y_RUN_TOKEN) {
+      spawnEnv.A11Y_RUN_TOKEN = `${Date.now()}`;
     }
 
     if (options.a11yKeyboardSteps) {

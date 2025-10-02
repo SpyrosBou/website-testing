@@ -1,3 +1,6 @@
+const fs = require('fs');
+const fsp = fs.promises;
+const path = require('path');
 const { test, expect } = require('@playwright/test');
 const SiteLoader = require('../utils/site-loader');
 const {
@@ -13,6 +16,7 @@ const {
   formatWcagLabels,
 } = require('../utils/a11y-utils');
 const { createAxeBuilder } = require('../utils/a11y-runner');
+const { selectAccessibilityTestPages, resolveSampleSetting } = require('../utils/a11y-shared');
 
 const STABILITY_TIMEOUT_MS = 20000;
 
@@ -29,6 +33,12 @@ const truncate = (value, max = 160) => {
   const stringValue = String(value || '').trim();
   return stringValue.length > max ? `${stringValue.slice(0, max - 1)}…` : stringValue;
 };
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'root';
 
 const formatRuleSummary = (violations, title = 'Violation roll-up by rule') => {
   const aggregate = new Map();
@@ -557,53 +567,120 @@ const buildSuiteSummaryMarkdown = (
   return lines.join('\n');
 };
 
-const slugify = (value) =>
-  String(value || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'root';
+const siteName = process.env.SITE_NAME;
+if (!siteName) throw new Error('SITE_NAME environment variable is required');
+const siteConfig = SiteLoader.loadSite(siteName);
+SiteLoader.validateSiteConfig(siteConfig);
+
+const accessibilitySampleSetting = resolveSampleSetting(siteConfig, {
+  envKey: 'A11Y_SAMPLE',
+  configKeys: ['a11yResponsiveSampleSize'],
+  defaultSize: 'all',
+  smokeSize: 1,
+});
+
+const accessibilityPages = selectAccessibilityTestPages(siteConfig, {
+  envKey: 'A11Y_SAMPLE',
+  configKeys: ['a11yResponsiveSampleSize'],
+  defaultSize: 'all',
+  smokeSize: 1,
+});
+const totalPages = accessibilityPages.length;
+const RUN_TOKEN = process.env.A11Y_RUN_TOKEN || `${Date.now()}`;
+
+if (accessibilitySampleSetting !== 'all') {
+  const sampleSource = process.env.A11Y_SAMPLE
+    ? ` (A11Y_SAMPLE=${process.env.A11Y_SAMPLE})`
+    : '';
+  console.log(
+    `ℹ️  Accessibility sampling limited to ${accessibilitySampleSetting} page(s)${sampleSource}.`
+  );
+}
+
+const failOn = Array.isArray(siteConfig.a11yFailOn)
+  ? siteConfig.a11yFailOn
+  : ['critical', 'serious'];
+const failOnSet = new Set(failOn.map((impact) => String(impact).toLowerCase()));
+const failOnLabel = failOn.map((impact) => String(impact).toUpperCase()).join('/');
+const A11Y_MODE = siteConfig.a11yMode === 'audit' ? 'audit' : 'gate';
+
+const a11yResultsBaseDir = path.join(
+  process.cwd(),
+  'test-results',
+  '__a11y',
+  slugify(siteConfig.name || siteName)
+);
+
+const resolveProjectResultsDir = (projectName) =>
+  path.join(a11yResultsBaseDir, slugify(projectName || 'default'));
+
+const resolvePageReportPath = (projectName, index, testPage) => {
+  const projectDir = resolveProjectResultsDir(projectName);
+  const fileName = `${String(index + 1).padStart(4, '0')}-${slugify(testPage)}.json`;
+  return { projectDir, filePath: path.join(projectDir, fileName) };
+};
+
+const persistPageReport = async (projectName, index, report) => {
+  const { projectDir, filePath } = resolvePageReportPath(projectName, index, report.page);
+  await fsp.mkdir(projectDir, { recursive: true });
+  await fsp.writeFile(filePath, JSON.stringify(report, null, 2), 'utf8');
+  return filePath;
+};
+
+const readAllPageReports = async (projectName) => {
+  const projectDir = resolveProjectResultsDir(projectName);
+  try {
+    const entries = await fsp.readdir(projectDir);
+    const files = entries.filter((entry) => entry.endsWith('.json')).sort();
+    const reports = [];
+    for (const file of files) {
+      const content = await fsp.readFile(path.join(projectDir, file), 'utf8');
+      reports.push(JSON.parse(content));
+    }
+    return reports;
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+};
+
+const waitForPageReports = async (projectName, expectedCount, timeoutMs = 300000, pollMs = 1000) => {
+  if (expectedCount === 0) return [];
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() <= deadline) {
+    const reports = (await readAllPageReports(projectName))
+      .filter((report) => report.runToken === RUN_TOKEN && typeof report.index === 'number')
+      .sort((a, b) => (a.index || 0) - (b.index || 0));
+    if (reports.length >= expectedCount) {
+      return reports.slice(0, expectedCount);
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+  throw new Error(`Timed out waiting for ${expectedCount} accessibility page report(s).`);
+};
 
 test.describe('Functionality: Accessibility (WCAG)', () => {
-  let siteConfig;
-  let errorContext;
-  let a11yMode;
+  test.describe.parallel('Page scans', () => {
+    let errorContext;
 
-  test.beforeEach(async ({ page, context }) => {
-    const siteName = process.env.SITE_NAME;
-    if (!siteName) throw new Error('SITE_NAME environment variable is required');
-    siteConfig = SiteLoader.loadSite(siteName);
-    SiteLoader.validateSiteConfig(siteConfig);
-    errorContext = await setupTestPage(page, context);
-    a11yMode = siteConfig.a11yMode === 'audit' ? 'audit' : 'gate';
-  });
+    test.beforeEach(async ({ page, context }) => {
+      errorContext = await setupTestPage(page, context);
+    });
 
-  test.afterEach(async ({ page, context }) => {
-    await teardownTestPage(page, context, errorContext);
-  });
+    test.afterEach(async ({ page, context }) => {
+      await teardownTestPage(page, context, errorContext);
+    });
 
-  test('WCAG 2.1 A/AA scans', async ({ page }) => {
-    test.setTimeout(7200000);
-    const pages = process.env.SMOKE
-      ? (Array.isArray(siteConfig.testPages) && siteConfig.testPages.includes('/'))
-        ? ['/']
-        : [siteConfig.testPages[0]]
-      : siteConfig.testPages;
+    accessibilityPages.forEach((testPage, index) => {
+      test(`WCAG 2.1 A/AA scan ${index + 1}/${totalPages}: ${testPage}`, async ({ page }, testInfo) => {
+        test.setTimeout(7200000);
 
-    const failOn = Array.isArray(siteConfig.a11yFailOn)
-      ? siteConfig.a11yFailOn
-      : ['critical', 'serious'];
-    const failOnSet = new Set(failOn.map((impact) => String(impact).toLowerCase()));
-    const failOnLabel = failOn.map((impact) => String(impact).toUpperCase()).join('/');
+        console.log(`➡️  [${index + 1}/${totalPages}] Accessibility scan for ${testPage}`);
 
-    const aggregatedViolations = [];
-    const aggregatedAdvisories = [];
-    const aggregatedBestPractices = [];
-    const pageReports = [];
-
-    for (const testPage of pages) {
-      await test.step(`Accessibility scan: ${testPage}`, async () => {
         const pageReport = {
           page: testPage,
+          index: index + 1,
+          runToken: RUN_TOKEN,
           status: 'skipped',
           httpStatus: null,
           stability: null,
@@ -613,7 +690,6 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
           bestPractice: [],
           gatingLabel: failOnLabel,
         };
-        pageReports.push(pageReport);
 
         let response;
         try {
@@ -630,7 +706,8 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             markdown: formatPageCardMarkdown(pageReport),
           });
 
-          if (a11yMode !== 'audit') {
+          await persistPageReport(testInfo.project.name, index, pageReport);
+          if (A11Y_MODE !== 'audit') {
             throw new Error(`Navigation failed for ${testPage}: ${error.message}`);
           }
           return;
@@ -648,7 +725,9 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             htmlBody: formatPageCardHtml(pageReport),
             markdown: formatPageCardMarkdown(pageReport),
           });
-          if (a11yMode !== 'audit') {
+
+          await persistPageReport(testInfo.project.name, index, pageReport);
+          if (A11Y_MODE !== 'audit') {
             throw new Error(`HTTP ${response.status()} received for ${testPage}`);
           }
           return;
@@ -667,11 +746,13 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             htmlBody: formatPageCardHtml(pageReport),
             markdown: formatPageCardMarkdown(pageReport),
           });
+
+          await persistPageReport(testInfo.project.name, index, pageReport);
           return;
         }
 
         try {
-            const results = await createAxeBuilder(page).analyze();
+          const results = await createAxeBuilder(page).analyze();
 
           const ignoreRules = Array.isArray(siteConfig.a11yIgnoreRules)
             ? siteConfig.a11yIgnoreRules
@@ -703,10 +784,6 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
 
           if (gatingViolations.length > 0) {
             pageReport.status = 'violations';
-            aggregatedViolations.push({
-              page: testPage,
-              entries: gatingViolations,
-            });
             const pageSlug = slugify(testPage);
             await attachSummary({
               baseName: `a11y-${pageSlug}`,
@@ -714,7 +791,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
               markdown: formatPageCardMarkdown(pageReport),
             });
             const message = `❌ ${gatingViolations.length} accessibility violations (gating: ${failOnLabel}) on ${testPage}`;
-            if (a11yMode === 'audit') {
+            if (A11Y_MODE === 'audit') {
               console.warn(message);
             } else {
               console.error(message);
@@ -725,20 +802,10 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
           }
 
           if (advisoryViolations.length > 0) {
-            aggregatedAdvisories.push({
-              page: testPage,
-              entries: advisoryViolations,
-            });
-            console.warn(
-              `ℹ️  ${advisoryViolations.length} non-gating WCAG finding(s) on ${testPage}`
-            );
+            console.warn(`ℹ️  ${advisoryViolations.length} non-gating WCAG finding(s) on ${testPage}`);
           }
 
           if (bestPracticeViolations.length > 0) {
-            aggregatedBestPractices.push({
-              page: testPage,
-              entries: bestPracticeViolations,
-            });
             console.warn(
               `ℹ️  ${bestPracticeViolations.length} best-practice advisory finding(s) (no WCAG tag) on ${testPage}`
             );
@@ -771,67 +838,97 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             pageReport.status = 'passed';
           }
         }
+
+        await persistPageReport(testInfo.project.name, index, pageReport);
       });
-    }
-
-    const summaryHtml = buildSuiteSummaryHtml(
-      pageReports,
-      aggregatedViolations,
-      aggregatedAdvisories,
-      aggregatedBestPractices,
-      failOnLabel
-    );
-    const summaryMarkdown = buildSuiteSummaryMarkdown(
-      pageReports,
-      aggregatedViolations,
-      aggregatedAdvisories,
-      aggregatedBestPractices,
-      failOnLabel
-    );
-
-    await attachSummary({
-      baseName: 'a11y-summary',
-      htmlBody: summaryHtml,
-      markdown: summaryMarkdown,
-      setDescription: true,
     });
+  });
 
-    const totalViolations = aggregatedViolations.reduce(
-      (sum, entry) => sum + (entry.entries?.length || 0),
-      0
-    );
-    const totalAdvisory = aggregatedAdvisories.reduce(
-      (sum, entry) => sum + (entry.entries?.length || 0),
-      0
-    );
-    const totalBestPractice = aggregatedBestPractices.reduce(
-      (sum, entry) => sum + (entry.entries?.length || 0),
-      0
-    );
+  test.describe.serial('Accessibility summary', () => {
+    test('Aggregate results', async ({}, testInfo) => {
+      test.setTimeout(300000);
 
-    if (totalAdvisory > 0) {
-      console.warn(
-        `ℹ️ Non-gating WCAG findings detected (${totalAdvisory} item(s)); review the Allure summary for details.`
-      );
-    }
-
-    if (totalBestPractice > 0) {
-      console.warn(
-        `ℹ️ Best-practice advisory findings (no WCAG tag) detected (${totalBestPractice} item(s)); review the Allure summary for details.`
-      );
-    }
-
-    if (totalViolations > 0) {
-      if (a11yMode === 'audit') {
-        console.warn(
-          'ℹ️ Accessibility audit summary available in Allure report (description pane).'
-        );
-      } else {
-        expect(
-          totalViolations,
-          `Accessibility violations detected (gating: ${failOnLabel}). See the Allure description for a structured breakdown.`
-        ).toBe(0);
+      const reports = await waitForPageReports(testInfo.project.name, totalPages);
+      if (reports.length === 0) {
+        console.warn('ℹ️  Accessibility suite executed with no configured pages.');
+        return;
       }
-    }
+
+      const aggregatedViolations = [];
+      const aggregatedAdvisories = [];
+      const aggregatedBestPractices = [];
+
+      for (const report of reports) {
+        if (Array.isArray(report.violations) && report.violations.length > 0) {
+          aggregatedViolations.push({ page: report.page, entries: report.violations });
+        }
+        if (Array.isArray(report.advisory) && report.advisory.length > 0) {
+          aggregatedAdvisories.push({ page: report.page, entries: report.advisory });
+        }
+        if (Array.isArray(report.bestPractice) && report.bestPractice.length > 0) {
+          aggregatedBestPractices.push({ page: report.page, entries: report.bestPractice });
+        }
+      }
+
+      const summaryHtml = buildSuiteSummaryHtml(
+        reports,
+        aggregatedViolations,
+        aggregatedAdvisories,
+        aggregatedBestPractices,
+        failOnLabel
+      );
+      const summaryMarkdown = buildSuiteSummaryMarkdown(
+        reports,
+        aggregatedViolations,
+        aggregatedAdvisories,
+        aggregatedBestPractices,
+        failOnLabel
+      );
+
+      await attachSummary({
+        baseName: 'a11y-summary',
+        htmlBody: summaryHtml,
+        markdown: summaryMarkdown,
+        setDescription: true,
+      });
+
+      const totalViolations = aggregatedViolations.reduce(
+        (sum, entry) => sum + (entry.entries?.length || 0),
+        0
+      );
+      const totalAdvisory = aggregatedAdvisories.reduce(
+        (sum, entry) => sum + (entry.entries?.length || 0),
+        0
+      );
+      const totalBestPractice = aggregatedBestPractices.reduce(
+        (sum, entry) => sum + (entry.entries?.length || 0),
+        0
+      );
+
+      if (totalAdvisory > 0) {
+        console.warn(
+          `ℹ️ Non-gating WCAG findings detected (${totalAdvisory} item(s)); review the Allure summary for details.`
+        );
+      }
+
+      if (totalBestPractice > 0) {
+        console.warn(
+          `ℹ️ Best-practice advisory findings (no WCAG tag) detected (${totalBestPractice} item(s)); review the Allure summary for details.`
+        );
+      }
+
+      if (totalViolations > 0) {
+        if (A11Y_MODE === 'audit') {
+          console.warn(
+            'ℹ️ Accessibility audit summary available in Allure report (description pane).'
+          );
+        } else {
+          expect(
+            totalViolations,
+            `Accessibility violations detected (gating: ${failOnLabel}). See the Allure description for a structured breakdown.`
+          ).toBe(0);
+        }
+      }
+    });
   });
 });

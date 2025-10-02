@@ -185,18 +185,19 @@ const formatResponsiveA11ySummaryMarkdown = (entries, viewportName, failOnLabel)
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
   tablet: { width: 768, height: 1024, name: 'tablet' },
-  desktop: { width: 1920, height: 1080, name: 'desktop' },
 };
 
 const resolveResponsiveViewports = () => {
-  const raw = (process.env.RESPONSIVE_VIEWPORTS || 'desktop').trim();
-  if (!raw) return ['desktop'];
+  const raw = (process.env.RESPONSIVE_VIEWPORTS || '').trim();
+  if (!raw) return Object.keys(VIEWPORTS);
   if (raw.toLowerCase() === 'all') return Object.keys(VIEWPORTS);
 
-  return raw
+  const resolved = raw
     .split(',')
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => Boolean(VIEWPORTS[entry]));
+
+  return resolved.length > 0 ? resolved : Object.keys(VIEWPORTS);
 };
 
 test.describe('Responsive Accessibility', () => {

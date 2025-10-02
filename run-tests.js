@@ -128,6 +128,7 @@ async function runTests() {
     const result = await TestRunner.runTestsForSite(siteName, options);
     process.exit(result.code);
   } catch (_error) {
+    console.error(_error);
     process.exit(1);
   }
 }
