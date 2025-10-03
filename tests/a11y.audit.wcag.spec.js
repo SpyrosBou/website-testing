@@ -658,7 +658,7 @@ const buildAccessibilityRunSchemaPayload = ({
     },
     ruleSnapshots,
     metadata: {
-      spec: 'functionality.accessibility',
+      spec: 'a11y.audit.wcag',
       ...metadata,
       viewports: Array.from(viewportSet),
       failOn: failOnLabel,
@@ -699,7 +699,7 @@ const buildAccessibilityPageSchemaPayloads = (reports, metadataExtras = {}) =>
           viewport: report.projectName || 'default',
           summary,
           metadata: {
-            spec: 'functionality.accessibility',
+            spec: 'a11y.audit.wcag',
             projectName: report.projectName || 'default',
             scope: 'project',
             ...metadataExtras,

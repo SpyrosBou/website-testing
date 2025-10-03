@@ -39,7 +39,7 @@ const buildAvailabilitySchemaPayloads = (results, projectName) => {
       missingStructureElements: missingElements,
     },
     metadata: {
-      spec: 'functionality.infrastructure',
+      spec: 'functionality.infrastructure.health',
       summaryType: 'availability',
       projectName,
       scope: 'project',
@@ -59,7 +59,7 @@ const buildAvailabilitySchemaPayloads = (results, projectName) => {
         info: entry.notes.filter((note) => note.type === 'info').map((note) => note.message),
       },
       metadata: {
-        spec: 'functionality.infrastructure',
+        spec: 'functionality.infrastructure.health',
         summaryType: 'availability',
         projectName,
       },
@@ -87,7 +87,7 @@ const buildHttpSchemaPayloads = (results, projectName) => {
       pagesWithFailedChecks: failedChecks,
     },
     metadata: {
-      spec: 'functionality.infrastructure',
+      spec: 'functionality.infrastructure.health',
       summaryType: 'http',
       projectName,
       scope: 'project',
@@ -110,7 +110,7 @@ const buildHttpSchemaPayloads = (results, projectName) => {
         })),
       },
       metadata: {
-        spec: 'functionality.infrastructure',
+        spec: 'functionality.infrastructure.health',
         summaryType: 'http',
         projectName,
       },
@@ -134,7 +134,7 @@ const buildPerformanceSchemaPayloads = (data, breaches, projectName) => {
       budgetBreaches: breaches.length,
     },
     metadata: {
-      spec: 'functionality.infrastructure',
+      spec: 'functionality.infrastructure.health',
       summaryType: 'performance',
       projectName,
       scope: 'project',
@@ -162,7 +162,7 @@ const buildPerformanceSchemaPayloads = (data, breaches, projectName) => {
         budgetBreaches: breachMap.get(entry.page) || [],
       },
       metadata: {
-        spec: 'functionality.infrastructure',
+        spec: 'functionality.infrastructure.health',
         summaryType: 'performance',
         projectName,
       },

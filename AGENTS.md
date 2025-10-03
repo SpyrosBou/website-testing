@@ -34,18 +34,18 @@
 - Required env: set `SITE_NAME` implicitly via runner (`--site=<name>`). Running Playwright directly: `SITE_NAME=my-site npx playwright test`.
 - Add new tests under `tests/`.
 - Responsive specs are split into:
-  - `responsive.structure.spec.js` (layout/critical elements, cross-viewport consistency, WP features)
-- `visual.visualregression.spec.js` (visual regression with masks/thresholds; defaults to desktop unless expanded via `--viewport`/`VISUAL_VIEWPORTS`)
-  - `responsive.a11y.spec.js` (axe-core scans)
+  - `responsive.layout.structure.spec.js` (layout/critical elements, cross-viewport consistency, WP features)
+- `visual.regression.snapshots.spec.js` (visual regression with masks/thresholds; defaults to desktop unless expanded via `--viewport`/`VISUAL_VIEWPORTS`)
+  - `a11y.responsive.audit.spec.js` (axe-core scans)
 - Functionality specs are split into:
-  - `functionality.infrastructure.spec.js` (availability, responses, performance)
-  - `functionality.links.spec.js` (internal links)
-  - `functionality.interactive.spec.js` (touches every `testPages` URL with lightweight focus/hover taps while capturing console/resource failures; add client-specific specs when you need real user journeys)
-  - `functionality.accessibility.spec.js` (WCAG scans)
-- `a11y.forms.spec.js` (form labelling + validation checks driven by `siteConfig.forms`; summaries highlight WCAG 1.3.1, 3.3.x, and 4.1.2 coverage).
-- `a11y.keyboard.spec.js` (focus order, skip links, keyboard traps, focus visibility; summaries cite WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7).
-- `a11y.resilience.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2).
-- `a11y.structure.spec.js` (landmark + heading integrity; summaries cite WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10).
+  - `functionality.infrastructure.health.spec.js` (availability, responses, performance)
+  - `functionality.links.internal.spec.js` (internal links)
+  - `functionality.interactive.smoke.spec.js` (touches every `testPages` URL with lightweight focus/hover taps while capturing console/resource failures; add client-specific specs when you need real user journeys)
+  - `a11y.audit.wcag.spec.js` (WCAG scans)
+- `a11y.forms.validation.spec.js` (form labelling + validation checks driven by `siteConfig.forms`; summaries highlight WCAG 1.3.1, 3.3.x, and 4.1.2 coverage).
+- `a11y.keyboard.navigation.spec.js` (focus order, skip links, keyboard traps, focus visibility; summaries cite WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7).
+- `a11y.resilience.adaptive.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2).
+- `a11y.structure.landmarks.spec.js` (landmark + heading integrity; summaries cite WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10).
 - Each functionality spec now emits schema payloads via `attachSchemaSummary`, and the reporter renders the same HTML/Markdown layouts inline (legacy suites still rely on `attachSummary` until migrated). Detailed tables remain available once you expand a page accordion or the debug deck.
   - The manual accessibility suites add a dedicated “WCAG coverage” banner to their summaries; mirror that pattern for any new audit so reviewers immediately know which success criteria were exercised.
   - When adding a new spec, emit schema payloads (`attachSchemaSummary`) so the reporter can promote them; use `attachSummary` only as a temporary fallback while migrating legacy code.
@@ -56,7 +56,7 @@
 All shared suites traverse the full `testPages` list. The interactive audit is intentionally light-touch—focus/hover taps plus console and network monitoring—so it remains stable across sites. Build site-specific interactive specs when you need deep journeys, logins, or bespoke flows.
 - Snapshot baselines go in `tests/baseline-snapshots/`.
 - Update visual baselines after intentional UI changes:
-  - CLI: `npx playwright test tests/visual.visualregression.spec.js --update-snapshots`
+  - CLI: `npx playwright test tests/visual.regression.snapshots.spec.js --update-snapshots`
   - Runner helper: `node run-tests.js --update-baselines --site=<name>` or `npm run update-baselines -- --site=<name>`
 - Visual regression defaults to desktop viewports; expand with `--viewport=all` (or `VISUAL_VIEWPORTS`) when you need mobile/tablet snapshots.
 - Generate reports: the custom HTML reporter runs automatically; view them with `npm run viewreport`. Playwright artifacts for the latest run live in `test-results/` (cleared before each execution unless `PW_SKIP_RESULT_CLEAN=true`).
@@ -73,7 +73,7 @@ All shared suites traverse the full `testPages` list. The interactive audit is i
 
 ### Link & Performance Configuration (Optional)
 - `linkCheck`: `{ maxPerPage?: number, timeoutMs?: number, followRedirects?: boolean, methodFallback?: boolean }` tunes the internal link audit. Defaults are `20`, `5000`, `true`, `true`, respectively.
-- `performanceBudgets`: `{ domContentLoaded?: number, loadComplete?: number, firstContentfulPaint?: number }` sets per-page (ms) soft gates surfaced by `functionality.infrastructure.spec.js`.
+- `performanceBudgets`: `{ domContentLoaded?: number, loadComplete?: number, firstContentfulPaint?: number }` sets per-page (ms) soft gates surfaced by `functionality.infrastructure.health.spec.js`.
 
 ## Commit & Pull Request Guidelines
 - Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`) as seen in history.

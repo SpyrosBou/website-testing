@@ -111,7 +111,7 @@ const buildVisualSchemaPayloads = ({ summaries, viewportName, projectName }) => 
       diffPages: diffs.map((entry) => entry.page),
     },
     metadata: {
-      spec: 'visual.visualregression',
+      spec: 'visual.regression.snapshots',
       summaryType: 'visual',
       projectName,
       scope: 'project',
@@ -143,7 +143,7 @@ const buildVisualSchemaPayloads = ({ summaries, viewportName, projectName }) => 
         error: entry.error || null,
       },
       metadata: {
-        spec: 'visual.visualregression',
+        spec: 'visual.regression.snapshots',
         summaryType: 'visual',
         projectName,
         viewport: viewportName,

@@ -15,8 +15,8 @@ This report consolidates findings from a review of the current accessibility tes
 ### 1) WCAG Tag Scoping (Run Full Rules; Annotate WCAG When Present)
 
 - Current behavior (unintended): both specs restrict scans to WCAG-tagged rules via `withTags(WCAG_AXE_TAGS)`:
-  - `tests/functionality.accessibility.spec.js:~600`
-  - `tests/responsive.a11y.spec.js:~220`
+  - `tests/a11y.audit.wcag.spec.js:~600`
+  - `tests/a11y.responsive.audit.spec.js:~220`
 - Desired behavior: run the full axe ruleset (no `.withTags(...)`), gate failures by impact (`a11yFailOn`, default critical/serious), and display WCAG labels where available.
 
 Actions:
@@ -54,7 +54,7 @@ Goals:
 - Detect keyboard traps and ensure skip link appears/works.
 - Ensure focus moves into, and is contained within, off-canvas menus/modals; returns correctly when dismissed.
 
-Implementation (new spec: `tests/a11y.keyboard.spec.js`):
+Implementation (new spec: `tests/a11y.keyboard.navigation.spec.js`):
 - Programmatically TAB through a limited set of focusables; assert focus visibility and page responsiveness.
 - Trigger common components (menu, modal, accordion, tabs) via keyboard (Enter/Space/Arrows) and validate ARIA state changes.
 - Surface WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7 references alongside the report summary so stakeholders know which criteria were exercised.
@@ -90,7 +90,7 @@ Implementation (extend keyboard spec):
 Goals:
 - Semantic label association, required semantics, inline error announcement (ARIA live), error summary links back to fields.
 
-Implementation (new spec: `tests/a11y.forms.spec.js`):
+Implementation (new spec: `tests/a11y.forms.validation.spec.js`):
 - Validates accessible names for configured form fields, then submits the form blank to confirm aria-invalid, inline error copy, and global alerts surface appropriately.
 - Annotate report output with WCAG 1.3.1, 3.3.1–3.3.3, and 4.1.2 references.
 
@@ -99,7 +99,7 @@ Implementation (new spec: `tests/a11y.forms.spec.js`):
 Goals:
 - Validate basic structure: one `h1`, landmark presence, reasonable heading progression.
 
-Implementation (new spec: `tests/a11y.structure.spec.js`):
+Implementation (new spec: `tests/a11y.structure.landmarks.spec.js`):
 - Inspects landmarks + heading outline per page, gating on missing `main`/H1 and flagging heading-level skips as advisories.
 - Add WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10 references to the summary for quick traceability.
 
@@ -116,7 +116,7 @@ Implementation:
 
 - Daytime/CI default:
   - Gating: `critical/serious` only.
-  - `tests/responsive.a11y.spec.js` samples the first three pages per viewport by default (override via config/env when needed).
+  - `tests/a11y.responsive.audit.spec.js` samples the first three pages per viewport by default (override via config/env when needed).
 - Nightly:
   - Full rule scans across all pages for responsive a11y (or rotate through pages), all browsers if desired.
 

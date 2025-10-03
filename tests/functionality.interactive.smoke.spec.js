@@ -46,7 +46,7 @@ const slugify = (value) =>
       budgetExceeded: totalResourceErrors > resourceBudget,
     },
     metadata: {
-      spec: 'functionality.interactive',
+      spec: 'functionality.interactive.smoke',
       summaryType: 'interactive',
       projectName,
       scope: 'project',
@@ -84,7 +84,7 @@ const slugify = (value) =>
         info: infoNotes,
       },
       metadata: {
-        spec: 'functionality.interactive',
+        spec: 'functionality.interactive.smoke',
         summaryType: 'interactive',
         projectName,
         resourceErrorBudget: resourceBudget,

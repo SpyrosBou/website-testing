@@ -28,7 +28,7 @@ This note captures the remaining tasks to harden our Playwright-based visual reg
 
 ## Implementation Hints
 - Snapshot path template is set in `playwright.config.js` (baseline under `tests/baseline-snapshots/`).
-- Visual test lives at `tests/visual.visualregression.spec.js`. It already supports:
+- Visual test lives at `tests/visual.regression.snapshots.spec.js`. It already supports:
   - Per‑site thresholds (`visualThresholds`), per‑page overrides (`visualOverrides`), and masks (`dynamicMasks`).
   - Per‑viewport report summaries (HTML + Markdown) with inline baseline/local/diff previews for quick scanning.
 - Add diff links by mapping the test name + project to artifact paths inside `test-results/` and attaching `<a>` elements in the summary table.

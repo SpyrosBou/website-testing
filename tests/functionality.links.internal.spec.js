@@ -98,7 +98,7 @@ const buildLinksSchemaPayloads = (pages, brokenLinks, projectName, config = {}) 
       maxChecksPerPage: normalisedConfig.maxPerPage,
     },
     metadata: {
-      spec: 'functionality.links',
+      spec: 'functionality.links.internal',
       summaryType: 'internal-links',
       projectName,
       scope: 'project',
@@ -129,7 +129,7 @@ const buildLinksSchemaPayloads = (pages, brokenLinks, projectName, config = {}) 
         brokenSample,
       },
       metadata: {
-        spec: 'functionality.links',
+        spec: 'functionality.links.internal',
         summaryType: 'internal-links',
         projectName,
       },

@@ -36,7 +36,7 @@
 ### Phase 2 – Spec adoption (in progress)
 
 - Targets (rough order):
-  1. **Infrastructure** (`tests/functionality.infrastructure.spec.js`) ✅ schema-only summaries rendered inline via reporter
+  1. **Infrastructure** (`tests/functionality.infrastructure.health.spec.js`) ✅ schema-only summaries rendered inline via reporter
   2. **Links** ✅ schema-only summaries rendered inline via reporter
   3. **Interactive** ✅ schema payloads power reporter-generated summaries
   4. **Visual regression** ✅ schema payloads include screenshot metadata for inline tables

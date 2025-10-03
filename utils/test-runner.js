@@ -650,7 +650,7 @@ class TestRunner {
         [
           'playwright',
           'test',
-          'tests/visual.visualregression.spec.js',
+          'tests/visual.regression.snapshots.spec.js',
           '--update-snapshots',
           'all',
         ],

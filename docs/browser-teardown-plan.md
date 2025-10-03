@@ -40,7 +40,7 @@
 - Ensure multi-project runs share the monitor without double-registering listeners.
 
 ### 4. Verification & Hardening (Day 4)
-- Run `npx playwright test tests/functionality.accessibility.spec.js` and `tests/responsive.structure.spec.js` locally; confirm logs are clean.
+- Run `npx playwright test tests/a11y.audit.wcag.spec.js` and `tests/responsive.layout.structure.spec.js` locally; confirm logs are clean.
 - Force a crash (e.g., `page._delegate._session._connection.dispose()` inside a guarded test) to confirm the warning still appears.
 - Validate Playwright artifacts/reports still include crash diagnostics.
 - Document before/after console transcripts to confirm success criteria.
