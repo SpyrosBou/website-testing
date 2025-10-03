@@ -41,8 +41,7 @@
   - `functionality.infrastructure.spec.js` (availability, responses, performance)
   - `functionality.links.spec.js` (internal links)
   - `functionality.interactive.spec.js` (touches every `testPages` URL with lightweight focus/hover taps while capturing console/resource failures; add client-specific specs when you need real user journeys)
-  - `functionality.wordpress.spec.js` (plugins, theme)
-- `functionality.accessibility.spec.js` (WCAG scans)
+  - `functionality.accessibility.spec.js` (WCAG scans)
 - `a11y.forms.spec.js` (form labelling + validation checks driven by `siteConfig.forms`; summaries highlight WCAG 1.3.1, 3.3.x, and 4.1.2 coverage).
 - `a11y.keyboard.spec.js` (focus order, skip links, keyboard traps, focus visibility; summaries cite WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7).
 - `a11y.resilience.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2).
