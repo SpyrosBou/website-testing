@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../utils/test-fixtures');
 const fs = require('fs');
 const SiteLoader = require('../utils/site-loader');
 const {
@@ -157,16 +157,12 @@ test.describe('Visual Regression', () => {
   let siteConfig;
   let errorContext;
 
-  test.beforeEach(async ({ page, context }) => {
+  test.beforeEach(async ({ page, context, errorContext: sharedErrorContext }, testInfo) => {
     const siteName = process.env.SITE_NAME;
     if (!siteName) throw new Error('SITE_NAME environment variable is required');
     siteConfig = SiteLoader.loadSite(siteName);
     SiteLoader.validateSiteConfig(siteConfig);
-    errorContext = await setupTestPage(page, context);
-  });
-
-  test.afterEach(async ({ page, context }) => {
-    await teardownTestPage(page, context, errorContext);
+    errorContext = sharedErrorContext;
   });
 
   const enabledViewportKeys = resolveViewports();
@@ -247,7 +243,7 @@ test.describe('Visual Regression', () => {
               'video',
               'canvas',
             ].concat(siteConfig.dynamicMasks || [])
-             .concat(matchOverride?.masks || matchOverride?.maskSelectors || []);
+              .concat(matchOverride?.masks || matchOverride?.maskSelectors || []);
             if (typeof matchOverride?.threshold === 'number') {
               threshold = matchOverride.threshold;
             }
@@ -266,12 +262,12 @@ test.describe('Visual Regression', () => {
 
             const collectVisualArtifacts = async (includeDiffArtifacts = false) => {
               const artifactInfo = { baseline: null, actual: null, diff: null };
-            const registerAttachment = (label, filePath) => {
-              if (!filePath || !fs.existsSync(filePath)) return null;
-              const attachmentName = `${artifactsLabel}-${label}.png`;
-              pendingAttachments.push({ name: attachmentName, path: filePath });
-              return { name: attachmentName };
-            };
+              const registerAttachment = (label, filePath) => {
+                if (!filePath || !fs.existsSync(filePath)) return null;
+                const attachmentName = `${artifactsLabel}-${label}.png`;
+                pendingAttachments.push({ name: attachmentName, path: filePath });
+                return { name: attachmentName };
+              };
 
               if (includeDiffArtifacts) {
                 const baselinePath = testInfo.snapshotPath(screenshotName);

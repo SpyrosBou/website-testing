@@ -9,7 +9,7 @@
     "test:site": "node run-tests.js",
     "test:clean": "npm run clean-all-results && node run-tests.js",
     "test:site:clean": "npm run clean-all-results && node run-tests.js",
-    "install-browsers": "npx playwright install",
+    "install-browsers": "node scripts/install-browsers.js",
     "setup": "npm install && npm run install-browsers",
     "clean-old-results": "node scripts/cleanup.js clean-old-results",
     "clean-videos": "node scripts/cleanup.js clean-videos",
@@ -23,6 +23,8 @@
     "discover_pages": "node scripts/discover-pages.js",
     "lint": "eslint run-tests.js utils/**/*.js scripts/**/*.js playwright.config.js",
     "lint:fix": "eslint run-tests.js utils/**/*.js scripts/**/*.js playwright.config.js --fix",
+    "lint:teardown": "node scripts/check-browser-teardown.js",
+    "test:unit": "node --test tests/unit/**/*.test.js",
     "format": "prettier -w .",
     "viewreport": "node scripts/view-report.js"
   },

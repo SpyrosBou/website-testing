@@ -1,11 +1,9 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../utils/test-fixtures');
 const SiteLoader = require('../utils/site-loader');
 const {
-  setupTestPage,
-  teardownTestPage,
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
@@ -939,12 +937,8 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
   test.describe.parallel('Page scans', () => {
     let errorContext;
 
-    test.beforeEach(async ({ page, context }) => {
-      errorContext = await setupTestPage(page, context);
-    });
-
-    test.afterEach(async ({ page, context }) => {
-      await teardownTestPage(page, context, errorContext);
+    test.beforeEach(async ({ errorContext: sharedErrorContext }) => {
+      errorContext = sharedErrorContext;
     });
 
     accessibilityPages.forEach((testPage, index) => {

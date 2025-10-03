@@ -42,7 +42,7 @@ class SpecificationToTestGenerator {
     testCode.push(this.indent('let errorContext;'));
     testCode.push('');
 
-    testCode.push(this.indent('test.beforeEach(async ({ page, context }) => {'));
+    testCode.push(this.indent('test.beforeEach(async ({ page, context, errorContext: sharedErrorContext }, testInfo) => {'));
     this.indentLevel++;
     testCode.push(this.indent('const siteName = process.env.SITE_NAME;'));
     testCode.push(this.indent('if (!siteName) {'));
@@ -52,14 +52,7 @@ class SpecificationToTestGenerator {
     testCode.push(this.indent('siteConfig = SiteLoader.loadSite(siteName);'));
     testCode.push(this.indent('SiteLoader.validateSiteConfig(siteConfig);'));
     testCode.push('');
-    testCode.push(this.indent('errorContext = await setupTestPage(page, context);'));
-    this.indentLevel--;
-    testCode.push(this.indent('});'));
-    testCode.push('');
-
-    testCode.push(this.indent('test.afterEach(async ({ page, context }) => {'));
-    this.indentLevel++;
-    testCode.push(this.indent('await teardownTestPage(page, context, errorContext);'));
+    testCode.push(this.indent('errorContext = sharedErrorContext;'));
     this.indentLevel--;
     testCode.push(this.indent('});'));
     testCode.push('');
@@ -105,17 +98,14 @@ class SpecificationToTestGenerator {
    * Generate import statements
    */
   generateImports() {
-    return `const { test, expect } = require('@playwright/test');
+    return `const { test, expect } = require('../utils/test-fixtures');
 const { AxeBuilder } = require('@axe-core/playwright');
 const SiteLoader = require('../utils/site-loader');
 const { 
-  setupTestPage, 
-  teardownTestPage, 
   safeNavigate, 
   waitForPageStability, 
   safeElementInteraction,
-  retryOperation,
-  ErrorContext 
+  retryOperation 
 } = require('../utils/test-helpers');
 const { TestDataFactory, createTestData } = require('../utils/test-data-factory');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');`;

@@ -13,7 +13,7 @@ On every run (`node run-tests.js --site=your-site`):
 - It looks for broken links, slow or failing responses, JavaScript errors, and accessibility issues using axe-core plus targeted keyboard/resilience/form/structure audits that call out the relevant WCAG success criteria.
 - It writes a self-contained HTML report to `reports/run-<timestamp>/report.html` (plus JSON snapshots) with a run headline, cross-browser summary tables, per-page accordions, and a collapsible "Debug testing" deck for raw Playwright output. Open the latest run anytime with `npm run viewreport`.
 
-To try it locally: run `npm run setup`, copy `sites/example-site.json` to your own file, update the URLs, then execute `node run-tests.js --site=<your-site>`. The HTML report will show you exactly what passed and what needs attention before users notice.
+To try it locally: run `npm run setup` (this installs dependencies and caches Playwright browsers under `.pw-browsers/`), copy `sites/example-site.json` to your own file, update the URLs, then execute `node run-tests.js --site=<your-site>`. The HTML report will show you exactly what passed and what needs attention before users notice.
 
 ## Quick Start
 
@@ -26,6 +26,8 @@ To try it locally: run `npm run setup`, copy `sites/example-site.json` to your o
    cd website-testing
    npm run setup
    ```
+
+   This installs project dependencies and downloads the Playwright browser bundle into `.pw-browsers/`. Delete that directory and rerun `npm run setup` any time you need a fresh install.
 
 2. **Configure your site**
    - Copy `sites/example-site.json` to `sites/your-site-name.json`

@@ -1,8 +1,6 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../utils/test-fixtures');
 const SiteLoader = require('../utils/site-loader');
 const {
-  setupTestPage,
-  teardownTestPage,
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
@@ -210,17 +208,13 @@ test.describe('Responsive Accessibility', () => {
   let errorContext;
   let a11yMode;
 
-  test.beforeEach(async ({ page, context }) => {
+  test.beforeEach(async ({ page, context, errorContext: sharedErrorContext }, testInfo) => {
     const siteName = process.env.SITE_NAME;
     if (!siteName) throw new Error('SITE_NAME environment variable is required');
     siteConfig = SiteLoader.loadSite(siteName);
     SiteLoader.validateSiteConfig(siteConfig);
-    errorContext = await setupTestPage(page, context);
+    errorContext = sharedErrorContext;
     a11yMode = siteConfig.a11yMode === 'audit' ? 'audit' : 'gate';
-  });
-
-  test.afterEach(async ({ page, context }) => {
-    await teardownTestPage(page, context, errorContext);
   });
 
   const enabledViewportKeys = resolveResponsiveViewports();
