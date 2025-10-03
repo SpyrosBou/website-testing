@@ -218,7 +218,540 @@ const renderSchemaPageEntries = (entries) => {
   return accordions.join('');
 };
 
-const renderSchemaGroup = (group) => {
+
+const collectSchemaProjects = (group) => {
+  const map = new Map();
+  const ensure = (projectName) => {
+    const key = projectName || 'default';
+    if (!map.has(key)) {
+      map.set(key, { projectName: key, runEntries: [], pageEntries: [] });
+    }
+    return map.get(key);
+  };
+
+  for (const entry of group.runEntries || []) {
+    const meta = entry.payload?.metadata || {};
+    const projectName = meta.projectName || entry.projectName || (meta.scope === 'run' ? 'run' : 'default');
+    ensure(projectName).runEntries.push(entry);
+  }
+
+  for (const entry of group.pageEntries || []) {
+    const meta = entry.payload?.metadata || {};
+    const projectName = meta.projectName || entry.projectName || 'default';
+    ensure(projectName).pageEntries.push(entry);
+  }
+
+  return Array.from(map.values());
+};
+
+const summaryTypeFromGroup = (group) => {
+  for (const entry of group.runEntries || []) {
+    const type = entry.payload?.metadata?.summaryType;
+    if (type) return type;
+  }
+  for (const entry of group.pageEntries || []) {
+    const type = entry.payload?.metadata?.summaryType;
+    if (type) return type;
+  }
+  return null;
+};
+
+const statusClassFromStatus = (status) => {
+  if (typeof status !== 'number') return 'status-ok';
+  if (status >= 500) return 'status-error';
+  if (status >= 400) return 'status-error';
+  if (status >= 300) return 'status-redirect';
+  return 'status-ok';
+};
+
+const firstRunPayload = (bucket) => bucket.runEntries.find((entry) => Boolean(entry?.payload))?.payload || null;
+
+const renderInternalLinksGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
+
+    const coverageRows = pages
+      .map((payload) => {
+        const summary = payload.summary || {};
+        const brokenCount = summary.brokenCount ?? 0;
+        const className = brokenCount > 0 ? 'status-error' : 'status-ok';
+        return `
+          <tr class="${className}">
+            <td><code>${escapeHtml(payload.page || 'unknown')}</code></td>
+            <td>${summary.totalLinks ?? '—'}</td>
+            <td>${summary.uniqueChecked ?? '—'}</td>
+            <td>${brokenCount}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const coverageTable = coverageRows
+      ? `
+          <table>
+            <thead><tr><th>Page</th><th>Links found</th><th>Checked</th><th>Broken</th></tr></thead>
+            <tbody>${coverageRows}</tbody>
+          </table>
+        `
+      : '<p>No pages were evaluated for internal links.</p>';
+
+    const brokenRows = [];
+    pages.forEach((payload) => {
+      const summary = payload.summary || {};
+      (summary.brokenSample || []).forEach((issue) => {
+        brokenRows.push({
+          page: payload.page,
+          url: issue.url,
+          status: issue.status,
+          method: issue.methodTried,
+          error: issue.error,
+        });
+      });
+    });
+
+    const brokenSection = brokenRows.length
+      ? `
+          <section class="summary-report summary-links">
+            <h3>Broken links — ${escapeHtml(projectLabel)}</h3>
+            <table>
+              <thead><tr><th>Source page</th><th>URL</th><th>Status / Error</th><th>Method</th></tr></thead>
+              <tbody>${brokenRows
+                .map(
+                  (issue) => `
+                    <tr class="status-error">
+                      <td><code>${escapeHtml(issue.page || 'unknown')}</code></td>
+                      <td><code>${escapeHtml(issue.url || '')}</code></td>
+                      <td>${issue.status != null ? escapeHtml(String(issue.status)) : escapeHtml(issue.error || 'error')}</td>
+                      <td>${escapeHtml(issue.method || 'HEAD')}</td>
+                    </tr>
+                  `
+                )
+                .join('')}</tbody>
+            </table>
+          </section>
+        `
+      : `
+          <section class="summary-report summary-links">
+            <h3>Broken links — ${escapeHtml(projectLabel)}</h3>
+            <p>None detected 🎉</p>
+          </section>
+        `;
+
+    return `
+      <section class="summary-report summary-links">
+        <h3>${escapeHtml(projectLabel)} – Internal link coverage</h3>
+        ${overviewHtml}
+        ${coverageTable}
+      </section>
+      ${brokenSection}
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Internal link audit summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderInteractiveGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
+    const resourceBudget = runPayload?.overview?.resourceErrorBudget;
+
+    const rows = pages
+      .map((payload) => {
+        const summary = payload.summary || {};
+        const statusLabel = summary.status == null ? 'n/a' : summary.status;
+        const hasIssues = (summary.consoleErrors || 0) > 0 || (summary.resourceErrors || 0) > 0;
+        const className = hasIssues ? 'status-error' : 'status-ok';
+
+        const consoleSample = summary.consoleSample || [];
+        const consoleItems = consoleSample.length
+          ? consoleSample
+              .slice(0, 5)
+              .map((item) => `<li class="check-fail">${escapeHtml(item.message || String(item))}</li>`)
+              .join('')
+          : '<li class="check-pass">No console errors</li>';
+        const consoleList = `
+          <ul class="checks">${consoleItems}</ul>
+        `;
+
+        const resourceSample = summary.resourceSample || [];
+        const resourceItems = resourceSample.length
+          ? resourceSample
+              .slice(0, 5)
+              .map((item) => {
+                const label = item.type === 'requestfailed'
+                  ? `${item.type} – ${item.failure || 'unknown'}`
+                  : `${item.type || 'resource'} ${item.status || ''} ${item.method || ''}`;
+                return `<li class="check-fail">${escapeHtml(label.trim())} — <code>${escapeHtml(item.url || '')}</code></li>`;
+              })
+              .join('')
+          : '<li class="check-pass">No failed requests</li>';
+        const resourceList = `
+          <ul class="checks">${resourceItems}</ul>
+        `;
+
+        const warningItems = (summary.warnings || []).map((msg) => `<li class="check-fail">${escapeHtml(msg)}</li>`);
+        const infoItems = (summary.info || []).map((msg) => `<li class="check-pass">${escapeHtml(msg)}</li>`);
+        const notesHtml = warningItems.length || infoItems.length
+          ? `
+            <ul class="checks">${warningItems.concat(infoItems).join('')}</ul>
+          `
+          : '<span class="details">No additional notes</span>';
+
+        return `
+          <tr class="${className}">
+            <td><code>${escapeHtml(payload.page || 'unknown')}</code></td>
+            <td>${escapeHtml(String(statusLabel))}</td>
+            <td>${consoleList}</td>
+            <td>${resourceList}</td>
+            <td>${notesHtml}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const tableHtml = rows
+      ? `
+          <table>
+            <thead><tr><th>Page</th><th>Status</th><th>Console</th><th>Resources</th><th>Notes</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `
+      : '<p>No interactive pages were scanned.</p>';
+
+    const budgetNote = resourceBudget != null
+      ? `<p>Resource error budget: <strong>${resourceBudget}</strong></p>`
+      : '';
+
+    return `
+      <section class="summary-report summary-interactive">
+        <h3>${escapeHtml(projectLabel)} – JavaScript &amp; resource monitoring</h3>
+        ${overviewHtml}
+        ${budgetNote}
+        ${tableHtml}
+      </section>
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Interactive smoke summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderAvailabilityGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
+
+    const rows = pages
+      .map((payload) => {
+        const summary = payload.summary || {};
+        const status = summary.status;
+        const warnings = summary.warnings || [];
+        const info = summary.info || [];
+        const elements = summary.elements || {};
+        const elementChecks = Object.keys(elements).length
+          ? `
+              <ul class="checks">${Object.entries(elements)
+                .map(([key, value]) => `<li class="${value ? 'check-pass' : 'check-fail'}">${escapeHtml(key)}: ${value ? 'present' : 'missing'}</li>`)
+                .join('')}</ul>
+            `
+          : '<span class="details">No element checks recorded</span>';
+        const warningList = warnings.length
+          ? `
+              <ul class="checks">${warnings
+                .map((message) => `<li class="check-fail">${escapeHtml(message)}</li>`)
+                .join('')}</ul>
+            `
+          : '<span class="details">None</span>';
+        const infoList = info.length
+          ? `
+              <ul class="checks">${info
+                .map((message) => `<li class="check-pass">${escapeHtml(message)}</li>`)
+                .join('')}</ul>
+            `
+          : '<span class="details">None</span>';
+
+        return `
+          <tr class="${statusClassFromStatus(status)}">
+            <td><code>${escapeHtml(payload.page || 'unknown')}</code></td>
+            <td>${status == null ? 'n/a' : escapeHtml(String(status))}</td>
+            <td>${elementChecks}</td>
+            <td>${warningList}</td>
+            <td>${infoList}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const tableHtml = rows
+      ? `
+          <table>
+            <thead><tr><th>Page</th><th>Status</th><th>Structure</th><th>Warnings</th><th>Info</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `
+      : '<p>No availability checks captured.</p>';
+
+    return `
+      <section class="summary-report summary-infrastructure">
+        <h3>${escapeHtml(projectLabel)} – Availability &amp; uptime</h3>
+        ${overviewHtml}
+        ${tableHtml}
+      </section>
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Availability & uptime summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderHttpGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
+
+    const rows = pages
+      .map((payload) => {
+        const summary = payload.summary || {};
+        const failedChecks = summary.failedChecks || [];
+        const failedList = failedChecks.length
+          ? `
+              <ul class="checks">${failedChecks
+                .map((check) => `<li class="check-fail">${escapeHtml(check.label || 'Check failed')}${check.details ? ` — ${escapeHtml(check.details)}` : ''}</li>`)
+                .join('')}</ul>
+            `
+          : '<span class="details">All checks passed</span>';
+        return `
+          <tr class="${statusClassFromStatus(summary.status)}">
+            <td><code>${escapeHtml(payload.page || 'unknown')}</code></td>
+            <td>${summary.status == null ? 'n/a' : escapeHtml(String(summary.status))}</td>
+            <td>${escapeHtml(summary.statusText || '')}</td>
+            <td>${summary.redirectLocation ? `<code>${escapeHtml(summary.redirectLocation)}</code>` : '<span class="details">—</span>'}</td>
+            <td>${failedList}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const tableHtml = rows
+      ? `
+          <table>
+            <thead><tr><th>Page</th><th>Status</th><th>Status text</th><th>Redirect</th><th>Failed checks</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `
+      : '<p>No HTTP validation results available.</p>';
+
+    return `
+      <section class="summary-report summary-infrastructure">
+        <h3>${escapeHtml(projectLabel)} – HTTP response validation</h3>
+        ${overviewHtml}
+        ${tableHtml}
+      </section>
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'HTTP response validation summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderPerformanceGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
+
+    const rows = pages
+      .map((payload) => {
+        const summary = payload.summary || {};
+        const breaches = (summary.budgetBreaches || [])
+          .map((breach) => `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`);
+        const breachList = breaches.length
+          ? `
+              <ul class="checks">${breaches
+                .map((line) => `<li class="check-fail">${escapeHtml(line)}</li>`)
+                .join('')}</ul>
+            `
+          : '<span class="details">None</span>';
+        return `
+          <tr class="${breaches.length ? 'status-error' : 'status-ok'}">
+            <td><code>${escapeHtml(payload.page || 'unknown')}</code></td>
+            <td>${summary.loadTimeMs != null ? Math.round(summary.loadTimeMs) : '—'}</td>
+            <td>${summary.domContentLoadedMs != null ? Math.round(summary.domContentLoadedMs) : '—'}</td>
+            <td>${summary.loadCompleteMs != null ? Math.round(summary.loadCompleteMs) : '—'}</td>
+            <td>${summary.firstContentfulPaintMs != null ? Math.round(summary.firstContentfulPaintMs) : '—'}</td>
+            <td>${breachList}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const tableHtml = rows
+      ? `
+          <table>
+            <thead><tr><th>Page</th><th>Load (ms)</th><th>DOM Loaded</th><th>Load complete</th><th>FCP</th><th>Budget breaches</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `
+      : '<p>No performance metrics captured.</p>';
+
+    return `
+      <section class="summary-report summary-infrastructure">
+        <h3>${escapeHtml(projectLabel)} – Performance monitoring</h3>
+        ${overviewHtml}
+        ${tableHtml}
+      </section>
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Performance monitoring summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderVisualGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
+
+    const rows = pages
+      .map((payload) => {
+        const summary = payload.summary || {};
+        const result = (summary.result || '').toLowerCase();
+        const className = result === 'diff' ? 'status-error' : 'status-ok';
+        const diffDetails = [];
+        if (summary.pixelDiff != null) {
+          diffDetails.push(`Pixel diff: ${summary.pixelDiff.toLocaleString()}`);
+        }
+        if (summary.pixelRatio != null) {
+          diffDetails.push(`Diff ratio: ${(summary.pixelRatio * 100).toFixed(2)}%`);
+        }
+        if (summary.expectedSize && summary.actualSize) {
+          diffDetails.push(
+            `Expected ${summary.expectedSize.width}×${summary.expectedSize.height}px, got ${summary.actualSize.width}×${summary.actualSize.height}px`
+          );
+        }
+        if (summary.error) {
+          diffDetails.push(summary.error);
+        }
+
+        const detailsHtml = diffDetails.length
+          ? `
+              <ul class="checks">${diffDetails
+                .map((line) => `<li class="${result === 'diff' ? 'check-fail' : 'details'}">${escapeHtml(line)}</li>`)
+                .join('')}</ul>
+            `
+          : '<span class="details">Matched baseline</span>';
+
+        const artifactLinks = summary.artifacts || {};
+        const artifactItems = ['baseline', 'actual', 'diff']
+          .map((key) => {
+            if (!artifactLinks[key]) return null;
+            return `<li><a href="attachment://${escapeHtml(artifactLinks[key])}">${key.charAt(0).toUpperCase() + key.slice(1)}</a></li>`;
+          })
+          .filter(Boolean);
+        const artifactsHtml = artifactItems.length
+          ? `
+              <ul class="checks">${artifactItems.join('')}</ul>
+            `
+          : '<span class="details">—</span>';
+
+        return `
+          <tr class="${className}">
+            <td><code>${escapeHtml(payload.page || 'unknown')}</code></td>
+            <td>${escapeHtml(summary.screenshot || '—')}</td>
+            <td>${summary.threshold != null ? summary.threshold : '—'}</td>
+            <td>${result === 'diff' ? '⚠️ Diff detected' : '✅ Matched'}</td>
+            <td>${artifactsHtml}</td>
+            <td>${detailsHtml}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const tableHtml = rows
+      ? `
+          <table>
+            <thead><tr><th>Page</th><th>Screenshot</th><th>Threshold</th><th>Result</th><th>Artifacts</th><th>Details</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `
+      : '<p>No visual comparisons were recorded.</p>';
+
+    return `
+      <section class="summary-report summary-visual">
+        <h3>${escapeHtml(projectLabel)} – Visual regression</h3>
+        ${overviewHtml}
+        ${tableHtml}
+      </section>
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Visual regression summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderSchemaGroupFallbackHtml = (group) => {
   const headline = group.title || humaniseKey(group.baseName);
   const runEntries = (group.runEntries || []).slice().sort((a, b) => {
     const scopeOrder = { run: 0, project: 1 };
@@ -236,6 +769,23 @@ const renderSchemaGroup = (group) => {
       ${body}
     </article>
   `;
+};
+
+const SCHEMA_HTML_RENDERERS = {
+  'internal-links': renderInternalLinksGroupHtml,
+  interactive: renderInteractiveGroupHtml,
+  availability: renderAvailabilityGroupHtml,
+  http: renderHttpGroupHtml,
+  performance: renderPerformanceGroupHtml,
+  visual: renderVisualGroupHtml,
+};
+
+const renderSchemaGroup = (group) => {
+  const summaryType = summaryTypeFromGroup(group);
+  if (summaryType && SCHEMA_HTML_RENDERERS[summaryType]) {
+    return SCHEMA_HTML_RENDERERS[summaryType](group);
+  }
+  return renderSchemaGroupFallbackHtml(group);
 };
 
 const renderSchemaSummaries = (records = []) => {
@@ -324,6 +874,222 @@ const renderRuleSnapshotsMarkdown = (snapshots) => {
   return [header, separator, ...rows].join('\n');
 };
 
+const renderInternalLinksGroupMarkdown = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const heading = `${group.title || 'Internal link audit summary'} – ${projectLabel}`;
+    const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
+
+    const header = '| Page | Links found | Checked | Broken |';
+    const separator = '| --- | --- | --- | --- |';
+    const rows = pages.map((payload) => {
+      const summary = payload.summary || {};
+      return `| \`${payload.page || 'unknown'}\` | ${summary.totalLinks ?? '—'} | ${summary.uniqueChecked ?? '—'} | ${summary.brokenCount ?? 0} |`;
+    });
+
+    const brokenRows = [];
+    pages.forEach((payload) => {
+      const summary = payload.summary || {};
+      (summary.brokenSample || []).forEach((issue) => {
+        brokenRows.push(`| \`${payload.page || 'unknown'}\` | ${issue.url || ''} | ${issue.status != null ? issue.status : issue.error || 'error'} | ${issue.methodTried || 'HEAD'} |`);
+      });
+    });
+
+    const brokenSection = brokenRows.length
+      ? ['## Broken links', '', '| Source page | URL | Status / Error | Method |', '| --- | --- | --- | --- |', ...brokenRows].join('\n')
+      : '## Broken links\n\nNone 🎉';
+
+    const parts = [`## ${heading}`];
+    if (overview) parts.push(overview);
+    parts.push('', header, separator, ...rows);
+    parts.push('', brokenSection);
+    return parts.join('\n');
+  });
+
+  return sections.join('\n\n');
+};
+
+const renderInteractiveGroupMarkdown = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const heading = `${group.title || 'Interactive smoke summary'} – ${projectLabel}`;
+    const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
+    const budget = runPayload?.overview?.resourceErrorBudget;
+
+    const header = '| Page | Status | Console | Resources | Notes |';
+    const separator = '| --- | --- | --- | --- | --- |';
+    const rows = pages.map((payload) => {
+      const summary = payload.summary || {};
+      const consoleOutput = (summary.consoleSample || []).map((entry) => `⚠️ ${entry.message || entry}`).join('<br />');
+      const consoleCell = summary.consoleErrors ? consoleOutput || 'See captured sample' : '✅ None';
+      const resourceOutput = (summary.resourceSample || [])
+        .map((entry) => {
+          const base = entry.type === 'requestfailed'
+            ? `requestfailed ${entry.url} (${entry.failure || 'unknown'})`
+            : `${entry.type} ${entry.status || ''} ${entry.method || ''} ${entry.url}`;
+          return `⚠️ ${base.trim()}`;
+        })
+        .join('<br />');
+      const resourceCell = summary.resourceErrors ? resourceOutput || 'See captured sample' : '✅ None';
+      const noteItems = [];
+      (summary.warnings || []).forEach((message) => noteItems.push(`⚠️ ${message}`));
+      (summary.info || []).forEach((message) => noteItems.push(`ℹ️ ${message}`));
+      const notesCell = noteItems.length ? noteItems.join('<br />') : '—';
+      const statusLabel = summary.status == null ? 'n/a' : summary.status;
+      return `| \`${payload.page || 'unknown'}\` | ${statusLabel} | ${consoleCell || '—'} | ${resourceCell || '—'} | ${notesCell} |`;
+    });
+
+    const parts = [`## ${heading}`];
+    if (overview) parts.push(overview);
+    if (budget != null) parts.push('', `Resource error budget: **${budget}**`);
+    parts.push('', header, separator, ...rows);
+    return parts.join('\n');
+  });
+
+  return sections.join('\n\n');
+};
+
+const renderAvailabilityGroupMarkdown = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const heading = `${group.title || 'Availability & uptime summary'} – ${projectLabel}`;
+    const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
+
+    const header = '| Page | Status | Warnings | Info |';
+    const separator = '| --- | --- | --- | --- |';
+    const rows = pages.map((payload) => {
+      const summary = payload.summary || {};
+      const warnings = (summary.warnings || []).map((message) => `⚠️ ${message}`).join('<br />') || 'None';
+      const info = (summary.info || []).map((message) => `ℹ️ ${message}`).join('<br />') || 'None';
+      const statusLabel = summary.status == null ? 'n/a' : summary.status;
+      return `| \`${payload.page || 'unknown'}\` | ${statusLabel} | ${warnings} | ${info} |`;
+    });
+
+    const parts = [`## ${heading}`];
+    if (overview) parts.push(overview);
+    parts.push('', header, separator, ...rows);
+    return parts.join('\n');
+  });
+
+  return sections.join('\n\n');
+};
+
+const renderHttpGroupMarkdown = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const heading = `${group.title || 'HTTP response validation summary'} – ${projectLabel}`;
+    const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
+
+    const header = '| Page | Status | Redirect | Failed checks |';
+    const separator = '| --- | --- | --- | --- |';
+    const rows = pages.map((payload) => {
+      const summary = payload.summary || {};
+      const failedChecks = (summary.failedChecks || [])
+        .map((check) => `⚠️ ${check.label || 'Check failed'}${check.details ? ` — ${check.details}` : ''}`)
+        .join('<br />') || 'None';
+      const statusLabel = summary.status == null ? 'n/a' : summary.status;
+      const redirect = summary.redirectLocation || '—';
+      return `| \`${payload.page || 'unknown'}\` | ${statusLabel} | ${redirect} | ${failedChecks} |`;
+    });
+
+    const parts = [`## ${heading}`];
+    if (overview) parts.push(overview);
+    parts.push('', header, separator, ...rows);
+    return parts.join('\n');
+  });
+
+  return sections.join('\n\n');
+};
+
+const renderPerformanceGroupMarkdown = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const heading = `${group.title || 'Performance monitoring summary'} – ${projectLabel}`;
+    const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
+
+    const header = '| Page | Load (ms) | DOM Loaded | Load complete | FCP | Breaches |';
+    const separator = '| --- | --- | --- | --- | --- | --- |';
+    const rows = pages.map((payload) => {
+      const summary = payload.summary || {};
+      const breaches = (summary.budgetBreaches || [])
+        .map((breach) => `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`)
+        .join('<br />') || 'None';
+      return `| \`${payload.page || 'unknown'}\` | ${summary.loadTimeMs != null ? Math.round(summary.loadTimeMs) : '—'} | ${summary.domContentLoadedMs != null ? Math.round(summary.domContentLoadedMs) : '—'} | ${summary.loadCompleteMs != null ? Math.round(summary.loadCompleteMs) : '—'} | ${summary.firstContentfulPaintMs != null ? Math.round(summary.firstContentfulPaintMs) : '—'} | ${breaches} |`;
+    });
+
+    const parts = [`## ${heading}`];
+    if (overview) parts.push(overview);
+    parts.push('', header, separator, ...rows);
+    return parts.join('\n');
+  });
+
+  return sections.join('\n\n');
+};
+
+const renderVisualGroupMarkdown = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+    const heading = `${group.title || 'Visual regression summary'} – ${projectLabel}`;
+    const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
+
+    const header = '| Page | Screenshot | Threshold | Result | Details |';
+    const separator = '| --- | --- | --- | --- | --- |';
+    const rows = pages.map((payload) => {
+      const summary = payload.summary || {};
+      const result = (summary.result || '').toLowerCase();
+      const diffDetails = [];
+      if (summary.pixelDiff != null) diffDetails.push(`Pixel diff: ${summary.pixelDiff.toLocaleString()}`);
+      if (summary.pixelRatio != null) diffDetails.push(`Diff ratio: ${(summary.pixelRatio * 100).toFixed(2)}%`);
+      if (summary.expectedSize && summary.actualSize) {
+        diffDetails.push(
+          `Expected ${summary.expectedSize.width}×${summary.expectedSize.height}px, got ${summary.actualSize.width}×${summary.actualSize.height}px`
+        );
+      }
+      if (summary.error) diffDetails.push(summary.error);
+      const detailsCell = diffDetails.length ? diffDetails.join('<br />') : 'Matched baseline';
+      const resultCell = result === 'diff' ? '⚠️ Diff detected' : '✅ Matched';
+      return `| \`${payload.page || 'unknown'}\` | ${summary.screenshot || '—'} | ${summary.threshold != null ? summary.threshold : '—'} | ${resultCell} | ${detailsCell} |`;
+    });
+
+    const parts = [`## ${heading}`];
+    if (overview) parts.push(overview);
+    parts.push('', header, separator, ...rows);
+    return parts.join('\n');
+  });
+
+  return sections.join('\n\n');
+};
+
 const renderSchemaRunEntryMarkdown = (entry) => {
   const payload = entry.payload || {};
   const metadata = payload.metadata || {};
@@ -341,7 +1107,7 @@ const renderSchemaRunEntryMarkdown = (entry) => {
   return `${heading}\n\n${sections || '_No overview metrics provided._'}`;
 };
 
-const renderSchemaPageEntriesMarkdown = (entries) => {
+const renderSchemaPageEntriesMarkdownFallback = (entries) => {
   if (!Array.isArray(entries) || entries.length === 0) return '';
   const lines = entries.map((entry) => {
     const payload = entry.payload || {};
@@ -355,14 +1121,31 @@ const renderSchemaPageEntriesMarkdown = (entries) => {
   return lines.join('\n');
 };
 
-const renderSchemaGroupMarkdown = (group) => {
+const renderSchemaGroupFallbackMarkdown = (group) => {
   const headline = group.title || humaniseKey(group.baseName);
   const runMarkdown = (group.runEntries || []).map(renderSchemaRunEntryMarkdown).join('\n\n');
-  const pageMarkdown = renderSchemaPageEntriesMarkdown(group.pageEntries || []);
+  const pageMarkdown = renderSchemaPageEntriesMarkdownFallback(group.pageEntries || []);
   const sections = [`## ${headline}`];
   if (runMarkdown) sections.push(runMarkdown);
   if (pageMarkdown) sections.push('### Page Summaries', pageMarkdown);
   return sections.join('\n\n');
+};
+
+const SCHEMA_MARKDOWN_RENDERERS = {
+  'internal-links': renderInternalLinksGroupMarkdown,
+  interactive: renderInteractiveGroupMarkdown,
+  availability: renderAvailabilityGroupMarkdown,
+  http: renderHttpGroupMarkdown,
+  performance: renderPerformanceGroupMarkdown,
+  visual: renderVisualGroupMarkdown,
+};
+
+const renderSchemaGroupMarkdown = (group) => {
+  const summaryType = summaryTypeFromGroup(group);
+  if (summaryType && SCHEMA_MARKDOWN_RENDERERS[summaryType]) {
+    return SCHEMA_MARKDOWN_RENDERERS[summaryType](group);
+  }
+  return renderSchemaGroupFallbackMarkdown(group);
 };
 
 const renderSchemaSummariesMarkdown = (records = []) => {

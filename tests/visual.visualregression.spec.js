@@ -139,6 +139,7 @@ const buildVisualSchemaPayloads = ({ summaries, viewportName, projectName }) => 
           actual: artifacts.actual?.name || null,
           diff: artifacts.diff?.name || null,
         },
+        screenshot: entry.screenshot || null,
         error: entry.error || null,
       },
       metadata: {
