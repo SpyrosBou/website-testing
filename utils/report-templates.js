@@ -348,15 +348,7 @@ const renderErrorBlock = (errors) => {
   `;
 };
 
-const renderLogBlock = (label, entries, cssClass) => {
-  if (!entries || entries.length === 0) return '';
-  return `
-    <details class="test-logs ${cssClass}" aria-label="${escapeHtml(label)}">
-      <summary>${escapeHtml(label)}</summary>
-      <pre>${escapeHtml(entries.join('\n'))}</pre>
-    </details>
-  `;
-};
+const renderLogBlock = () => '';
 
 const renderAttachment = (attachment) => {
   if (attachment.omitted) {
@@ -401,29 +393,21 @@ const renderAttachment = (attachment) => {
 
 const renderSummaries = (summaries) => {
   if (!summaries || summaries.length === 0) return '';
+
+  const htmlSummaries = summaries.filter((summary) => summary.html);
+  if (htmlSummaries.length === 0) return '';
+
   return `
     <section class="test-summaries" aria-label="Summary attachments">
-      ${summaries
+      ${htmlSummaries
         .map((summary) => {
           const label = summary.title || summary.baseName || 'Summary';
-          const sections = [];
-          if (summary.html) {
-            sections.push(`
-              <details class="summary-block" data-summary-type="html">
-                <summary>${escapeHtml(label)}</summary>
-                <div class="summary-block__body">${summary.html}</div>
-              </details>
-            `);
-          }
-          if (summary.markdown) {
-            sections.push(`
-              <details class="summary-block summary-block--markdown" data-summary-type="markdown">
-                <summary>${escapeHtml(label)} (Markdown export)</summary>
-                <pre class="summary-block__markdown">${escapeHtml(summary.markdown)}</pre>
-              </details>
-            `);
-          }
-          return sections.join('\n');
+          return `
+            <details class="summary-block" data-summary-type="html">
+              <summary>${escapeHtml(label)}</summary>
+              <div class="summary-block__body">${summary.html}</div>
+            </details>
+          `;
         })
         .join('\n')}
     </section>
@@ -441,8 +425,8 @@ const renderAttempts = (attempts) => {
             : '';
           const summariesHtml = renderSummaries(attempt.summaries);
           const errorsHtml = renderErrorBlock(attempt.errors);
-          const stdoutHtml = renderLogBlock('Stdout', attempt.stdout, 'stdout');
-          const stderrHtml = renderLogBlock('Stderr', attempt.stderr, 'stderr');
+          const stdoutHtml = renderLogBlock();
+          const stderrHtml = renderLogBlock();
           return `
             <article class="attempt-card status-${attempt.status}">
               <header>
@@ -470,8 +454,8 @@ const renderTestCard = (test) => {
   const summariesHtml = renderSummaries(test.summaryBlocks);
   const attemptsHtml = renderAttempts(test.attempts);
   const errorHtml = !test.attempts?.length ? renderErrorBlock(test.errors) : '';
-  const stdoutHtml = !test.attempts?.length ? renderLogBlock('Stdout', test.stdout, 'stdout') : '';
-  const stderrHtml = !test.attempts?.length ? renderLogBlock('Stderr', test.stderr, 'stderr') : '';
+  const stdoutHtml = '';
+  const stderrHtml = '';
 
   const annotations = (test.annotations || [])
     .map((ann) => ann?.type || ann?.title)
@@ -1147,6 +1131,16 @@ const filterScript = `
   const testGroups = Array.from(document.querySelectorAll('.test-group'));
   const navTestItems = Array.from(document.querySelectorAll('.test-navigation [data-test-anchor]'));
   const navGroupItems = Array.from(document.querySelectorAll('.test-navigation [data-group-anchor]'));
+  const collapsibleSections = Array.from(document.querySelectorAll('.test-logs, .summary-block'));
+
+  // Guarantee all accordions start collapsed, even if the browser restores prior state.
+  collapsibleSections.forEach((section) => {
+    if (typeof section.open === 'boolean') {
+      section.open = false;
+    } else {
+      section.removeAttribute('open');
+    }
+  });
 
   function applyFilters() {
     const activeStatuses = statusInputs.filter((input) => input.checked).map((input) => input.value);
@@ -1155,7 +1149,7 @@ const filterScript = `
     testCards.forEach((card) => {
       const status = Array.from(card.classList).find((cls) => cls.startsWith('status-'))?.replace('status-', '');
       const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes(status);
-      const content = card.innerText.toLowerCase();
+      const content = (card.textContent || '').toLowerCase();
       const matchesSearch = !searchTerm || content.includes(searchTerm);
       card.setAttribute('data-hidden', matchesStatus && matchesSearch ? 'false' : 'true');
     });
