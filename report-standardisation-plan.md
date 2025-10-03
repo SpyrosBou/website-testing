@@ -36,10 +36,10 @@
 ### Phase 2 – Spec adoption (in progress)
 
 - Targets (rough order):
-  1. **Infrastructure** (`tests/functionality.infrastructure.spec.js`) ✅ emits run/page schema payloads alongside legacy HTML.
-  2. **Links**
-  3. **Interactive**
-  4. **Visual regression** (needs image handling override)
+  1. **Infrastructure** (`tests/functionality.infrastructure.spec.js`) ✅ schema-only summaries rendered inline via reporter
+  2. **Links** ✅ schema-only summaries rendered inline via reporter
+  3. **Interactive** ✅ schema payloads power reporter-generated summaries
+  4. **Visual regression** ✅ schema payloads include screenshot metadata for inline tables
   5. **Accessibility** (schema payloads shipped; retire legacy attachments once other suites migrate)
 - For each spec:
   - Emit `run-summary` & `page-summary` schema payloads.
@@ -65,11 +65,9 @@
 
 ## Outstanding Work (as of 2025-10-03)
 
-- Accessibility suite still emits legacy HTML alongside schema payloads; retire the HTML once downstream consumers confirm the new layout.
-- Validate downstream tooling against the schema-driven Markdown report before deleting any remaining legacy attachments.
+- Validate downstream tooling against the schema-driven HTML/Markdown before deleting helper fallbacks.
 
 ## Next Steps
 
-1. Finalise the accessibility suite migration by removing its legacy HTML once the schema layout is signed off.
-2. Exercise the new Markdown report within CLI/CI flows and capture any tooling updates that depend on the schema structure.
-3. Refresh developer documentation to highlight the schema-driven summaries and the new Markdown artefact pipeline.
+1. Exercise the new HTML/Markdown reports within CLI/CI flows and capture any tooling updates that depend on the schema structure.
+2. Refresh developer documentation to highlight the schema-driven summaries and the new Markdown artefact pipeline.

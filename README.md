@@ -270,7 +270,7 @@ node run-tests.js --site=my-site-local --visual --local
 
 The interactive audit still walks every entry in `testPages`, but it only performs lightweight focus/hover taps while watching for console errors and failed network requests. That keeps the shared harness stable across very different client sites. When you need multi-step user journeys, flows behind logins, or bespoke form handling, layer client-specific Playwright specs on top of the shared suite.
 
-All other shared suites (infrastructure, links, accessibility, responsive structure/visual) execute their full assertions across every `testPages` URL without these limitations. Each spec drops an HTML + Markdown summary via `utils/reporting-utils.js`, so the custom report explains exactly what was validated instead of surfacing a bare green tick.
+All other shared suites (infrastructure, links, accessibility, responsive structure/visual) execute their full assertions across every `testPages` URL without these limitations. Each migrated spec now emits structured summaries via `attachSchemaSummary`, and the reporter renders the same HTML/Markdown layout without relying on bespoke attachments (legacy suites still fall back to `attachSummary`).
 
 ### Accessibility Deep-Dive
 
@@ -297,7 +297,7 @@ Each Allure summary now includes a “WCAG coverage” banner for these manual a
 - `npm run viewreport` — open the most recent report in your default browser.
 - `npm run viewreport -- --list` — list the run history with pass/fail counts.
 - `npm run viewreport -- --file=run-YYYYMMDD-HHMMSS` — open a specific run folder.
-- When adding a new suite, call `attachSummary({ ..., setDescription: true })` so its styled HTML + Markdown summary renders inline in the custom report alongside existing WCAG coverage banners.
+- When adding a new suite, prefer emitting schema payloads via `attachSchemaSummary` (use `attachSummary` only as a transitional fallback) so the reporter can render the same inline HTML/Markdown blocks automatically.
 - Treat WCAG findings surfaced by the suites as defects to address. We do **not** suppress or whitelist contrast (or any other WCAG-level) violations in the harness; our automated results must stay faithful to a real audit even when product/design decides to accept the risk.
 
 ## CI & Scheduling

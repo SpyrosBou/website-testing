@@ -47,10 +47,9 @@
 - `a11y.keyboard.spec.js` (focus order, skip links, keyboard traps, focus visibility; summaries cite WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7).
 - `a11y.resilience.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2).
 - `a11y.structure.spec.js` (landmark + heading integrity; summaries cite WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10).
-- Each functionality spec publishes HTML + Markdown attachments via `utils/reporting-utils.js`, feeding the promoted summary cards (aggregated per browser/viewport) and the per-page accordions in the headline. Detailed tables remain available once you expand a page accordion or the debug deck.
+- Each functionality spec now emits schema payloads via `attachSchemaSummary`, and the reporter renders the same HTML/Markdown layouts inline (legacy suites still rely on `attachSummary` until migrated). Detailed tables remain available once you expand a page accordion or the debug deck.
   - The manual accessibility suites add a dedicated “WCAG coverage” banner to their summaries; mirror that pattern for any new audit so reviewers immediately know which success criteria were exercised.
-  - When adding a new spec, always publish a styled HTML + Markdown overview using `attachSummary` so the report stays scannable without diving into raw attachments.
-  - Pair HTML summaries with schema payloads via `attachSchemaSummary` so the reporter can promote them to the headline layout (see `utils/report-schema.js` for constructors).
+  - When adding a new spec, emit schema payloads (`attachSchemaSummary`) so the reporter can promote them; use `attachSummary` only as a temporary fallback while migrating legacy code.
 - WCAG-impact findings (e.g., contrast, keyboard traps) are never ignored in automated runs. If the suite flags one, treat it as a bug for the product/design team—do not whitelist it in configs just to satisfy CI.
 - Keyboard audit depth can be tuned per run by exporting `A11Y_KEYBOARD_STEPS` (defaults to 20 forward tabs and one reverse tab sanity check).
 - Structural sample size honours `a11yStructureSampleSize` (falls back to `a11yResponsiveSampleSize`).
@@ -68,7 +67,7 @@ All shared suites traverse the full `testPages` list. The interactive audit is i
   - `a11yFailOn`: array of impacts to fail on (default `['critical','serious']`).
   - `a11yIgnoreRules`: array of axe rule IDs to ignore (e.g., `"color-contrast"`).
 - `a11yMode`: set to `"gate"` (default) to aggregate violations and fail after the full run, or `"audit"` to log summaries without failing. Suites run in the selected Playwright project (Chrome by default); omit `--project` to execute across all configured browsers/devices.
-- When violations occur, tests attach HTML + Markdown summaries per page/viewport (via `utils/reporting-utils.js`) summarizing rule IDs, help URLs, and node counts in the custom report.
+- When violations occur, the specs emit schema payloads per page/viewport so the reporter can surface the same HTML/Markdown cards summarizing rule IDs, help URLs, and node counts.
 - `ignoreConsoleErrors`: substrings/regex patterns to filter known console noise during interactive scans.
 - `resourceErrorBudget`: number of failed network requests tolerated before the interactive spec soft-fails (default 0).
 - `testPages`: keep this array tightly aligned with the content that should stay live. Functionality/accessibility specs treat 4xx/5xx as failures, so update the JSON whenever URLs are removed or slugs change. Discovery is opt-in—configure `discover.strategy: "sitemap"` and run with `--discover` when you want to refresh paths.

@@ -264,6 +264,105 @@ const statusClassFromStatus = (status) => {
   return 'status-ok';
 };
 
+const accessibilityStatusClass = (status) => {
+  const map = {
+    violations: 'status-error',
+    'http-error': 'status-error',
+    'scan-error': 'status-warning',
+    'stability-timeout': 'status-warning',
+    skipped: 'status-neutral',
+    passed: 'status-ok',
+  };
+  return map[status] || 'status-ok';
+};
+
+const formatAccessibilityNotesHtml = (summary) => {
+  const notes = Array.isArray(summary.notes) ? summary.notes.slice(0, 10) : [];
+  const extra = [];
+  if (summary.stability) {
+    const stability = summary.stability || {};
+    const label = stability.ok ? 'Stable' : 'Stability issue';
+    const detail = stability.strategy ? `${label} (strategy: ${stability.strategy})` : label;
+    extra.push(detail);
+  }
+  if (summary.httpStatus && summary.httpStatus !== 200) {
+    extra.push(`HTTP ${summary.httpStatus}`);
+  }
+  const combined = [...notes, ...extra];
+  if (combined.length === 0) {
+    return '<span class="details">None</span>';
+  }
+  const items = combined
+    .map((note) => `<li class="details">${escapeHtml(String(note))}</li>`)
+    .join('');
+  return `
+        <ul class="checks">${items}</ul>
+      `;
+};
+
+const renderAccessibilityGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets
+    .map((bucket) => {
+      const runPayload = firstRunPayload(bucket);
+      const pages = bucket.pageEntries
+        .map((entry) => entry.payload || {})
+        .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+      const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+      const overviewHtml =
+        runPayload?.htmlBody || (runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '');
+
+      const pageCards = pages
+        .map((payload) => {
+          const summary = payload.summary || {};
+          if (summary.cardHtml) return summary.cardHtml;
+
+          const status = summary.status || 'passed';
+          const statusLabel = status.replace(/[\-_/]+/g, ' ');
+          const notesHtml = formatAccessibilityNotesHtml(summary);
+          return `
+      <section class="summary-report summary-a11y">
+        <h3>${escapeHtml(payload.page || 'unknown')}</h3>
+        <table>
+          <thead><tr><th>Status</th><th>Gating</th><th>Advisory</th><th>Best practice</th><th>HTTP</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr class="${accessibilityStatusClass(status)}">
+              <td>${escapeHtml(statusLabel)}</td>
+              <td>${summary.gatingViolations ?? 0}</td>
+              <td>${summary.advisoryFindings ?? 0}</td>
+              <td>${summary.bestPracticeFindings ?? 0}</td>
+              <td>${summary.httpStatus ?? '—'}</td>
+              <td>${notesHtml}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    `;
+        })
+        .join('\n');
+
+      return `
+      <section class="summary-report summary-a11y">
+        <h3>${escapeHtml(projectLabel)} – WCAG findings</h3>
+        ${overviewHtml}
+        ${pageCards}
+      </section>
+    `;
+    })
+    .join('\n');
+
+  const headline = escapeHtml(group.title || 'WCAG findings summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections}
+    </article>
+  `;
+
+};
+
 const firstRunPayload = (bucket) => bucket.runEntries.find((entry) => Boolean(entry?.payload))?.payload || null;
 
 const renderInternalLinksGroupHtml = (group) => {
@@ -778,6 +877,7 @@ const SCHEMA_HTML_RENDERERS = {
   http: renderHttpGroupHtml,
   performance: renderPerformanceGroupHtml,
   visual: renderVisualGroupHtml,
+  wcag: renderAccessibilityGroupHtml,
 };
 
 const renderSchemaGroup = (group) => {
@@ -1131,6 +1231,59 @@ const renderSchemaGroupFallbackMarkdown = (group) => {
   return sections.join('\n\n');
 };
 
+const formatAccessibilityNotesMarkdown = (summary) => {
+  const notes = Array.isArray(summary.notes) ? summary.notes.slice(0, 10) : [];
+  const extra = [];
+  if (summary.stability) {
+    const stability = summary.stability || {};
+    const label = stability.ok ? 'Stable' : 'Stability issue';
+    const detail = stability.strategy ? `${label} (strategy: ${stability.strategy})` : label;
+    extra.push(detail);
+  }
+  if (summary.httpStatus && summary.httpStatus !== 200) {
+    extra.push(`HTTP ${summary.httpStatus}`);
+  }
+  const combined = [...notes, ...extra];
+  if (combined.length === 0) return 'None';
+  return combined.map((note) => String(note)).join('<br />');
+};
+
+const renderAccessibilityGroupMarkdown = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets
+    .map((bucket) => {
+      const runPayload = firstRunPayload(bucket);
+      const pages = bucket.pageEntries
+        .map((entry) => entry.payload || {})
+        .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+      const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
+      const heading = `${group.title || 'WCAG findings summary'} – ${projectLabel}`;
+      const overview = (
+        runPayload?.markdownBody || (runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '')
+      );
+
+      const pageSections = pages.map((payload) => {
+        const summary = payload.summary || {};
+        if (summary.cardMarkdown) return summary.cardMarkdown;
+
+        const status = summary.status || 'passed';
+        const statusLabel = status.replace(/[\-_/]+/g, ' ');
+        const notes = formatAccessibilityNotesMarkdown(summary);
+        return `### ${payload.page || 'unknown'}\n\n- Status: ${statusLabel}\n- Gating: ${summary.gatingViolations ?? 0}\n- Advisory: ${summary.advisoryFindings ?? 0}\n- Best practice: ${summary.bestPracticeFindings ?? 0}\n- HTTP: ${summary.httpStatus ?? '—'}\n- Notes: ${notes}`;
+      });
+
+      const parts = [`## ${heading}`];
+      if (overview) parts.push(overview);
+      parts.push(...pageSections)
+      return parts.join('\n\n');
+    })
+    .filter(Boolean);
+
+  return sections.join('\n\n');
+};
+
 const SCHEMA_MARKDOWN_RENDERERS = {
   'internal-links': renderInternalLinksGroupMarkdown,
   interactive: renderInteractiveGroupMarkdown,
@@ -1138,6 +1291,7 @@ const SCHEMA_MARKDOWN_RENDERERS = {
   http: renderHttpGroupMarkdown,
   performance: renderPerformanceGroupMarkdown,
   visual: renderVisualGroupMarkdown,
+  wcag: renderAccessibilityGroupMarkdown,
 };
 
 const renderSchemaGroupMarkdown = (group) => {

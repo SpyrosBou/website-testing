@@ -7,7 +7,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSummary, attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
 const {
   extractWcagLevels,
   violationHasWcagCoverage,
@@ -612,6 +612,8 @@ const buildAccessibilityRunSchemaPayload = ({
   baseName,
   title,
   metadata,
+  htmlBody,
+  markdownBody,
 }) => {
   if (!Array.isArray(reports) || reports.length === 0) return null;
 
@@ -640,7 +642,7 @@ const buildAccessibilityRunSchemaPayload = ({
     0
   );
 
-  return createRunSummaryPayload({
+  const payload = createRunSummaryPayload({
     baseName,
     title,
     overview: {
@@ -662,39 +664,48 @@ const buildAccessibilityRunSchemaPayload = ({
       failOn: failOnLabel,
     },
   });
+
+  if (htmlBody) payload.htmlBody = htmlBody;
+  if (markdownBody) payload.markdownBody = markdownBody;
+  return payload;
 };
 
 const buildAccessibilityPageSchemaPayloads = (reports, metadataExtras = {}) =>
   Array.isArray(reports)
-    ? reports.map((report) =>
-        createPageSummaryPayload({
+    ? reports.map((report) => {
+        const summary = {
+          status: report.status,
+          gatingViolations: (report.violations || []).length,
+          advisoryFindings: (report.advisory || []).length,
+          bestPracticeFindings: (report.bestPractice || []).length,
+          stability: report.stability
+            ? {
+                ok: Boolean(report.stability.ok),
+                strategy: report.stability.successfulStrategy || null,
+                durationMs: report.stability.duration ?? null,
+              }
+            : null,
+          httpStatus: report.httpStatus ?? 200,
+          notes: Array.isArray(report.notes) ? report.notes : [],
+          gatingLabel: report.gatingLabel || metadataExtras.gatingLabel || 'WCAG A/AA/AAA',
+          cardHtml: formatPageCardHtml(report),
+          cardMarkdown: formatPageCardMarkdown(report),
+        };
+
+        return createPageSummaryPayload({
           baseName: `a11y-page-${slugify(report.projectName || 'default')}-${slugify(report.page)}`,
           title: pageSummaryTitle(report.page, 'WCAG issues overview'),
           page: report.page,
           viewport: report.projectName || 'default',
-          summary: {
-            status: report.status,
-            gatingViolations: (report.violations || []).length,
-            advisoryFindings: (report.advisory || []).length,
-            bestPracticeFindings: (report.bestPractice || []).length,
-            stability: report.stability
-              ? {
-                  ok: Boolean(report.stability.ok),
-                  strategy: report.stability.successfulStrategy || null,
-                  durationMs: report.stability.duration ?? null,
-                }
-              : null,
-            httpStatus: report.httpStatus ?? 200,
-            notes: Array.isArray(report.notes) ? report.notes : [],
-          },
+          summary,
           metadata: {
             spec: 'functionality.accessibility',
             projectName: report.projectName || 'default',
             scope: 'project',
             ...metadataExtras,
           },
-        })
-      )
+        });
+      })
     : [];
 
 const siteName = process.env.SITE_NAME;
@@ -883,14 +894,7 @@ const maybeAttachGlobalSummary = async ({
     failOnLabel
   );
 
-  await attachSummary({
-    baseName: 'a11y-summary',
-    htmlBody: summaryHtml,
-    markdown: summaryMarkdown,
-    setDescription: true,
-    title: 'Sitewide WCAG findings',
-  });
-
+  
   const schemaRunPayload = buildAccessibilityRunSchemaPayload({
     reports: combinedReports,
     aggregatedViolations,
@@ -899,9 +903,12 @@ const maybeAttachGlobalSummary = async ({
     failOnLabel,
     baseName: 'a11y-summary',
     title: 'Sitewide WCAG findings',
+    htmlBody: summaryHtml,
+    markdownBody: summaryMarkdown,
     metadata: {
       scope: 'run',
       projectName: 'aggregate',
+      summaryType: 'wcag',
     },
   });
   if (schemaRunPayload) {
@@ -971,13 +978,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
           console.error(`⚠️  Navigation failed for ${testPage}: ${error.message}`);
 
           const navigationSlug = `${slugify(testPage)}-navigation-error`;
-          await attachSummary({
-            baseName: `a11y-${navigationSlug}`,
-            htmlBody: formatPageCardHtml(pageReport),
-            markdown: formatPageCardMarkdown(pageReport),
-            title: pageSummaryTitle(testPage, 'Navigation failure'),
-          });
-
+          
           await persistPageReport(testInfo.project.name, index, pageReport);
           if (A11Y_MODE !== 'audit') {
             throw new Error(`Navigation failed for ${testPage}: ${error.message}`);
@@ -992,13 +993,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
           console.error(`⚠️  HTTP ${response.status()} while loading ${testPage}; skipping scan.`);
 
           const httpSlug = `${slugify(testPage)}-http-error`;
-          await attachSummary({
-            baseName: `a11y-${httpSlug}`,
-            htmlBody: formatPageCardHtml(pageReport),
-            markdown: formatPageCardMarkdown(pageReport),
-            title: pageSummaryTitle(testPage, `HTTP ${response.status()} response`),
-          });
-
+          
           await persistPageReport(testInfo.project.name, index, pageReport);
           if (A11Y_MODE !== 'audit') {
             throw new Error(`HTTP ${response.status()} received for ${testPage}`);
@@ -1019,13 +1014,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
           console.warn(`⚠️  ${stability.message} for ${testPage}`);
 
           const stabilitySlug = `${slugify(testPage)}-stability`;
-          await attachSummary({
-            baseName: `a11y-${stabilitySlug}`,
-            htmlBody: formatPageCardHtml(pageReport),
-            markdown: formatPageCardMarkdown(pageReport),
-            title: pageSummaryTitle(testPage, 'Stability timeout'),
-          });
-
+          
           await persistPageReport(testInfo.project.name, index, pageReport);
           return;
         }
@@ -1064,13 +1053,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
           if (gatingViolations.length > 0) {
             pageReport.status = 'violations';
             const pageSlug = slugify(testPage);
-            await attachSummary({
-              baseName: `a11y-${pageSlug}`,
-              htmlBody: formatPageCardHtml(pageReport),
-              markdown: formatPageCardMarkdown(pageReport),
-              title: pageSummaryTitle(testPage, 'WCAG issues overview'),
-            });
-            const message = `❌ ${gatingViolations.length} accessibility violations (gating: ${failOnLabel}) on ${testPage}`;
+                        const message = `❌ ${gatingViolations.length} accessibility violations (gating: ${failOnLabel}) on ${testPage}`;
             if (A11Y_MODE === 'audit') {
               console.warn(message);
             } else {
@@ -1096,26 +1079,14 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             (advisoryViolations.length > 0 || bestPracticeViolations.length > 0)
           ) {
             const pageSlug = slugify(testPage);
-            await attachSummary({
-              baseName: `a11y-${pageSlug}`,
-              htmlBody: formatPageCardHtml(pageReport),
-              markdown: formatPageCardMarkdown(pageReport),
-              title: pageSummaryTitle(testPage, 'WCAG scan overview'),
-            });
-          }
+                      }
         } catch (error) {
           pageReport.status = 'scan-error';
           pageReport.notes.push(`Axe scan failed: ${error.message}`);
           console.error(`⚠️  Accessibility scan failed for ${testPage}: ${error.message}`);
 
           const errorSlug = `${slugify(testPage)}-scan-error`;
-          await attachSummary({
-            baseName: `a11y-${errorSlug}`,
-            htmlBody: formatPageCardHtml(pageReport),
-            markdown: formatPageCardMarkdown(pageReport),
-            title: pageSummaryTitle(testPage, 'Scan error'),
-          });
-        } finally {
+                  } finally {
           if (pageReport.status === 'skipped') {
             pageReport.status = 'passed';
           }
@@ -1154,14 +1125,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
         failOnLabel
       );
 
-      await attachSummary({
-        baseName: `a11y-summary-${slugify(testInfo.project.name)}`,
-        htmlBody: summaryHtml,
-        markdown: summaryMarkdown,
-        setDescription: false,
-        title: `WCAG findings – ${testInfo.project.name}`,
-      });
-
+      
       const schemaRunPayload = buildAccessibilityRunSchemaPayload({
         reports,
         aggregatedViolations,
@@ -1170,9 +1134,12 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
         failOnLabel,
         baseName: `a11y-summary-${slugify(testInfo.project.name)}`,
         title: `WCAG findings – ${testInfo.project.name}`,
+        htmlBody: summaryHtml,
+        markdownBody: summaryMarkdown,
         metadata: {
           scope: 'project',
           projectName: testInfo.project.name,
+          summaryType: 'wcag',
         },
       });
       if (schemaRunPayload) {
@@ -1181,6 +1148,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
 
       const schemaPagePayloads = buildAccessibilityPageSchemaPayloads(reports, {
         summaryType: 'wcag',
+        gatingLabel: failOnLabel,
       });
       for (const payload of schemaPagePayloads) {
         await attachSchemaSummary(testInfo, payload);
