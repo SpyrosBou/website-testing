@@ -257,7 +257,7 @@ const renderTestNavigation = (groups) => {
   `;
 };
 
-const renderTestGroup = (group) => {
+const renderTestGroup = (group, options = {}) => {
   const counts = summariseStatuses(group.tests);
   const stats = renderStatusPills(counts);
   const statsHtml = stats ? `<div class="test-group__stats">${stats}</div>` : '';
@@ -271,7 +271,7 @@ const renderTestGroup = (group) => {
         ${statsHtml}
       </header>
       <div class="test-group__body">
-        ${group.tests.map(renderTestCard).join('\n')}
+        ${group.tests.map((test) => renderTestCard(test, options)).join('\n')}
       </div>
     </section>
   `;
@@ -379,69 +379,118 @@ const stripSummaryStyles = (html) => {
   return html.replace(SUMMARY_STYLES, '').trimStart();
 };
 
-const renderSummaries = (summaries) => {
+const renderSummaries = (summaries, options = {}) => {
   if (!summaries || summaries.length === 0) return '';
 
-  const htmlSummaries = summaries.filter((summary) => summary.html);
+  const exclude = new Set((options.excludeBaseNames || []).filter(Boolean));
+  const htmlSummaries = summaries
+    .filter((summary) => summary?.html)
+    .filter((summary) => !exclude.has(summary.baseName));
+
   if (htmlSummaries.length === 0) return '';
 
+  const sectionClasses = ['test-summaries'];
+  if (options.compact) sectionClasses.push('test-summaries--compact');
+
+  const sections = htmlSummaries
+    .map((summary) => {
+      const label = summary.title || summary.baseName || 'Summary';
+      const sanitizedHtml = stripSummaryStyles(summary.html);
+      return `
+        <details class="summary-block" data-summary-type="html">
+          <summary>${escapeHtml(label)}</summary>
+          <div class="summary-block__body">${sanitizedHtml}</div>
+        </details>
+      `;
+    })
+    .join('\n');
+
+  const heading = options.heading
+    ? `<header class="test-summaries__header"><h4>${escapeHtml(options.heading)}</h4></header>`
+    : '';
+
   return `
-    <section class="test-summaries" aria-label="Summary attachments">
-      ${htmlSummaries
-        .map((summary) => {
-          const label = summary.title || summary.baseName || 'Summary';
-          const sanitizedHtml = stripSummaryStyles(summary.html);
-          return `
-            <details class="summary-block" data-summary-type="html">
-              <summary>${escapeHtml(label)}</summary>
-              <div class="summary-block__body">${sanitizedHtml}</div>
-            </details>
-          `;
-        })
-        .join('\n')}
+    <section class="${sectionClasses.join(' ')}" aria-label="Summary attachments">
+      ${heading}
+      ${sections}
     </section>
   `;
 };
 
-const renderAttempts = (attempts) => {
+const renderAttempts = (attempts, options = {}) => {
   if (!attempts || attempts.length === 0) return '';
+
+  const excludeBaseNames = new Set((options.excludeSummaryBaseNames || []).filter(Boolean));
+
+  const attemptEntries = attempts
+    .map((attempt, index) => {
+      const filteredSummaries = (attempt.summaries || []).filter(
+        (summary) => summary?.baseName && !excludeBaseNames.has(summary.baseName)
+      );
+
+      const summariesHtml = renderSummaries(filteredSummaries, { compact: true });
+      const attachmentHtml = attempt.attachments?.length
+        ? `<div class="attempt-attachments">${attempt.attachments.map(renderAttachment).join('\n')}</div>`
+        : '';
+      const errorsHtml = renderErrorBlock(attempt.errors);
+      const stdoutHtml = renderLogBlock();
+      const stderrHtml = renderLogBlock();
+
+      const bodySegments = [summariesHtml, attachmentHtml, errorsHtml, stdoutHtml, stderrHtml]
+        .filter(Boolean)
+        .join('\n');
+
+      const headerMeta = [
+        escapeHtml(STATUS_LABELS[attempt.status] || attempt.status),
+        attempt.durationFriendly ? escapeHtml(attempt.durationFriendly) : null,
+        attempt.startTimeFriendly ? escapeHtml(attempt.startTimeFriendly) : null,
+      ]
+        .filter(Boolean)
+        .map((item) => `<span>${item}</span>`) // html safe
+        .join('');
+
+      return `
+        <details class="attempt-card status-${attempt.status}">
+          <summary>
+            <span class="attempt-title">Attempt ${index + 1}</span>
+            <span class="attempt-meta">${headerMeta}</span>
+          </summary>
+          <div class="attempt-body">
+            ${bodySegments || '<p class="attempt-note">No additional data recorded for this attempt.</p>'}
+          </div>
+        </details>
+      `;
+    })
+    .join('\n');
+
   return `
     <section class="test-attempts" aria-label="Attempts">
-      ${attempts
-        .map((attempt, index) => {
-          const attachmentHtml = attempt.attachments?.length
-            ? `<div class="attempt-attachments">${attempt.attachments.map(renderAttachment).join('\n')}</div>`
-            : '';
-          const summariesHtml = renderSummaries(attempt.summaries);
-          const errorsHtml = renderErrorBlock(attempt.errors);
-          const stdoutHtml = renderLogBlock();
-          const stderrHtml = renderLogBlock();
-          return `
-            <article class="attempt-card status-${attempt.status}">
-              <header>
-                <div class="attempt-title">Attempt ${index + 1}</div>
-                <div class="attempt-meta">
-                  <span>${escapeHtml(STATUS_LABELS[attempt.status] || attempt.status)}</span>
-                  ${attempt.durationFriendly ? `<span>${escapeHtml(attempt.durationFriendly)}</span>` : ''}
-                  ${attempt.startTimeFriendly ? `<span>${escapeHtml(attempt.startTimeFriendly)}</span>` : ''}
-                </div>
-              </header>
-              ${summariesHtml}
-              ${attachmentHtml}
-              ${errorsHtml}
-              ${stdoutHtml}
-              ${stderrHtml}
-            </article>
-          `;
-        })
-        .join('\n')}
+      <header class="test-attempts__header"><h4>Attempts</h4></header>
+      ${attemptEntries}
     </section>
   `;
 };
 
-const renderTestCard = (test) => {
-  const summariesHtml = renderSummaries(test.summaryBlocks);
-  const attemptsHtml = renderAttempts(test.attempts);
+const renderTestCard = (test, options = {}) => {
+  const promotedSummaryBaseNames = options.promotedSummaryBaseNames || new Set();
+  const allSummaryBlocks = Array.isArray(test.summaryBlocks) ? test.summaryBlocks : [];
+  const retainedSummaries = allSummaryBlocks.filter((summary) => !promotedSummaryBaseNames.has(summary.baseName));
+  const summariesHtml = renderSummaries(retainedSummaries, {
+    heading: retainedSummaries.length ? 'Summary' : null,
+  });
+  const summaryBaseNames = retainedSummaries
+    .map((summary) => summary.baseName)
+    .filter(Boolean);
+
+  const attemptsExcludeBaseNames = new Set(summaryBaseNames);
+  allSummaryBlocks
+    .map((summary) => summary.baseName)
+    .filter((baseName) => promotedSummaryBaseNames.has(baseName))
+    .forEach((baseName) => attemptsExcludeBaseNames.add(baseName));
+
+  const attemptsHtml = renderAttempts(test.attempts, {
+    excludeSummaryBaseNames: Array.from(attemptsExcludeBaseNames),
+  });
   const errorHtml = !test.attempts?.length ? renderErrorBlock(test.errors) : '';
   const stdoutHtml = '';
   const stderrHtml = '';
@@ -457,6 +506,9 @@ const renderTestCard = (test) => {
     if (headline) {
       statusNote = `<div class="test-card__note status-error">${escapeHtml(headline)}</div>`;
     }
+  }
+  if (!retainedSummaries.length && allSummaryBlocks.some((summary) => promotedSummaryBaseNames.has(summary.baseName))) {
+    statusNote += `<div class="test-card__note status-neutral">Detailed run findings appear in the summary section above.</div>`;
   }
 
   const annotations = (test.annotations || [])
@@ -969,11 +1021,28 @@ main {
   color: #b42318;
 }
 
+.test-card__note.status-neutral {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #3730a3;
+}
+
 .test-summaries {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   margin: 1.5rem 0;
+}
+
+.test-summaries__header {
+  margin-bottom: 0.35rem;
+}
+
+.test-summaries__header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .summary-block {
@@ -1018,6 +1087,20 @@ main {
   overflow-x: auto;
 }
 
+.test-summaries--compact {
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.test-summaries--compact .summary-block > summary {
+  font-size: 0.9rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.test-summaries--compact .summary-block__body {
+  padding: 0.85rem;
+}
+
 .test-attempts {
   display: flex;
   flex-direction: column;
@@ -1025,27 +1108,66 @@ main {
   margin-top: 1.5rem;
 }
 
+.test-attempts__header {
+  margin: 0;
+}
+
+.test-attempts__header h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .attempt-card {
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   background: #fff;
   box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
 }
 
-.attempt-card header {
+.attempt-card > summary {
+  list-style: none;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 1rem;
-  margin-bottom: 0.75rem;
+  cursor: pointer;
+  margin: 0;
+  font-weight: 600;
+}
+
+.attempt-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.attempt-card[open] > summary {
+  margin-bottom: 0.65rem;
+}
+
+.attempt-title {
+  font-size: 0.95rem;
 }
 
 .attempt-meta {
-  display: flex;
-  gap: 0.75rem;
-  font-size: 0.85rem;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.attempt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.attempt-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
 
 .attachment {
@@ -1236,7 +1358,15 @@ const filterScript = `
 function renderReportHtml(run) {
   const groupedTests = groupTests(run.tests);
   const navigationHtml = renderTestNavigation(groupedTests);
-  const testsHtml = groupedTests.map(renderTestGroup).join('\n');
+  const promotedSummaryBaseNames = new Set(
+    (run.runSummaries || [])
+      .map((summary) => summary?.baseName)
+      .filter(Boolean)
+  );
+  const testsHtml = groupedTests
+    .map((group) => renderTestGroup(group, { promotedSummaryBaseNames }))
+    .join('\n');
+  const statusFilters = renderStatusFilters(run.statusCounts);
   const layoutHtml = `
     <div class="report-layout">
       ${navigationHtml ? `<aside class="report-layout__sidebar">${navigationHtml}</aside>` : ''}
@@ -1251,7 +1381,6 @@ function renderReportHtml(run) {
   const metadataHtml = renderMetadata(run);
   const summaryCards = renderSummaryCards(run);
   const runSummariesHtml = renderRunSummaries(run.runSummaries);
-  const statusFilters = renderStatusFilters(run.statusCounts);
 
   return `<!DOCTYPE html>
 <html lang="en">
