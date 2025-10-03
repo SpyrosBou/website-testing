@@ -9,7 +9,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSummary, attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
 const {
   extractWcagLevels,
   violationHasWcagCoverage,
@@ -17,6 +17,7 @@ const {
 } = require('../utils/a11y-utils');
 const { createAxeBuilder } = require('../utils/a11y-runner');
 const { selectAccessibilityTestPages, resolveSampleSetting } = require('../utils/a11y-shared');
+const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 
 test.use({ trace: 'off', video: 'off' });
 
@@ -560,6 +561,144 @@ const buildSuiteSummaryMarkdown = (
   return lines.join('\n');
 };
 
+const collectRuleSnapshots = (entries, category) => {
+  if (!Array.isArray(entries) || entries.length === 0) return [];
+  const aggregate = new Map();
+
+  entries.forEach(({ page, project, entries: violations }) => {
+    const viewport = project || 'default';
+    const pageKey = `${viewport}::${page}`;
+    violations.forEach((violation) => {
+      const ruleId = violation.id || 'unknown-rule';
+      const key = `${category || 'rule'}::${ruleId}`;
+      if (!aggregate.has(key)) {
+        aggregate.set(key, {
+          rule: ruleId,
+          impact: violation.impact || category || 'info',
+          helpUrl: violation.helpUrl || null,
+          category,
+          pages: new Set(),
+          viewports: new Set(),
+          nodes: 0,
+          wcagTags: new Set(),
+        });
+      }
+      const record = aggregate.get(key);
+      record.pages.add(pageKey);
+      record.viewports.add(viewport);
+      record.nodes += violation.nodes?.length || 0;
+      extractWcagLevels(violation.tags || []).forEach((level) => {
+        if (level?.label) record.wcagTags.add(level.label);
+      });
+    });
+  });
+
+  return Array.from(aggregate.values()).map((record) => ({
+    rule: record.rule,
+    impact: record.impact,
+    helpUrl: record.helpUrl,
+    category: record.category,
+    pages: Array.from(record.pages),
+    viewports: Array.from(record.viewports),
+    nodes: record.nodes,
+    wcagTags: Array.from(record.wcagTags),
+  }));
+};
+
+const buildAccessibilityRunSchemaPayload = ({
+  reports,
+  aggregatedViolations,
+  aggregatedAdvisories,
+  aggregatedBestPractices,
+  failOnLabel,
+  baseName,
+  title,
+  metadata,
+}) => {
+  if (!Array.isArray(reports) || reports.length === 0) return null;
+
+  const viewportSet = new Set(reports.map((report) => report.projectName || 'default'));
+  const toUniqueKey = (entry) => `${entry.project || 'default'}::${entry.page}`;
+  const gatingPages = new Set(aggregatedViolations.map(toUniqueKey));
+  const advisoryPages = new Set(aggregatedAdvisories.map(toUniqueKey));
+  const bestPracticePages = new Set(aggregatedBestPractices.map(toUniqueKey));
+
+  const ruleSnapshots = [
+    ...collectRuleSnapshots(aggregatedViolations, 'gating'),
+    ...collectRuleSnapshots(aggregatedAdvisories, 'advisory'),
+    ...collectRuleSnapshots(aggregatedBestPractices, 'best-practice'),
+  ];
+
+  const totalViolations = aggregatedViolations.reduce(
+    (acc, entry) => acc + (Array.isArray(entry.entries) ? entry.entries.length : 0),
+    0
+  );
+  const totalAdvisories = aggregatedAdvisories.reduce(
+    (acc, entry) => acc + (Array.isArray(entry.entries) ? entry.entries.length : 0),
+    0
+  );
+  const totalBestPractices = aggregatedBestPractices.reduce(
+    (acc, entry) => acc + (Array.isArray(entry.entries) ? entry.entries.length : 0),
+    0
+  );
+
+  return createRunSummaryPayload({
+    baseName,
+    title,
+    overview: {
+      totalPages: reports.length,
+      gatingPages: gatingPages.size,
+      advisoryPages: advisoryPages.size,
+      bestPracticePages: bestPracticePages.size,
+      totalGatingFindings: totalViolations,
+      totalAdvisoryFindings: totalAdvisories,
+      totalBestPracticeFindings: totalBestPractices,
+      viewportsTested: viewportSet.size,
+      failThreshold: failOnLabel,
+    },
+    ruleSnapshots,
+    metadata: {
+      spec: 'functionality.accessibility',
+      ...metadata,
+      viewports: Array.from(viewportSet),
+      failOn: failOnLabel,
+    },
+  });
+};
+
+const buildAccessibilityPageSchemaPayloads = (reports, metadataExtras = {}) =>
+  Array.isArray(reports)
+    ? reports.map((report) =>
+        createPageSummaryPayload({
+          baseName: `a11y-page-${slugify(report.projectName || 'default')}-${slugify(report.page)}`,
+          title: pageSummaryTitle(report.page, 'WCAG issues overview'),
+          page: report.page,
+          viewport: report.projectName || 'default',
+          summary: {
+            status: report.status,
+            gatingViolations: (report.violations || []).length,
+            advisoryFindings: (report.advisory || []).length,
+            bestPracticeFindings: (report.bestPractice || []).length,
+            stability: report.stability
+              ? {
+                  ok: Boolean(report.stability.ok),
+                  strategy: report.stability.successfulStrategy || null,
+                  durationMs: report.stability.duration ?? null,
+                }
+              : null,
+            httpStatus: report.httpStatus ?? 200,
+            notes: Array.isArray(report.notes) ? report.notes : [],
+          },
+          metadata: {
+            spec: 'functionality.accessibility',
+            projectName: report.projectName || 'default',
+            scope: 'project',
+            ...metadataExtras,
+          },
+        })
+      )
+    : [];
+
 const siteName = process.env.SITE_NAME;
 if (!siteName) throw new Error('SITE_NAME environment variable is required');
 const siteConfig = SiteLoader.loadSite(siteName);
@@ -753,6 +892,23 @@ const maybeAttachGlobalSummary = async ({
     setDescription: true,
     title: 'Sitewide WCAG findings',
   });
+
+  const schemaRunPayload = buildAccessibilityRunSchemaPayload({
+    reports: combinedReports,
+    aggregatedViolations,
+    aggregatedAdvisories,
+    aggregatedBestPractices,
+    failOnLabel,
+    baseName: 'a11y-summary',
+    title: 'Sitewide WCAG findings',
+    metadata: {
+      scope: 'run',
+      projectName: 'aggregate',
+    },
+  });
+  if (schemaRunPayload) {
+    await attachSchemaSummary(testInfo, schemaRunPayload);
+  }
 
   await fsp.mkdir(globalSummaryDir, { recursive: true });
   await fsp.writeFile(
@@ -1011,6 +1167,30 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
         setDescription: false,
         title: `WCAG findings – ${testInfo.project.name}`,
       });
+
+      const schemaRunPayload = buildAccessibilityRunSchemaPayload({
+        reports,
+        aggregatedViolations,
+        aggregatedAdvisories,
+        aggregatedBestPractices,
+        failOnLabel,
+        baseName: `a11y-summary-${slugify(testInfo.project.name)}`,
+        title: `WCAG findings – ${testInfo.project.name}`,
+        metadata: {
+          scope: 'project',
+          projectName: testInfo.project.name,
+        },
+      });
+      if (schemaRunPayload) {
+        await attachSchemaSummary(testInfo, schemaRunPayload);
+      }
+
+      const schemaPagePayloads = buildAccessibilityPageSchemaPayloads(reports, {
+        summaryType: 'wcag',
+      });
+      for (const payload of schemaPagePayloads) {
+        await attachSchemaSummary(testInfo, payload);
+      }
 
       await maybeAttachGlobalSummary({
         testInfo,

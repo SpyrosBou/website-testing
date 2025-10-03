@@ -16,8 +16,8 @@
 - ✅ Allure dependencies and scripts removed; custom HTML reporter is now the default.
 - ✅ Run layout delivers summary cards, run metadata, promoted spec summaries, and a collapsible "Debug testing" deck with persistent navigation.
 - ✅ Accessibility suite promotes aggregated per-browser summaries (page accordions, viewport distinction) via `buildSuiteSummaryHtml`.
-- 🟡 Schema helpers (`utils/report-schema.js`) scaffolded; reporter accepts schema payloads but rendering still depends on legacy HTML until more specs migrate.
-- 🟡 Non-accessibility specs yet to emit schema summaries; validation tooling and migration tasks remain scoped in `report-standardisation-plan.md`.
+- ✅ Schema helpers + validator (`attachSchemaSummary`, `report-schema-validator.js`) feed the reporter; infrastructure spec now emits schema run/page payloads.
+- 🟡 Remaining non-accessibility specs yet to emit schema summaries; rollout tracked in `report-standardisation-plan.md`.
 
 ## Workstreams & Key Tasks
 

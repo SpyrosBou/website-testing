@@ -1,4 +1,5 @@
 const { test } = require('@playwright/test');
+const { assertReportSummaryPayload } = require('./report-schema-validator');
 
 const SUMMARY_STYLES = `
 <style>
@@ -58,6 +59,25 @@ const SUMMARY_STYLES = `
   .summary-report .visual-previews__item--diff { grid-column: 1 / -1; }
   .summary-report .visual-previews__item--diff figcaption { color: #b42318; }
   .summary-report .visual-previews__empty { color: #475467; font-size: 0.85rem; }
+  .summary-report .schema-group { border: 1px solid #d0d7de; border-radius: 8px; padding: 1rem; margin: 1rem 0; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+  .summary-report .schema-group header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-bottom: 0.75rem; }
+  .summary-report .schema-group header h2,
+  .summary-report .schema-group header h3 { background: none; color: #111827; padding: 0; margin: 0; }
+  .summary-report .schema-meta { font-size: 0.85rem; color: #475467; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .summary-report .schema-overview { display: grid; gap: 0.75rem; margin: 0.75rem 0; }
+  .summary-report .schema-metrics { display: grid; gap: 0.4rem; margin: 0; padding: 0; }
+  .summary-report .schema-metrics__item { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr); gap: 0.5rem; align-items: start; font-size: 0.9rem; }
+  .summary-report .schema-metrics__item dt { font-weight: 600; color: #1d2939; }
+  .summary-report .schema-metrics__item dd { margin: 0; color: #475467; word-break: break-word; }
+  .summary-report .schema-table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+  .summary-report .schema-table th,
+  .summary-report .schema-table td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; font-size: 0.9rem; }
+  .summary-report .schema-table th { background: #f6f8fa; font-weight: 600; }
+  .summary-report .schema-page-accordion { margin: 0.5rem 0; }
+  .summary-report .schema-value { color: #475467; }
+  .summary-report .schema-value--empty { color: #98a2b3; font-style: italic; }
+  .summary-report .schema-list { margin: 0.25rem 0 0.25rem 1.1rem; padding-left: 1.1rem; }
+  .summary-report .schema-list li { margin: 0.15rem 0; }
 </style>
 `;
 
@@ -139,8 +159,27 @@ async function attachSummary(testInfoOrOptions, maybeOptions) {
   }
 }
 
+async function attachSchemaSummary(testInfoOrPayload, maybePayload) {
+  const hasExplicitTestInfo = Boolean(maybePayload);
+  const testInfo = resolveTestInfo(hasExplicitTestInfo ? testInfoOrPayload : undefined);
+  const payload = hasExplicitTestInfo ? maybePayload : testInfoOrPayload;
+
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('attachSchemaSummary requires a payload object.');
+  }
+
+  assertReportSummaryPayload(payload);
+
+  const baseName = payload.baseName || payload.kind || 'summary';
+  await testInfo.attach(`${baseName}.summary.schema.json`, {
+    contentType: 'application/json',
+    body: Buffer.from(JSON.stringify(payload, null, 2), 'utf8'),
+  });
+}
+
 module.exports = {
   attachSummary,
+  attachSchemaSummary,
   escapeHtml,
   SUMMARY_STYLES,
   wrapHtml,

@@ -1,4 +1,5 @@
 const { SUMMARY_STYLES } = require('./reporting-utils');
+const { KIND_RUN_SUMMARY, KIND_PAGE_SUMMARY } = require('./report-schema');
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -23,12 +24,251 @@ const slugify = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'section';
 
-const buildDisplayTitle = (titlePath, fallback) => {
-  if (Array.isArray(titlePath) && titlePath.length > 0) {
-    const segments = titlePath.slice(3).filter(Boolean);
-    if (segments.length > 0) return segments.join(' › ');
+const isPlainObject = (value) =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const humaniseKey = (key) =>
+  String(key || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/^./, (char) => char.toUpperCase());
+
+function renderSchemaMetrics(data) {
+  if (!isPlainObject(data)) {
+    return schemaValueToHtml(data);
   }
-  return fallback || '';
+  const items = Object.entries(data).map(([key, value]) => {
+    return `
+      <div class="schema-metrics__item">
+        <dt>${escapeHtml(humaniseKey(key))}</dt>
+        <dd>${schemaValueToHtml(value)}</dd>
+      </div>
+    `;
+  });
+  return `<dl class="schema-metrics">${items.join('')}</dl>`;
+}
+
+function schemaValueToHtml(value) {
+  if (value == null) return '<span class="schema-value schema-value--empty">—</span>';
+  if (typeof value === 'boolean') {
+    return `<span class="schema-value">${value ? 'Yes' : 'No'}</span>`;
+  }
+  if (typeof value === 'number') {
+    return `<span class="schema-value">${escapeHtml(value.toLocaleString())}</span>`;
+  }
+  if (typeof value === 'string') {
+    return `<span class="schema-value">${escapeHtml(value)}</span>`;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return '<span class="schema-value schema-value--empty">—</span>';
+    }
+    const simple = value.every(
+      (item) => item == null || ['string', 'number', 'boolean'].includes(typeof item)
+    );
+    if (simple) {
+      return `<span class="schema-value">${escapeHtml(
+        value.map((item) => (item == null ? '—' : String(item))).join(', ')
+      )}</span>`;
+    }
+    return `<ul class="schema-list">${value
+      .map((item) => `<li>${schemaValueToHtml(item)}</li>`)
+      .join('')}</ul>`;
+  }
+  if (isPlainObject(value)) {
+    return renderSchemaMetrics(value);
+  }
+  return `<span class="schema-value">${escapeHtml(String(value))}</span>`;
+}
+
+const renderRuleSnapshotsTable = (snapshots) => {
+  if (!Array.isArray(snapshots) || snapshots.length === 0) return '';
+  const rows = snapshots
+    .map((snapshot) => {
+      const impact = snapshot.impact || snapshot.category || 'info';
+      const pages = Array.isArray(snapshot.pages) ? snapshot.pages : [];
+      const viewports = Array.isArray(snapshot.viewports) ? snapshot.viewports : [];
+      const wcagTags = Array.isArray(snapshot.wcagTags) ? snapshot.wcagTags : [];
+      return `
+        <tr class="impact-${impact.toLowerCase?.() || 'info'}">
+          <td>${escapeHtml(impact)}</td>
+          <td>${escapeHtml(snapshot.rule || 'rule')}</td>
+          <td>${pages.length ? escapeHtml(pages.join(', ')) : '—'}</td>
+          <td>${snapshot.nodes != null ? escapeHtml(String(snapshot.nodes)) : '—'}</td>
+          <td>${viewports.length ? escapeHtml(viewports.join(', ')) : '—'}</td>
+          <td>${wcagTags.length ? escapeHtml(wcagTags.join(', ')) : '—'}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+    <table class="schema-table">
+      <thead>
+        <tr><th>Impact</th><th>Rule</th><th>Pages</th><th>Nodes</th><th>Viewports</th><th>WCAG</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+};
+
+const buildSchemaGroups = (records = []) => {
+  const groups = new Map();
+  records.forEach((record) => {
+    const projectName = record.projectName || 'default';
+    const testAnchorId = record.testAnchorId || null;
+    (record.summaries || []).forEach((summary) => {
+      if (!summary?.baseName) return;
+      const baseName = summary.baseName;
+      let group = groups.get(baseName);
+      if (!group) {
+        group = {
+          baseName,
+          title: summary.title || baseName,
+          runEntries: [],
+          pageEntries: [],
+        };
+        groups.set(baseName, group);
+      }
+      if (!group.title && summary.title) {
+        group.title = summary.title;
+      }
+      const entry = { payload: summary, projectName, testAnchorId };
+      if (summary.kind === KIND_RUN_SUMMARY) {
+        group.runEntries.push(entry);
+      } else if (summary.kind === KIND_PAGE_SUMMARY) {
+        group.pageEntries.push(entry);
+      }
+    });
+  });
+  return Array.from(groups.values());
+};
+
+const renderSchemaRunEntry = (entry) => {
+  const payload = entry.payload || {};
+  const metadata = payload.metadata || {};
+  const chips = [];
+  if (metadata.scope) chips.push(`Scope: ${metadata.scope}`);
+  if (metadata.projectName && metadata.scope !== 'run') {
+    chips.push(`Project: ${metadata.projectName}`);
+  }
+  if (Array.isArray(metadata.viewports) && metadata.viewports.length > 0) {
+    chips.push(`Viewports: ${metadata.viewports.join(', ')}`);
+  }
+  if (metadata.failOn) chips.push(`Threshold: ${metadata.failOn}`);
+
+  const metaHtml = chips.length
+    ? `<div class="schema-meta">${chips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join('')}</div>`
+    : '';
+  const overviewHtml = payload.overview ? renderSchemaMetrics(payload.overview) : '';
+  const rulesHtml = renderRuleSnapshotsTable(payload.ruleSnapshots);
+
+  return `
+    <section class="schema-overview">
+      ${metaHtml}
+      ${overviewHtml}
+      ${rulesHtml}
+    </section>
+  `;
+};
+
+const renderSchemaPageEntries = (entries) => {
+  if (!Array.isArray(entries) || entries.length === 0) return '';
+  const grouped = new Map();
+  entries.forEach((entry) => {
+    const payload = entry.payload || {};
+    const page = payload.page || 'Unknown page';
+    if (!grouped.has(page)) grouped.set(page, []);
+    grouped.get(page).push(entry);
+  });
+
+  const accordions = Array.from(grouped.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([page, pageEntries]) => {
+      const rows = pageEntries
+        .sort((a, b) => (a.payload.viewport || '').localeCompare(b.payload.viewport || ''))
+        .map((entry) => {
+          const payload = entry.payload || {};
+          const viewport = payload.viewport || entry.projectName || 'default';
+          const summaryHtml = payload.summary
+            ? renderSchemaMetrics(payload.summary)
+            : '<span class="schema-value schema-value--empty">No summary data</span>';
+          return `
+            <tr>
+              <td>${escapeHtml(viewport)}</td>
+              <td>${summaryHtml}</td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      return `
+        <details class="summary-page schema-page-accordion">
+          <summary>${escapeHtml(page)}</summary>
+          <div class="summary-page__body">
+            <table class="schema-table">
+              <thead><tr><th>Viewport</th><th>Summary</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </details>
+      `;
+    });
+
+  return accordions.join('');
+};
+
+const renderSchemaGroup = (group) => {
+  const headline = group.title || humaniseKey(group.baseName);
+  const runEntries = (group.runEntries || []).slice().sort((a, b) => {
+    const scopeOrder = { run: 0, project: 1 };
+    const left = scopeOrder[a.payload?.metadata?.scope] ?? 2;
+    const right = scopeOrder[b.payload?.metadata?.scope] ?? 2;
+    return left - right;
+  });
+  const runHtml = runEntries.map(renderSchemaRunEntry).join('');
+  const pageHtml = renderSchemaPageEntries(group.pageEntries || []);
+  const body = [runHtml, pageHtml].filter(Boolean).join('');
+  if (!body) return '';
+  return `
+    <article class="schema-group">
+      <header><h2>${escapeHtml(headline)}</h2></header>
+      ${body}
+    </article>
+  `;
+};
+
+const renderSchemaSummaries = (records = []) => {
+  if (!Array.isArray(records) || records.length === 0) {
+    return { html: '', promotedBaseNames: new Set() };
+  }
+
+  const groups = buildSchemaGroups(records).filter(
+    (group) => group.runEntries.length > 0 || group.pageEntries.length > 0
+  );
+
+  if (groups.length === 0) {
+    return { html: '', promotedBaseNames: new Set() };
+  }
+
+  const promotedBaseNames = new Set();
+  const content = groups
+    .map((group) => {
+      if ((group.runEntries || []).length > 0) {
+        promotedBaseNames.add(group.baseName);
+      }
+      return renderSchemaGroup(group);
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  const html = `
+    <section class="summary-report" aria-label="Suite summaries">
+      ${content}
+    </section>
+  `;
+
+  return { html, promotedBaseNames };
 };
 
 const STATUS_LABELS = {
@@ -167,7 +407,9 @@ const renderStatusPills = (counts, options = {}) => {
     .map((status) => {
       const label = STATUS_LABELS[status] || status;
       const count = counts[status];
-      const countHtml = showCount ? `<span class="status-count">${escapeHtml(String(count))}</span>` : '';
+      const countHtml = showCount
+        ? `<span class="status-count">${escapeHtml(String(count))}</span>`
+        : '';
       return `<span class="status-pill status-${status}">${escapeHtml(label)}${countHtml}</span>`;
     })
     .join('');
@@ -231,7 +473,9 @@ const renderTestNavigation = (groups) => {
         })
         .join('');
 
-      const statsHtml = groupStats ? `<div class="test-navigation__group-stats">${groupStats}</div>` : '';
+      const statsHtml = groupStats
+        ? `<div class="test-navigation__group-stats">${groupStats}</div>`
+        : '';
 
       return `
         <li data-group-anchor="${escapeHtml(group.id)}">
@@ -474,13 +718,13 @@ const renderAttempts = (attempts, options = {}) => {
 const renderTestCard = (test, options = {}) => {
   const promotedSummaryBaseNames = options.promotedSummaryBaseNames || new Set();
   const allSummaryBlocks = Array.isArray(test.summaryBlocks) ? test.summaryBlocks : [];
-  const retainedSummaries = allSummaryBlocks.filter((summary) => !promotedSummaryBaseNames.has(summary.baseName));
+  const retainedSummaries = allSummaryBlocks.filter(
+    (summary) => !promotedSummaryBaseNames.has(summary.baseName)
+  );
   const summariesHtml = renderSummaries(retainedSummaries, {
     heading: retainedSummaries.length ? 'Summary' : null,
   });
-  const summaryBaseNames = retainedSummaries
-    .map((summary) => summary.baseName)
-    .filter(Boolean);
+  const summaryBaseNames = retainedSummaries.map((summary) => summary.baseName).filter(Boolean);
 
   const attemptsExcludeBaseNames = new Set(summaryBaseNames);
   allSummaryBlocks
@@ -507,7 +751,10 @@ const renderTestCard = (test, options = {}) => {
       statusNote = `<div class="test-card__note status-error">${escapeHtml(headline)}</div>`;
     }
   }
-  if (!retainedSummaries.length && allSummaryBlocks.some((summary) => promotedSummaryBaseNames.has(summary.baseName))) {
+  if (
+    !retainedSummaries.length &&
+    allSummaryBlocks.some((summary) => promotedSummaryBaseNames.has(summary.baseName))
+  ) {
     statusNote += `<div class="test-card__note status-neutral">Detailed run findings appear in the summary section above.</div>`;
   }
 
@@ -1401,11 +1648,15 @@ const filterScript = `
 function renderReportHtml(run) {
   const groupedTests = groupTests(run.tests);
   const navigationHtml = renderTestNavigation(groupedTests);
-  const promotedSummaryBaseNames = new Set(
-    (run.runSummaries || [])
-      .map((summary) => summary?.baseName)
-      .filter(Boolean)
+  const schemaRender = renderSchemaSummaries(run.schemaSummaries || []);
+  const schemaPromotedBaseNames = schemaRender.promotedBaseNames || new Set();
+  const filteredRunSummaries = (run.runSummaries || []).filter((summary) =>
+    summary?.baseName ? !schemaPromotedBaseNames.has(summary.baseName) : true
   );
+  const runSummaryPromoted = new Set(
+    filteredRunSummaries.map((summary) => summary?.baseName).filter(Boolean)
+  );
+  const promotedSummaryBaseNames = new Set([...schemaPromotedBaseNames, ...runSummaryPromoted]);
   const testsHtml = groupedTests
     .map((group) => renderTestGroup(group, { promotedSummaryBaseNames }))
     .join('\n');
@@ -1429,7 +1680,8 @@ function renderReportHtml(run) {
   `;
   const metadataHtml = renderMetadata(run);
   const summaryCards = renderSummaryCards(run);
-  const runSummariesHtml = renderRunSummaries(run.runSummaries);
+  const schemaHtml = schemaRender.html || '';
+  const runSummariesHtml = renderRunSummaries(filteredRunSummaries);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1448,6 +1700,7 @@ function renderReportHtml(run) {
   <main>
     ${summaryCards}
     ${metadataHtml}
+    ${schemaHtml}
     ${runSummariesHtml}
     ${layoutHtml}
   </main>

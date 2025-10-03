@@ -50,6 +50,7 @@
 - Each functionality spec publishes HTML + Markdown attachments via `utils/reporting-utils.js`, feeding the promoted summary cards (aggregated per browser/viewport) and the per-page accordions in the headline. Detailed tables remain available once you expand a page accordion or the debug deck.
   - The manual accessibility suites add a dedicated “WCAG coverage” banner to their summaries; mirror that pattern for any new audit so reviewers immediately know which success criteria were exercised.
   - When adding a new spec, always publish a styled HTML + Markdown overview using `attachSummary` so the report stays scannable without diving into raw attachments.
+  - Pair HTML summaries with schema payloads via `attachSchemaSummary` so the reporter can promote them to the headline layout (see `utils/report-schema.js` for constructors).
 - WCAG-impact findings (e.g., contrast, keyboard traps) are never ignored in automated runs. If the suite flags one, treat it as a bug for the product/design team—do not whitelist it in configs just to satisfy CI.
 - Keyboard audit depth can be tuned per run by exporting `A11Y_KEYBOARD_STEPS` (defaults to 20 forward tabs and one reverse tab sanity check).
 - Structural sample size honours `a11yStructureSampleSize` (falls back to `a11yResponsiveSampleSize`).

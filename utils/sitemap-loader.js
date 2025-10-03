@@ -170,9 +170,7 @@ async function collectUrls(url, options, visited, depth) {
       }
       return results;
     }
-    return options.maxPages === Number.POSITIVE_INFINITY
-      ? locs
-      : locs.slice(0, options.maxPages);
+    return options.maxPages === Number.POSITIVE_INFINITY ? locs : locs.slice(0, options.maxPages);
   } catch (_error) {
     console.error(`⚠️  Unable to parse sitemap at ${url}: ${_error.message}`);
     return [];

@@ -35,7 +35,7 @@
 ### Phase 2 – Spec adoption (in progress)
 
 - Targets (rough order):
-  1. **Infrastructure** (`tests/functionality.infrastructure.spec.js`)
+  1. **Infrastructure** (`tests/functionality.infrastructure.spec.js`) ✅ emits run/page schema payloads alongside legacy HTML.
   2. **Links**
   3. **Interactive**
   4. **Visual regression** (needs image handling override)
@@ -44,17 +44,17 @@
   - Emit `run-summary` & `page-summary` schema payloads.
   - Stop emitting bespoke HTML/Markdown blocks once schema path is validated.
   - Ensure tests still attach raw proof (screenshots, traces) as needed.
-  - Validate payloads against the shared JSON Schema helper before attaching so the reporter can trust structure.
+  - ✅ Validate payloads against the shared schema helper (`attachSchemaSummary` + validator) before attaching so the reporter can trust structure.
 
-### Phase 3 – Reporter rendering
+### Phase 3 – Reporter rendering (in progress)
 
-- Teach `renderReportHtml` to prioritise schema payloads:
-  - Aggregate run summaries with viewport-aware tables.
-  - Render per-page accordions based on schema data (align with existing a11y layout).
-  - Normalise duplicate per-viewport payloads so Chrome desktop vs. Chrome desktop large contribute a single aggregated row.
-  - Fallback to legacy attachments until all specs migrate.
-- Ensure Markdown export mirror matches HTML sections.
-- Promote schema summaries to the headline once emitted; otherwise keep visible via fallback cards.
+- ✅ Teach `renderReportHtml` to prioritise schema payloads:
+  - ✅ Aggregate run summaries with viewport-aware tables.
+  - ✅ Render per-page accordions based on schema data (align with existing a11y layout).
+  - ✅ Normalise duplicate per-viewport payloads so Chrome desktop vs. Chrome desktop large contribute a single aggregated row.
+  - ✅ Fallback to legacy attachments until all specs migrate.
+- Ensure Markdown export mirror matches HTML sections (pending once schema fully replaces HTML summaries).
+- ✅ Promote schema summaries to the headline once emitted; otherwise keep visible via fallback cards.
 
 ### Phase 4 – Cleanup & enforcement
 
@@ -64,15 +64,13 @@
 
 ## Outstanding Work (as of 2025-10-03)
 
-- HTML reporter still rendering legacy accessibility attachments; needs schema rendering once data available.
-- Non-accessibility specs untouched; still output bespoke attachments.
-- Schema validation tooling (lint/test job plus sample payloads) must land before first non-a11y migration.
-- Accessibility summary still duplicated per viewport (Chrome/Chrome Desktop); aggregation logic to be implemented during schema rendering.
+- Links/interactive/visual specs still emit only legacy attachments — migrate them to the schema helpers.
+- Markdown export still relies on legacy HTML summaries; mirror the schema sections when the markdown pipeline is updated.
+- Accessibility spec still emits legacy HTML alongside schema payloads; remove HTML once all downstream consumers confirm the schema layout.
 
 ## Next Steps
 
-1. Produce JSON Schema (or zod/io-ts equivalent) plus fixtures and add a validation step to the reporter unit tests/build scripts.
-2. Implement schema emission in `tests/functionality.infrastructure.spec.js` and gate it behind validation.
-3. Update reporter to render schema payload when present (while maintaining legacy fallback) and collapse duplicate viewport rows.
-4. Migrate remaining suites; verify reports after each migration.
-5. Final pass: migrate accessibility spec, remove legacy paths, update documentation with schema reference examples.
+1. Migrate `tests/functionality.links.spec.js` to emit schema payloads (run + per-page) using the validator helper.
+2. Repeat for interactive and visual specs, including image/diff metadata in the schema once visual migration begins.
+3. Update the markdown export path to consume schema payloads so CLI/CI summaries match the HTML layout.
+4. Retire legacy HTML/Markdown attachments after all core suites use the schema and downstream consumers approve the new layout.

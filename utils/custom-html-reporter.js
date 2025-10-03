@@ -123,7 +123,9 @@ class CustomHtmlReporter {
     }
 
     if (processedAttachments.schemaSummaries.length > 0) {
-      entry.schemaSummaries = (entry.schemaSummaries || []).concat(processedAttachments.schemaSummaries);
+      entry.schemaSummaries = (entry.schemaSummaries || []).concat(
+        processedAttachments.schemaSummaries
+      );
     }
 
     entry.stdout = (entry.stdout || []).concat(attempt.stdout);
@@ -398,9 +400,10 @@ class CustomHtmlReporter {
 
     const hash = createHash('md5').update(entry.testId).digest('hex').slice(0, 6);
     const anchorId = `${slugify(entry.projectName)}-${slugify(entry.title)}-${hash}`;
-    const displayTitle = Array.isArray(entry.titlePath) && entry.titlePath.length > 0
-      ? entry.titlePath.slice(3).filter(Boolean).join(' › ') || entry.title
-      : entry.title;
+    const displayTitle =
+      Array.isArray(entry.titlePath) && entry.titlePath.length > 0
+        ? entry.titlePath.slice(3).filter(Boolean).join(' › ') || entry.title
+        : entry.title;
 
     return {
       anchorId,

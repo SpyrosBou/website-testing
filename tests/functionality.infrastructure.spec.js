@@ -7,13 +7,20 @@ const {
   waitForPageStability,
 } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
-const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSummary, attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 
 const statusClassName = (status) => {
   if (status >= 400) return 'status-error';
   if (status >= 300) return 'status-redirect';
   return 'status-ok';
 };
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'section';
 
 const formatHttpSummaryHtml = (results) => {
   const rows = results
@@ -196,6 +203,164 @@ const formatPerformanceSummaryMarkdown = (data, breaches) => {
   return header.concat(rows).join('\n');
 };
 
+const buildAvailabilitySchemaPayloads = (results, projectName) => {
+  if (!Array.isArray(results) || results.length === 0) return null;
+
+  const pagesWithWarnings = results.filter((entry) =>
+    entry.notes.some((note) => note.type === 'warning')
+  ).length;
+  const pagesWithErrors = results.filter((entry) => (entry.status || 0) >= 400).length;
+  const missingElements = results.reduce((total, entry) => {
+    if (!entry.elements) return total;
+    return (
+      total +
+      Object.values(entry.elements).filter((value) => value === false).length
+    );
+  }, 0);
+
+  const runPayload = createRunSummaryPayload({
+    baseName: `infra-availability-${slugify(projectName)}`,
+    title: 'Availability & uptime summary',
+    overview: {
+      totalPages: results.length,
+      pagesWithErrors,
+      pagesWithWarnings,
+      missingStructureElements: missingElements,
+    },
+    metadata: {
+      spec: 'functionality.infrastructure',
+      summaryType: 'availability',
+      projectName,
+      scope: 'project',
+    },
+  });
+
+  const pagePayloads = results.map((entry) =>
+    createPageSummaryPayload({
+      baseName: `infra-availability-${slugify(projectName)}-${slugify(entry.page)}`,
+      title: `Availability – ${entry.page}`,
+      page: entry.page,
+      viewport: projectName,
+      summary: {
+        status: entry.status,
+        elements: entry.elements || null,
+        warnings: entry.notes.filter((note) => note.type === 'warning').map((note) => note.message),
+        info: entry.notes.filter((note) => note.type === 'info').map((note) => note.message),
+      },
+      metadata: {
+        spec: 'functionality.infrastructure',
+        summaryType: 'availability',
+        projectName,
+      },
+    })
+  );
+
+  return { runPayload, pagePayloads };
+};
+
+const buildHttpSchemaPayloads = (results, projectName) => {
+  if (!Array.isArray(results) || results.length === 0) return null;
+
+  const redirects = results.filter((entry) => entry.status >= 300 && entry.status < 400).length;
+  const errors = results.filter((entry) => entry.status >= 400).length;
+  const failedChecks = results.filter((entry) => entry.checks.some((check) => !check.passed)).length;
+
+  const runPayload = createRunSummaryPayload({
+    baseName: `infra-http-${slugify(projectName)}`,
+    title: 'HTTP response validation summary',
+    overview: {
+      totalPages: results.length,
+      success2xx: results.filter((entry) => entry.status === 200).length,
+      redirects,
+      errors,
+      pagesWithFailedChecks: failedChecks,
+    },
+    metadata: {
+      spec: 'functionality.infrastructure',
+      summaryType: 'http',
+      projectName,
+      scope: 'project',
+    },
+  });
+
+  const pagePayloads = results.map((entry) =>
+    createPageSummaryPayload({
+      baseName: `infra-http-${slugify(projectName)}-${slugify(entry.page)}`,
+      title: `HTTP validation – ${entry.page}`,
+      page: entry.page,
+      viewport: projectName,
+      summary: {
+        status: entry.status,
+        statusText: entry.statusText,
+        redirectLocation: entry.location || null,
+        failedChecks: entry.checks.filter((check) => !check.passed).map((check) => ({
+          label: check.label,
+          details: check.details || null,
+        })),
+      },
+      metadata: {
+        spec: 'functionality.infrastructure',
+        summaryType: 'http',
+        projectName,
+      },
+    })
+  );
+
+  return { runPayload, pagePayloads };
+};
+
+const buildPerformanceSchemaPayloads = (data, breaches, projectName) => {
+  if (!Array.isArray(data) || data.length === 0) return null;
+
+  const averageLoadTime = data.reduce((acc, entry) => acc + entry.loadTime, 0) / data.length;
+
+  const runPayload = createRunSummaryPayload({
+    baseName: `infra-performance-${slugify(projectName)}`,
+    title: 'Performance monitoring summary',
+    overview: {
+      pagesSampled: data.length,
+      averageLoadTimeMs: Math.round(averageLoadTime),
+      budgetBreaches: breaches.length,
+    },
+    metadata: {
+      spec: 'functionality.infrastructure',
+      summaryType: 'performance',
+      projectName,
+      scope: 'project',
+    },
+  });
+
+  const breachMap = new Map();
+  breaches.forEach((entry) => {
+    const list = breachMap.get(entry.page) || [];
+    list.push({ metric: entry.metric, value: entry.value, budget: entry.budget });
+    breachMap.set(entry.page, list);
+  });
+
+  const pagePayloads = data.map((entry) =>
+    createPageSummaryPayload({
+      baseName: `infra-performance-${slugify(projectName)}-${slugify(entry.page)}`,
+      title: `Performance – ${entry.page}`,
+      page: entry.page,
+      viewport: projectName,
+      summary: {
+        loadTimeMs: Math.round(entry.loadTime),
+        domContentLoadedMs: Math.round(entry.domContentLoaded),
+        loadCompleteMs: Math.round(entry.loadComplete),
+        firstContentfulPaintMs: Math.round(entry.firstContentfulPaint),
+        budgetBreaches: breachMap.get(entry.page) || [],
+      },
+      metadata: {
+        spec: 'functionality.infrastructure',
+        summaryType: 'performance',
+        projectName,
+      },
+    })
+  );
+
+  return { runPayload, pagePayloads };
+};
+
 test.describe('Functionality: Core Infrastructure', () => {
   let siteConfig;
   let errorContext;
@@ -280,6 +445,15 @@ test.describe('Functionality: Core Infrastructure', () => {
         setDescription: true,
         title: 'Availability & uptime summary',
       });
+
+      const testInfo = test.info();
+      const schemaPayloads = buildAvailabilitySchemaPayloads(availabilityResults, testInfo.project.name);
+      if (schemaPayloads) {
+        await attachSchemaSummary(testInfo, schemaPayloads.runPayload);
+        for (const payload of schemaPayloads.pagePayloads) {
+          await attachSchemaSummary(testInfo, payload);
+        }
+      }
     }
   });
 
@@ -355,6 +529,15 @@ test.describe('Functionality: Core Infrastructure', () => {
         setDescription: true,
         title: 'HTTP response validation summary',
       });
+
+      const testInfo = test.info();
+      const schemaPayloads = buildHttpSchemaPayloads(responseResults, testInfo.project.name);
+      if (schemaPayloads) {
+        await attachSchemaSummary(testInfo, schemaPayloads.runPayload);
+        for (const payload of schemaPayloads.pagePayloads) {
+          await attachSchemaSummary(testInfo, payload);
+        }
+      }
     }
   });
 
@@ -450,6 +633,19 @@ test.describe('Functionality: Core Infrastructure', () => {
         setDescription: true,
         title: 'Performance monitoring summary',
       });
+
+      const testInfo = test.info();
+      const schemaPayloads = buildPerformanceSchemaPayloads(
+        performanceData,
+        performanceBreaches,
+        testInfo.project.name
+      );
+      if (schemaPayloads) {
+        await attachSchemaSummary(testInfo, schemaPayloads.runPayload);
+        for (const payload of schemaPayloads.pagePayloads) {
+          await attachSchemaSummary(testInfo, payload);
+        }
+      }
     }
   });
 });
