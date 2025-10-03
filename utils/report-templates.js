@@ -692,12 +692,36 @@ main {
   overflow-x: auto;
 }
 
+.report-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 1.75rem;
+  align-items: flex-start;
+  margin-top: 2.5rem;
+}
+
+.report-layout__content {
+  min-width: 0;
+}
+
+.report-layout__sidebar {
+  position: sticky;
+  top: 2rem;
+  align-self: flex-start;
+}
+
+.report-layout__sidebar .test-navigation {
+  max-height: calc(100vh - 2.5rem);
+  overflow: auto;
+  padding-right: 1rem;
+}
+
 .test-navigation {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 1.25rem;
-  margin-bottom: 2rem;
+  margin-bottom: 0;
   box-shadow: var(--shadow-sm);
 }
 
@@ -1126,6 +1150,18 @@ main {
   white-space: pre-wrap;
 }
 
+@media (max-width: 960px) {
+  .report-layout {
+    grid-template-columns: 1fr;
+  }
+  .report-layout__sidebar {
+    position: static;
+  }
+  .report-layout__sidebar .test-navigation {
+    max-height: none;
+  }
+}
+
 @media (max-width: 720px) {
   main {
     padding: 1.5rem;
@@ -1201,6 +1237,17 @@ function renderReportHtml(run) {
   const groupedTests = groupTests(run.tests);
   const navigationHtml = renderTestNavigation(groupedTests);
   const testsHtml = groupedTests.map(renderTestGroup).join('\n');
+  const layoutHtml = `
+    <div class="report-layout">
+      ${navigationHtml ? `<aside class="report-layout__sidebar">${navigationHtml}</aside>` : ''}
+      <div class="report-layout__content">
+        ${statusFilters}
+        <section class="tests-list" aria-label="Test results">
+          ${testsHtml}
+        </section>
+      </div>
+    </div>
+  `;
   const metadataHtml = renderMetadata(run);
   const summaryCards = renderSummaryCards(run);
   const runSummariesHtml = renderRunSummaries(run.runSummaries);
@@ -1224,11 +1271,7 @@ function renderReportHtml(run) {
     ${summaryCards}
     ${metadataHtml}
     ${runSummariesHtml}
-    ${navigationHtml}
-    ${statusFilters}
-    <section class="tests-list" aria-label="Test results">
-      ${testsHtml}
-    </section>
+    ${layoutHtml}
   </main>
   <script>${filterScript}</script>
 </body>

@@ -4,6 +4,13 @@ const os = require('os');
 // Detect if Safari is available (macOS only)
 const isMacOS = os.platform() === 'darwin';
 
+const normaliseEnvBoolean = (value) => {
+  if (value === undefined || value === null) return false;
+  const normalised = String(value).trim().toLowerCase();
+  if (!normalised) return false;
+  return ['1', 'true', 'yes', 'on'].includes(normalised);
+};
+
 const resolveWorkerCount = () => {
   const rawValue = String(process.env.PWTEST_WORKERS || '').trim();
   const normalised = rawValue.toLowerCase();
@@ -19,6 +26,14 @@ const resolveWorkerCount = () => {
   }
   return undefined;
 };
+
+const disableChromiumSandbox = normaliseEnvBoolean(
+  process.env.PW_DISABLE_CHROMIUM_SANDBOX || process.env.PLAYWRIGHT_DISABLE_CHROMIUM_SANDBOX
+);
+
+const chromiumUseOverrides = disableChromiumSandbox
+  ? { launchOptions: { args: ['--no-sandbox', '--disable-setuid-sandbox'] } }
+  : {};
 
 module.exports = defineConfig({
   globalSetup: require.resolve('./scripts/playwright-global-setup'),
@@ -54,7 +69,7 @@ module.exports = defineConfig({
     // Desktop browsers (existing)
     {
       name: 'Chrome',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], ...chromiumUseOverrides },
     },
     {
       name: 'Firefox',
@@ -81,6 +96,7 @@ module.exports = defineConfig({
       use: {
         ...devices['iPhone 12'],
         viewport: { width: 375, height: 667 }, // Standard mobile viewport
+        ...chromiumUseOverrides,
       },
     },
 
@@ -90,6 +106,7 @@ module.exports = defineConfig({
       use: {
         ...devices['iPad Pro'],
         viewport: { width: 768, height: 1024 }, // Standard tablet viewport
+        ...chromiumUseOverrides,
       },
     },
 
@@ -99,6 +116,7 @@ module.exports = defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1920, height: 1080 }, // Large desktop viewport
+        ...chromiumUseOverrides,
       },
     },
   ],
