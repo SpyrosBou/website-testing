@@ -374,6 +374,11 @@ const renderAttachment = (attachment) => {
   `;
 };
 
+const stripSummaryStyles = (html) => {
+  if (!html) return '';
+  return html.replace(SUMMARY_STYLES, '').trimStart();
+};
+
 const renderSummaries = (summaries) => {
   if (!summaries || summaries.length === 0) return '';
 
@@ -385,10 +390,11 @@ const renderSummaries = (summaries) => {
       ${htmlSummaries
         .map((summary) => {
           const label = summary.title || summary.baseName || 'Summary';
+          const sanitizedHtml = stripSummaryStyles(summary.html);
           return `
             <details class="summary-block" data-summary-type="html">
               <summary>${escapeHtml(label)}</summary>
-              <div class="summary-block__body">${summary.html}</div>
+              <div class="summary-block__body">${sanitizedHtml}</div>
             </details>
           `;
         })
@@ -439,6 +445,19 @@ const renderTestCard = (test) => {
   const errorHtml = !test.attempts?.length ? renderErrorBlock(test.errors) : '';
   const stdoutHtml = '';
   const stderrHtml = '';
+  const primaryError = Array.isArray(test.errors)
+    ? test.errors.find((error) => error?.message)
+    : null;
+  let statusNote = '';
+  if (primaryError?.message) {
+    const headline = primaryError.message
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+    if (headline) {
+      statusNote = `<div class="test-card__note status-error">${escapeHtml(headline)}</div>`;
+    }
+  }
 
   const annotations = (test.annotations || [])
     .map((ann) => ann?.type || ann?.title)
@@ -470,6 +489,7 @@ const renderTestCard = (test) => {
           : ''
       }
 
+      ${statusNote}
       ${summariesHtml}
       ${attemptsHtml}
       ${errorHtml}
@@ -909,6 +929,20 @@ main {
   background: #f1f5f9;
   font-size: 0.8rem;
   border: 1px solid #cbd5f5;
+}
+
+.test-card__note {
+  margin: 0.85rem 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.test-card__note.status-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b42318;
 }
 
 .test-summaries {

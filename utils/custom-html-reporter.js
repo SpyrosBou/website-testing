@@ -199,7 +199,7 @@ class CustomHtmlReporter {
           if (parsed?.type === 'custom-report-summary') {
             summaries.push({
               baseName: parsed.baseName || name.replace(/\.summary\.json$/, ''),
-              title: parsed.baseName || name,
+              title: parsed.title || parsed.baseName || name,
               html: parsed.htmlBody || null,
               markdown: parsed.markdown || null,
               setDescription: Boolean(parsed.setDescription),
