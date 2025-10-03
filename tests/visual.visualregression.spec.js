@@ -1,13 +1,7 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../utils/test-fixtures');
 const fs = require('fs');
 const SiteLoader = require('../utils/site-loader');
-const {
-  setupTestPage,
-  teardownTestPage,
-  safeNavigate,
-  waitForPageStability,
-  ErrorContext,
-} = require('../utils/test-helpers');
+const { safeNavigate, waitForPageStability } = require('../utils/test-helpers');
 const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
 
 const VIEWPORTS = {
@@ -74,16 +68,12 @@ test.describe('Visual Regression', () => {
   let siteConfig;
   let errorContext;
 
-  test.beforeEach(async ({ page, context }, testInfo) => {
+  test.beforeEach(async ({ page, context, errorContext: sharedErrorContext }, testInfo) => {
     const siteName = process.env.SITE_NAME;
     if (!siteName) throw new Error('SITE_NAME environment variable is required');
     siteConfig = SiteLoader.loadSite(siteName);
     SiteLoader.validateSiteConfig(siteConfig);
-    errorContext = await setupTestPage(page, context, testInfo);
-  });
-
-  test.afterEach(async ({ page, context }, testInfo) => {
-    await teardownTestPage(page, context, errorContext, testInfo);
+    errorContext = sharedErrorContext;
   });
 
   const enabledViewportKeys = resolveViewports();

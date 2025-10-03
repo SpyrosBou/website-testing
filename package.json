@@ -24,6 +24,7 @@
     "lint": "eslint run-tests.js utils/**/*.js scripts/**/*.js playwright.config.js",
     "lint:fix": "eslint run-tests.js utils/**/*.js scripts/**/*.js playwright.config.js --fix",
     "lint:teardown": "node scripts/check-browser-teardown.js",
+    "test:unit": "node --test tests/unit/**/*.test.js",
     "format": "prettier -w .",
     "viewreport": "node scripts/view-report.js"
   },

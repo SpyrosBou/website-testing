@@ -1,12 +1,6 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../utils/test-fixtures');
 const SiteLoader = require('../utils/site-loader');
-const {
-  setupTestPage,
-  teardownTestPage,
-  safeNavigate,
-  waitForPageStability,
-  safeElementInteraction,
-} = require('../utils/test-helpers');
+const { safeNavigate, waitForPageStability, safeElementInteraction } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
 const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
 
@@ -34,17 +28,13 @@ test.describe('Responsive Structure & UX', () => {
   let errorContext;
   let wp;
 
-  test.beforeEach(async ({ page, context }, testInfo) => {
+  test.beforeEach(async ({ page, context, errorContext: sharedErrorContext }, testInfo) => {
     const siteName = process.env.SITE_NAME;
     if (!siteName) throw new Error('SITE_NAME environment variable is required');
     siteConfig = SiteLoader.loadSite(siteName);
     SiteLoader.validateSiteConfig(siteConfig);
-    errorContext = await setupTestPage(page, context, testInfo);
+    errorContext = sharedErrorContext;
     wp = new WordPressPageObjects(page, siteConfig);
-  });
-
-  test.afterEach(async ({ page, context }, testInfo) => {
-    await teardownTestPage(page, context, errorContext, testInfo);
   });
 
   const enabledViewportKeys = resolveResponsiveViewports();

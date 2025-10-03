@@ -1,8 +1,6 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../utils/test-fixtures');
 const SiteLoader = require('../utils/site-loader');
 const {
-  setupTestPage,
-  teardownTestPage,
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
@@ -201,19 +199,15 @@ test.describe('Functionality: Core Infrastructure', () => {
   let errorContext;
   let wpPageObjects;
 
-  test.beforeEach(async ({ page, context }, testInfo) => {
+  test.beforeEach(async ({ page, context, errorContext: sharedErrorContext }, testInfo) => {
     const siteName = process.env.SITE_NAME;
     if (!siteName) throw new Error('SITE_NAME environment variable is required');
 
     siteConfig = SiteLoader.loadSite(siteName);
     SiteLoader.validateSiteConfig(siteConfig);
 
-    errorContext = await setupTestPage(page, context, testInfo);
+    errorContext = sharedErrorContext;
     wpPageObjects = new WordPressPageObjects(page, siteConfig);
-  });
-
-  test.afterEach(async ({ page, context }, testInfo) => {
-    await teardownTestPage(page, context, errorContext, testInfo);
   });
 
   test('Page availability across configured pages', async ({ page }) => {
