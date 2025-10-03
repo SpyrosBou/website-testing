@@ -477,7 +477,19 @@ const buildSuiteSummaryHtml = (
     <section class="summary-report summary-a11y">
       <h3>Per-page breakdown</h3>
     </section>
-    ${pageCardsHtml}
+    <section class="summary-report summary-a11y">
+      ${pageReports
+        .map((report) => {
+          const cardHtml = formatPageCardHtml(report);
+          return `
+        <details class="summary-page">
+          <summary>${escapeHtml(formatPageLabel(report.page))}</summary>
+          <div class="summary-page__body">${cardHtml}</div>
+        </details>
+      `;
+        })
+        .join('\n')}
+    </section>
   `;
 };
 
@@ -510,57 +522,7 @@ const buildSuiteSummaryMarkdown = (
     `- Pages with non-gating WCAG findings: ${pageReports.filter((report) => Array.isArray(report.advisory) && report.advisory.length > 0).length}`,
     `- Pages with best-practice advisories (no WCAG tag): ${pageReports.filter((report) => Array.isArray(report.bestPractice) && report.bestPractice.length > 0).length}`,
     '',
-    '## Per-page breakdown',
-    '',
-    '| Page | Viewport | Status | Notes |',
-    '| --- | --- | --- | --- |',
   ];
-
-  pageReports.forEach((report) => {
-    const meta = STATUS_METADATA[report.status] || STATUS_METADATA.skipped;
-    const notes = [];
-    if (report.stability) {
-      notes.push(
-        report.stability.ok
-          ? `Stability via ${report.stability.successfulStrategy}`
-          : 'Stability timed out'
-      );
-    }
-    if (report.status === 'violations' && report.violations?.length) {
-      notes.push(`${report.violations.length} issue(s)`);
-    }
-    if (report.httpStatus && report.httpStatus !== 200) {
-      notes.push(`HTTP ${report.httpStatus}`);
-    }
-    if (report.status === 'scan-error' && Array.isArray(report.notes) && report.notes.length > 0) {
-      notes.push(truncate(report.notes[0], 80));
-    }
-    if (Array.isArray(report.advisory) && report.advisory.length > 0) {
-      notes.push(`${report.advisory.length} non-gating finding(s)`);
-    }
-    if (Array.isArray(report.bestPractice) && report.bestPractice.length > 0) {
-      notes.push(`${report.bestPractice.length} best-practice advisory finding(s)`);
-    }
-    lines.push(`| \`${report.page}\` | ${report.projectName || 'default'} | ${meta.label} | ${notes.join('; ') || '—'} |`);
-  });
-
-  const gatingRuleSummary = formatRuleSummary(aggregatedViolations, 'Gating rule summary');
-  if (gatingRuleSummary) {
-    lines.push('', gatingRuleSummary);
-  }
-
-  const advisoryRuleSummary = formatRuleSummary(aggregatedAdvisories, 'Non-gating rule summary');
-  if (advisoryRuleSummary) {
-    lines.push('', advisoryRuleSummary);
-  }
-
-  const bestPracticeRuleSummary = formatRuleSummary(
-    aggregatedBestPractices,
-    'Best-practice advisory summary'
-  );
-  if (bestPracticeRuleSummary) {
-    lines.push('', bestPracticeRuleSummary);
-  }
 
   aggregatedViolations.forEach((entry) => {
     lines.push('', formatViolationTableMarkdown(entry.page, entry.entries));
