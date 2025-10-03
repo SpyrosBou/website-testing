@@ -329,24 +329,7 @@ const renderMetadata = (run) => {
   `;
 };
 
-const renderErrorBlock = (errors) => {
-  if (!errors || errors.length === 0) return '';
-  return `
-    <section class="test-errors" aria-label="Errors">
-      ${errors
-        .map(
-          (error, idx) => `
-          <article class="error-entry">
-            <header>Error ${idx + 1}</header>
-            ${error.message ? `<pre class="error-message">${escapeHtml(error.message)}</pre>` : ''}
-            ${error.stack ? `<pre class="error-stack">${escapeHtml(error.stack)}</pre>` : ''}
-          </article>
-        `
-        )
-        .join('\n')}
-    </section>
-  `;
-};
+const renderErrorBlock = () => '';
 
 const renderLogBlock = () => '';
 

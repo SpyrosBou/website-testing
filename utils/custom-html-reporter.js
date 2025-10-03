@@ -177,6 +177,12 @@ class CustomHtmlReporter {
       let buffer = null;
       let errorMessage = null;
 
+      const isSummaryArtifact =
+        typeof name === 'string' && /\.summary(?:-truncated)?\.(html|md|txt)$/i.test(name);
+      if (isSummaryArtifact) {
+        continue;
+      }
+
       if (attachment?.body) {
         buffer = Buffer.isBuffer(attachment.body) ? attachment.body : Buffer.from(attachment.body);
       } else if (attachmentPath) {
