@@ -18,6 +18,11 @@ const {
 } = require('../utils/a11y-shared');
 const { createAxeBuilder } = require('../utils/a11y-runner');
 
+test.use({ trace: 'off', video: 'off' });
+
+const formatViewportLabel = (viewport) =>
+  viewport.charAt(0).toUpperCase() + viewport.slice(1);
+
 const renderResponsiveViolationTable = (violations = []) => {
   if (!Array.isArray(violations) || violations.length === 0) return '';
 
@@ -380,12 +385,14 @@ test.describe('Responsive Accessibility', () => {
           htmlBody: html,
           markdown: md,
           setDescription: true,
+          title: `${formatViewportLabel(viewportName)} responsive summary`,
         });
       }
 
       if (aggregatedViolations.length > 0) {
         const count = aggregatedViolations.reduce((s, e) => s + e.count, 0);
-        const summaryMessage = `Accessibility violations detected for ${viewportName}. See report summary attachment 'responsive-a11y-${viewportName}-summary' (gating: ${failOnLabel}).`;
+        const summaryLabel = `${formatViewportLabel(viewportName)} responsive summary`;
+        const summaryMessage = `Accessibility violations detected for ${viewportName}. See report summary "${summaryLabel}" (gating: ${failOnLabel}).`;
         if (a11yMode === 'audit') {
           console.warn(`ℹ️ Accessibility audit summary (no failure): ${count} issue(s) across ${aggregatedViolations.length} page(s) for ${viewportName}.`);
         } else {

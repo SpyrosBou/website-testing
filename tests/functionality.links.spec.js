@@ -290,6 +290,7 @@ test.describe('Functionality: Internal Links', () => {
       htmlBody: summaryHtml,
       markdown: summaryMarkdown,
       setDescription: true,
+      title: 'Internal link audit summary',
     });
   });
 });

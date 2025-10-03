@@ -18,7 +18,12 @@ const {
 const { createAxeBuilder } = require('../utils/a11y-runner');
 const { selectAccessibilityTestPages, resolveSampleSetting } = require('../utils/a11y-shared');
 
+test.use({ trace: 'off', video: 'off' });
+
 const STABILITY_TIMEOUT_MS = 20000;
+
+const formatPageLabel = (page) => (page === '/' ? 'Homepage' : page);
+const pageSummaryTitle = (page, suffix) => `${formatPageLabel(page)} — ${suffix}`;
 
 const STATUS_METADATA = {
   passed: { label: 'No gating violations', pillClass: 'success' },
@@ -704,6 +709,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             baseName: `a11y-${navigationSlug}`,
             htmlBody: formatPageCardHtml(pageReport),
             markdown: formatPageCardMarkdown(pageReport),
+            title: pageSummaryTitle(testPage, 'Navigation failure'),
           });
 
           await persistPageReport(testInfo.project.name, index, pageReport);
@@ -724,6 +730,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             baseName: `a11y-${httpSlug}`,
             htmlBody: formatPageCardHtml(pageReport),
             markdown: formatPageCardMarkdown(pageReport),
+            title: pageSummaryTitle(testPage, `HTTP ${response.status()} response`),
           });
 
           await persistPageReport(testInfo.project.name, index, pageReport);
@@ -750,6 +757,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             baseName: `a11y-${stabilitySlug}`,
             htmlBody: formatPageCardHtml(pageReport),
             markdown: formatPageCardMarkdown(pageReport),
+            title: pageSummaryTitle(testPage, 'Stability timeout'),
           });
 
           await persistPageReport(testInfo.project.name, index, pageReport);
@@ -794,6 +802,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
               baseName: `a11y-${pageSlug}`,
               htmlBody: formatPageCardHtml(pageReport),
               markdown: formatPageCardMarkdown(pageReport),
+              title: pageSummaryTitle(testPage, 'WCAG issues overview'),
             });
             const message = `❌ ${gatingViolations.length} accessibility violations (gating: ${failOnLabel}) on ${testPage}`;
             if (A11Y_MODE === 'audit') {
@@ -825,6 +834,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
               baseName: `a11y-${pageSlug}`,
               htmlBody: formatPageCardHtml(pageReport),
               markdown: formatPageCardMarkdown(pageReport),
+              title: pageSummaryTitle(testPage, 'WCAG scan overview'),
             });
           }
         } catch (error) {
@@ -837,6 +847,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
             baseName: `a11y-${errorSlug}`,
             htmlBody: formatPageCardHtml(pageReport),
             markdown: formatPageCardMarkdown(pageReport),
+            title: pageSummaryTitle(testPage, 'Scan error'),
           });
         } finally {
           if (pageReport.status === 'skipped') {
@@ -895,6 +906,7 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
         htmlBody: summaryHtml,
         markdown: summaryMarkdown,
         setDescription: true,
+        title: 'Sitewide WCAG findings',
       });
 
       const totalViolations = aggregatedViolations.reduce(

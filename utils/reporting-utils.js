@@ -93,7 +93,7 @@ async function attachSummary(testInfoOrOptions, maybeOptions) {
     throw new Error('attachSummary requires an options object.');
   }
 
-  const { baseName, htmlBody, markdown, setDescription = false } = options;
+  const { baseName, htmlBody, markdown, setDescription = false, title = null } = options;
   if (!baseName) {
     throw new Error('attachSummary requires a baseName value.');
   }
@@ -101,6 +101,7 @@ async function attachSummary(testInfoOrOptions, maybeOptions) {
   const payload = {
     type: 'custom-report-summary',
     baseName,
+    title: title ? String(title) : null,
     setDescription: Boolean(setDescription),
     htmlBody: htmlBody ? wrapHtml(htmlBody) : null,
     markdown: markdown || null,

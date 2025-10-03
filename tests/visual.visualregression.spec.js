@@ -345,6 +345,7 @@ test.describe('Visual Regression', () => {
           htmlBody,
           markdown,
           setDescription: true,
+          title: `Visual regression summary — ${viewportName}`,
         });
 
         for (const artifact of pendingAttachments) {

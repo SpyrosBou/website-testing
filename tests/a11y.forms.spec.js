@@ -1,5 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const SiteLoader = require('../utils/site-loader');
+
+test.use({ trace: 'off', video: 'off' });
 const {
   setupTestPage,
   teardownTestPage,
@@ -466,6 +468,7 @@ test.describe('Accessibility: Forms', () => {
       htmlBody: summariseFormsHtml(reports),
       markdown: summariseFormsMarkdown(reports),
       setDescription: true,
+      title: 'Forms accessibility summary',
     });
 
     expect(gatingTotal, 'Form accessibility gating issues detected').toBe(0);

@@ -278,6 +278,7 @@ test.describe('Functionality: Core Infrastructure', () => {
         htmlBody: summaryHtml,
         markdown: summaryMarkdown,
         setDescription: true,
+        title: 'Availability & uptime summary',
       });
     }
   });
@@ -352,6 +353,7 @@ test.describe('Functionality: Core Infrastructure', () => {
         htmlBody: summaryHtml,
         markdown: summaryMarkdown,
         setDescription: true,
+        title: 'HTTP response validation summary',
       });
     }
   });
@@ -446,6 +448,7 @@ test.describe('Functionality: Core Infrastructure', () => {
         htmlBody: summaryHtml,
         markdown: summaryMarkdown,
         setDescription: true,
+        title: 'Performance monitoring summary',
       });
     }
   });

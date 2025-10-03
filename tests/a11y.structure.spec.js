@@ -1,5 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const SiteLoader = require('../utils/site-loader');
+
+test.use({ trace: 'off', video: 'off' });
 const {
   setupTestPage,
   teardownTestPage,
@@ -277,12 +279,13 @@ test.describe('Accessibility: Structural landmarks', () => {
 
     const gatingTotal = reports.reduce((sum, report) => sum + report.gating.length, 0);
 
-    await attachSummary({
-      baseName: 'a11y-structure-summary',
-      htmlBody: analyseStructureHtml(reports),
-      markdown: analyseStructureMarkdown(reports),
-      setDescription: true,
-    });
+  await attachSummary({
+    baseName: 'a11y-structure-summary',
+    htmlBody: analyseStructureHtml(reports),
+    markdown: analyseStructureMarkdown(reports),
+    setDescription: true,
+    title: 'Landmark & heading structure summary',
+  });
 
     expect(gatingTotal, 'Structural accessibility gating issues detected').toBe(0);
   });

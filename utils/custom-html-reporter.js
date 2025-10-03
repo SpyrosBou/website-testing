@@ -129,8 +129,13 @@ class CustomHtmlReporter {
 
   onEnd() {
     this.endTime = new Date();
-    const runData = this.buildRunData();
-    this.writeOutputs(runData);
+    try {
+      const runData = this.buildRunData();
+      this.writeOutputs(runData);
+    } catch (error) {
+      console.error('❌ Failed to generate custom HTML report:', error);
+      throw error;
+    }
   }
 
   normaliseStd(entry) {
@@ -266,14 +271,49 @@ class CustomHtmlReporter {
     const completedAt = this.endTime?.toISOString?.();
     const durationMs = this.endTime && this.startTime ? this.endTime - this.startTime : null;
 
-    const tests = Array.from(this.testEntries.values())
+    const serialisedTests = Array.from(this.testEntries.values())
       .sort((a, b) => a.order - b.order)
       .map((entry) => this.serialiseTest(entry));
+
+    const summaryByKey = new Map();
+    for (const test of serialisedTests) {
+      if (!Array.isArray(test.summaryBlocks) || test.summaryBlocks.length === 0) continue;
+      test.summaryBlocks.forEach((block, index) => {
+        if (!block) return;
+        const key = block.baseName || `${test.anchorId}-${index}`;
+        const record = {
+          baseName: block.baseName || key,
+          title: block.title || block.baseName || 'Summary',
+          html: block.html || null,
+          markdown: block.markdown || null,
+          createdAt: block.createdAt || null,
+          source: {
+            anchorId: test.anchorId,
+            testTitle: test.title,
+            projectName: test.projectName,
+          },
+        };
+
+        if (block.setDescription) {
+          summaryByKey.set(key, { ...record, setDescription: true });
+        } else if (!summaryByKey.has(key)) {
+          summaryByKey.set(key, { ...record, setDescription: false });
+        }
+      });
+    }
+
+    const runSummaries = Array.from(summaryByKey.values())
+      .filter((summary) => summary.setDescription)
+      .sort((a, b) => {
+        const left = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const right = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return right - left;
+      });
 
     const statusCounts = STATUS_KEYS.reduce((acc, key) => ({ ...acc, [key]: 0 }), {});
     let flakyCount = 0;
 
-    for (const test of tests) {
+    for (const test of serialisedTests) {
       if (!statusCounts[test.status]) {
         statusCounts[test.status] = 0;
       }
@@ -303,7 +343,7 @@ class CustomHtmlReporter {
       durationMs,
       durationFriendly: formatDuration(durationMs || 0),
       statusCounts,
-      totalTests: tests.length,
+      totalTests: serialisedTests.length,
       totalTestsPlanned: this.totalTestsPlanned,
       site: siteName ? { name: siteName, baseUrl: siteBaseUrl } : null,
       profile,
@@ -314,7 +354,8 @@ class CustomHtmlReporter {
         arch: process.arch,
         node: process.version,
       },
-      tests,
+      tests: serialisedTests,
+      runSummaries,
     };
 
     return runData;
@@ -330,11 +371,15 @@ class CustomHtmlReporter {
 
     const hash = createHash('md5').update(entry.testId).digest('hex').slice(0, 6);
     const anchorId = `${slugify(entry.projectName)}-${slugify(entry.title)}-${hash}`;
+    const displayTitle = Array.isArray(entry.titlePath) && entry.titlePath.length > 0
+      ? entry.titlePath.slice(3).filter(Boolean).join(' › ') || entry.title
+      : entry.title;
 
     return {
       anchorId,
       testId: entry.testId,
       title: entry.title,
+      displayTitle,
       titlePath: entry.titlePath,
       location: entry.location,
       projectName: entry.projectName,

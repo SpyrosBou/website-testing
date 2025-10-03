@@ -1,5 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const pixelmatch = require('pixelmatch');
+
+test.use({ trace: 'off', video: 'off' });
+
 const { PNG } = require('pngjs');
 const SiteLoader = require('../utils/site-loader');
 const {
@@ -518,6 +521,7 @@ test.describe('Accessibility: Keyboard navigation', () => {
       htmlBody: summaryHtml,
       markdown: summaryMarkdown,
       setDescription: true,
+      title: 'Keyboard navigation summary',
     });
 
     expect(gatingTotal, 'Keyboard navigation gating issues detected').toBe(0);

@@ -17,6 +17,20 @@ const formatBytes = (bytes) => {
   return `${value.toFixed(index === 0 ? 0 : 2)} ${units[index]}`;
 };
 
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'section';
+
+const buildDisplayTitle = (titlePath, fallback) => {
+  if (Array.isArray(titlePath) && titlePath.length > 0) {
+    const segments = titlePath.slice(3).filter(Boolean);
+    if (segments.length > 0) return segments.join(' › ');
+  }
+  return fallback || '';
+};
+
 const STATUS_LABELS = {
   passed: 'Passed',
   failed: 'Failed',
@@ -99,6 +113,170 @@ const renderSummaryCards = (run) => {
   `;
 };
 
+const renderRunSummaries = (summaries) => {
+  if (!Array.isArray(summaries) || summaries.length === 0) return '';
+
+  const items = summaries.map((summary) => {
+    const hasHtml = Boolean(summary.html);
+    const body = hasHtml
+      ? summary.html
+      : summary.markdown
+        ? `<pre class="run-summary__markdown">${escapeHtml(summary.markdown)}</pre>`
+        : '<p>No summary data available.</p>';
+
+    const friendlyTitle = escapeHtml(summary.title || summary.baseName || 'Summary');
+    let meta = '';
+    if (summary.source?.testTitle) {
+      const anchorId = summary.source.anchorId ? `#${escapeHtml(summary.source.anchorId)}` : null;
+      const label = escapeHtml(summary.source.testTitle);
+      meta = anchorId
+        ? `<div class="run-summary-card__meta">Source: <a href="${anchorId}">${label}</a></div>`
+        : `<div class="run-summary-card__meta">Source: ${label}</div>`;
+    }
+
+    const heading = hasHtml
+      ? `<div class="run-summary-card__title">${friendlyTitle}</div>`
+      : `<header><h2>${friendlyTitle}</h2></header>`;
+
+    return `
+      <article class="run-summary-card">
+        ${heading}
+        ${meta}
+        <div class="run-summary-card__body">${body}</div>
+      </article>
+    `;
+  });
+
+  return `
+    <section class="run-summaries" aria-label="Run-level summaries">
+      ${items.join('\n')}
+    </section>
+  `;
+};
+
+const summariseStatuses = (tests) =>
+  tests.reduce((acc, test) => {
+    const status = test.status || 'unknown';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+const renderStatusPills = (counts, options = {}) => {
+  const showCount = options.showCount !== false;
+  return STATUS_ORDER.filter((status) => counts[status])
+    .map((status) => {
+      const label = STATUS_LABELS[status] || status;
+      const count = counts[status];
+      const countHtml = showCount ? `<span class="status-count">${escapeHtml(String(count))}</span>` : '';
+      return `<span class="status-pill status-${status}">${escapeHtml(label)}${countHtml}</span>`;
+    })
+    .join('');
+};
+
+const groupTests = (tests) => {
+  const groups = [];
+  const map = new Map();
+  const usedIds = new Set();
+
+  const ensureUniqueId = (base) => {
+    let candidate = base || 'group';
+    let counter = 1;
+    while (usedIds.has(candidate)) {
+      counter += 1;
+      candidate = `${base}-${counter}`;
+    }
+    usedIds.add(candidate);
+    return candidate;
+  };
+
+  tests.forEach((test) => {
+    const filePath = test.location?.file || 'Unknown file';
+    const fileName = filePath.split(/[/\\]/).pop();
+    const project = test.projectName || 'Default project';
+    const key = `${project}::${filePath}`;
+    if (!map.has(key)) {
+      const idBase = slugify(`${project}-${fileName}`);
+      const group = {
+        id: ensureUniqueId(idBase),
+        title: `${project} › ${fileName}`,
+        project,
+        file: filePath,
+        tests: [],
+      };
+      map.set(key, group);
+      groups.push(group);
+    }
+    map.get(key).tests.push(test);
+  });
+
+  return groups;
+};
+
+const renderTestNavigation = (groups) => {
+  if (!Array.isArray(groups) || groups.length === 0) return '';
+
+  const items = groups
+    .map((group) => {
+      const groupCounts = summariseStatuses(group.tests);
+      const groupStats = renderStatusPills(groupCounts);
+      const testsList = group.tests
+        .map((test) => {
+          const statusLabel = STATUS_LABELS[test.status] || test.status;
+          return `
+            <li data-test-anchor="${escapeHtml(test.anchorId)}">
+              <a href="#${escapeHtml(test.anchorId)}">${escapeHtml(test.displayTitle || test.title)}</a>
+              <span class="status-pill status-${test.status}">${escapeHtml(statusLabel)}</span>
+            </li>
+          `;
+        })
+        .join('');
+
+      const statsHtml = groupStats ? `<div class="test-navigation__group-stats">${groupStats}</div>` : '';
+
+      return `
+        <li data-group-anchor="${escapeHtml(group.id)}">
+          <div class="test-navigation__group-header">
+            <a href="#${escapeHtml(group.id)}">${escapeHtml(group.title)}</a>
+            ${statsHtml}
+          </div>
+          <ul class="test-navigation__group-tests">
+            ${testsList}
+          </ul>
+        </li>
+      `;
+    })
+    .join('');
+
+  return `
+    <nav class="test-navigation" aria-label="Test navigation">
+      <h2>Test navigation</h2>
+      <ul>
+        ${items}
+      </ul>
+    </nav>
+  `;
+};
+
+const renderTestGroup = (group) => {
+  const counts = summariseStatuses(group.tests);
+  const stats = renderStatusPills(counts);
+  const statsHtml = stats ? `<div class="test-group__stats">${stats}</div>` : '';
+  return `
+    <section class="test-group" id="${escapeHtml(group.id)}">
+      <header class="test-group__header">
+        <div class="test-group__title">
+          <h2>${escapeHtml(group.title)}</h2>
+          <div class="test-group__meta">${group.file ? `<code>${escapeHtml(group.file)}</code>` : ''}</div>
+        </div>
+        ${statsHtml}
+      </header>
+      <div class="test-group__body">
+        ${group.tests.map(renderTestCard).join('\n')}
+      </div>
+    </section>
+  `;
+};
+
 const renderMetadata = (run) => {
   const rows = [];
   if (run.site?.name || run.site?.baseUrl) {
@@ -173,10 +351,10 @@ const renderErrorBlock = (errors) => {
 const renderLogBlock = (label, entries, cssClass) => {
   if (!entries || entries.length === 0) return '';
   return `
-    <section class="test-logs ${cssClass}" aria-label="${escapeHtml(label)}">
-      <header>${escapeHtml(label)}</header>
+    <details class="test-logs ${cssClass}" aria-label="${escapeHtml(label)}">
+      <summary>${escapeHtml(label)}</summary>
       <pre>${escapeHtml(entries.join('\n'))}</pre>
-    </section>
+    </details>
   `;
 };
 
@@ -227,21 +405,22 @@ const renderSummaries = (summaries) => {
     <section class="test-summaries" aria-label="Summary attachments">
       ${summaries
         .map((summary) => {
+          const label = summary.title || summary.baseName || 'Summary';
           const sections = [];
           if (summary.html) {
             sections.push(`
-              <article class="summary-block">
-                <header>${escapeHtml(summary.title || summary.baseName || 'Summary')}</header>
+              <details class="summary-block" data-summary-type="html">
+                <summary>${escapeHtml(label)}</summary>
                 <div class="summary-block__body">${summary.html}</div>
-              </article>
+              </details>
             `);
           }
           if (summary.markdown) {
             sections.push(`
-              <article class="summary-block markdown">
-                <header>${escapeHtml((summary.title || summary.baseName || 'Summary') + ' (Markdown)')}</header>
-                <pre>${escapeHtml(summary.markdown)}</pre>
-              </article>
+              <details class="summary-block summary-block--markdown" data-summary-type="markdown">
+                <summary>${escapeHtml(label)} (Markdown export)</summary>
+                <pre class="summary-block__markdown">${escapeHtml(summary.markdown)}</pre>
+              </details>
             `);
           }
           return sections.join('\n');
@@ -299,12 +478,13 @@ const renderTestCard = (test) => {
     .filter(Boolean);
   const tags = Array.isArray(test.tags) ? test.tags : [];
   const statusLabel = STATUS_LABELS[test.status] || test.status;
+  const displayTitle = test.displayTitle || test.title;
 
   return `
     <article class="test-card status-${test.status} ${test.flaky ? 'is-flaky' : ''}" id="${escapeHtml(test.anchorId)}">
       <header class="test-card__header">
         <div>
-          <h3>${escapeHtml(test.title)}</h3>
+          <h3>${escapeHtml(displayTitle)}</h3>
           <div class="test-card__meta">
             <span class="meta-item">${escapeHtml(test.projectName || 'Unnamed project')}</span>
             <span class="meta-item">${escapeHtml(statusLabel)}</span>
@@ -354,6 +534,54 @@ body {
 }
 
 a { color: inherit; }
+
+[data-hidden="true"] {
+  display: none !important;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border-color);
+  background: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-pill .status-count {
+  font-weight: 700;
+}
+
+.status-pill.status-failed {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #b42318;
+}
+
+.status-pill.status-passed {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.status-pill.status-skipped {
+  background: #e2e8f0;
+  border-color: #cbd5f5;
+  color: #475467;
+}
+
+.status-pill.status-timedOut,
+.status-pill.status-interrupted,
+.status-pill.status-unknown,
+.status-pill.status-flaky {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
 
 header.report-header {
   background: #0f172a;
@@ -436,6 +664,119 @@ main {
   margin: 0;
 }
 
+.run-summaries {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.run-summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.run-summary-card > header h2,
+.run-summary-card__title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.run-summary-card__meta {
+  margin: -0.5rem 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.run-summary-card__body {
+  display: block;
+}
+
+.run-summary__markdown {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow-x: auto;
+}
+
+.test-navigation {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.test-navigation h2 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.25rem;
+}
+
+.test-navigation ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.test-navigation > ul > li {
+  margin-bottom: 0.85rem;
+}
+
+.test-navigation > ul > li:last-child {
+  margin-bottom: 0;
+}
+
+.test-navigation__group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.test-navigation__group-header a {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.test-navigation__group-tests {
+  margin: 0.5rem 0 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.test-navigation__group-tests a {
+  text-decoration: none;
+}
+
+.test-navigation__group-tests li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.test-navigation__group-tests li .status-pill {
+  margin-left: auto;
+}
+
+.test-navigation__group-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.test-navigation .status-pill {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.45rem;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -493,6 +834,51 @@ main {
 }
 
 .tests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.test-group {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.test-group__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.test-group__title h2 {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.35rem;
+}
+
+.test-group__meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.test-group__meta code {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+}
+
+.test-group__stats {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.test-group__body {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -569,21 +955,42 @@ main {
   background: #f8fafc;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
 
-.summary-block header {
+.summary-block > summary {
+  list-style: none;
   padding: 0.75rem 1rem;
   background: #0f172a;
   color: #e2e8f0;
   font-size: 0.95rem;
   font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.summary-block > summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary-block[open] > summary {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .summary-block__body {
   padding: 1rem;
   background: #fff;
+}
+
+.summary-block__markdown {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 0 0 8px 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow-x: auto;
 }
 
 .test-attempts {
@@ -669,14 +1076,47 @@ main {
   color: #b91c1c;
 }
 
-.test-errors header,
-.test-logs header {
+.test-logs {
+  margin: 0.75rem 0;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #f8fafc;
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.test-logs > summary {
+  list-style: none;
+  padding: 0.6rem 0.9rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.test-logs > summary::-webkit-details-marker {
+  display: none;
+}
+
+.test-logs pre {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  background: #111827;
+  color: #f8fafc;
+  padding: 0.75rem;
+  border-radius: 0 0 8px 8px;
+  white-space: pre-wrap;
+}
+
+.test-errors header {
   font-weight: 600;
   margin-bottom: 0.5rem;
 }
 
-.test-errors pre,
-.test-logs pre {
+.test-errors pre {
   margin: 0;
   background: #111827;
   color: #f8fafc;
@@ -703,31 +1143,56 @@ const filterScript = `
 (function () {
   const statusInputs = Array.from(document.querySelectorAll('.status-filters input[type="checkbox"]'));
   const searchInput = document.getElementById('report-search');
-  const tests = Array.from(document.querySelectorAll('.test-card'));
+  const testCards = Array.from(document.querySelectorAll('.test-card'));
+  const testGroups = Array.from(document.querySelectorAll('.test-group'));
+  const navTestItems = Array.from(document.querySelectorAll('.test-navigation [data-test-anchor]'));
+  const navGroupItems = Array.from(document.querySelectorAll('.test-navigation [data-group-anchor]'));
 
   function applyFilters() {
     const activeStatuses = statusInputs.filter((input) => input.checked).map((input) => input.value);
-    const searchTerm = searchInput.value.trim().toLowerCase();
+    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
-    tests.forEach((card) => {
+    testCards.forEach((card) => {
       const status = Array.from(card.classList).find((cls) => cls.startsWith('status-'))?.replace('status-', '');
       const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes(status);
       const content = card.innerText.toLowerCase();
       const matchesSearch = !searchTerm || content.includes(searchTerm);
-      card.setAttribute('data-hidden', !(matchesStatus && matchesSearch));
+      card.setAttribute('data-hidden', matchesStatus && matchesSearch ? 'false' : 'true');
+    });
+
+    testGroups.forEach((group) => {
+      const visible = Array.from(group.querySelectorAll('.test-card')).some((card) => card.getAttribute('data-hidden') !== 'true');
+      group.setAttribute('data-hidden', visible ? 'false' : 'true');
+    });
+
+    navTestItems.forEach((item) => {
+      const anchor = item.getAttribute('data-test-anchor');
+      const card = anchor ? document.getElementById(anchor) : null;
+      const hidden = !card || card.getAttribute('data-hidden') === 'true';
+      item.setAttribute('data-hidden', hidden ? 'true' : 'false');
+    });
+
+    navGroupItems.forEach((item) => {
+      const anchor = item.getAttribute('data-group-anchor');
+      const group = anchor ? document.getElementById(anchor) : null;
+      const hidden = !group || group.getAttribute('data-hidden') === 'true';
+      item.setAttribute('data-hidden', hidden ? 'true' : 'false');
     });
   }
 
   statusInputs.forEach((input) => input.addEventListener('change', applyFilters));
-  searchInput.addEventListener('input', applyFilters);
+  searchInput?.addEventListener('input', applyFilters);
   applyFilters();
 })();
 `;
 
 function renderReportHtml(run) {
-  const testsHtml = run.tests.map(renderTestCard).join('\n');
+  const groupedTests = groupTests(run.tests);
+  const navigationHtml = renderTestNavigation(groupedTests);
+  const testsHtml = groupedTests.map(renderTestGroup).join('\n');
   const metadataHtml = renderMetadata(run);
   const summaryCards = renderSummaryCards(run);
+  const runSummariesHtml = renderRunSummaries(run.runSummaries);
   const statusFilters = renderStatusFilters(run.statusCounts);
 
   return `<!DOCTYPE html>
@@ -747,6 +1212,8 @@ function renderReportHtml(run) {
   <main>
     ${summaryCards}
     ${metadataHtml}
+    ${runSummariesHtml}
+    ${navigationHtml}
     ${statusFilters}
     <section class="tests-list" aria-label="Test results">
       ${testsHtml}

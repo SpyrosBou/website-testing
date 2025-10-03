@@ -281,6 +281,7 @@ test.describe('Functionality: Interactive Elements', () => {
       htmlBody: summaryHtml,
       markdown: summaryMarkdown,
       setDescription: true,
+      title: 'Interactive smoke summary',
     });
   });
 

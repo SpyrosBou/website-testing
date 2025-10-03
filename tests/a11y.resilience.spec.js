@@ -1,5 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const SiteLoader = require('../utils/site-loader');
+
+test.use({ trace: 'off', video: 'off' });
 const {
   setupTestPage,
   teardownTestPage,
@@ -592,6 +594,7 @@ test.describe('Accessibility: Resilience checks', () => {
       htmlBody: formatReducedMotionSummaryHtml(reports),
       markdown: formatReducedMotionSummaryMarkdown(reports),
       setDescription: true,
+      title: 'Reduced motion support summary',
     });
 
     expect(gatingTotal, 'Reduced motion gating issues detected').toBe(0);
@@ -680,6 +683,7 @@ test.describe('Accessibility: Resilience checks', () => {
       htmlBody: formatReflowSummaryHtml(reports),
       markdown: formatReflowSummaryMarkdown(reports),
       setDescription: true,
+      title: '320px reflow summary',
     });
 
     expect(gatingTotal, 'Reflow gating issues detected').toBe(0);
@@ -785,6 +789,7 @@ test.describe('Accessibility: Resilience checks', () => {
       htmlBody: formatIframeSummaryHtml(reports),
       markdown: formatIframeSummaryMarkdown(reports),
       setDescription: true,
+      title: 'Iframe accessibility summary',
     });
 
     expect(gatingTotal, 'Iframe accessibility gating issues detected').toBe(0);

@@ -122,6 +122,7 @@ test.describe('Functionality: WordPress Specific', () => {
       htmlBody: summaryHtml,
       markdown: summaryMarkdown,
       setDescription: true,
+      title: 'WordPress plugin detection summary',
     });
   });
 
@@ -168,6 +169,7 @@ test.describe('Functionality: WordPress Specific', () => {
       htmlBody: summaryHtml,
       markdown: summaryMarkdown,
       setDescription: true,
+      title: 'Theme structure summary',
     });
   });
 });
