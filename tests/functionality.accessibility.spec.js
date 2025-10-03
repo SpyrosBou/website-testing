@@ -453,10 +453,15 @@ const buildSuiteSummaryHtml = (
       : '';
   const pageCardsHtml = pageReports.map((report) => formatPageCardHtml(report)).join('\n');
 
+  const uniqueViewports = Array.from(
+    new Set(pageReports.map((report) => report.projectName || 'default'))
+  );
+  const viewportLabel = uniqueViewports.join(', ');
+
   return `
     <section class="summary-report summary-a11y">
       <h2>Accessibility run summary</h2>
-      <p>Analyzed <strong>${pageReports.length}</strong> page(s) with a ${STABILITY_TIMEOUT_MS / 1000}s stability budget per strategy.</p>
+      <p>Analyzed <strong>${pageReports.length}</strong> page(s) per browser across ${uniqueViewports.length} viewport(s): ${escapeHtml(viewportLabel)}.</p>
       ${summaryItems ? `<ul class="status-summary">${summaryItems}</ul>` : ''}
       <p class="details">Gating threshold: ${escapeHtml(failOnLabel)}</p>
       ${
