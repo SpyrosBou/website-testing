@@ -613,6 +613,9 @@ const accessibilityPages = selectAccessibilityTestPages(siteConfig, {
 });
 const totalPages = accessibilityPages.length;
 const RUN_TOKEN = process.env.A11Y_RUN_TOKEN || `${Date.now()}`;
+if (!process.env.A11Y_RUN_TOKEN) {
+  process.env.A11Y_RUN_TOKEN = RUN_TOKEN;
+}
 
 if (accessibilitySampleSetting !== 'all') {
   const sampleSource = process.env.A11Y_SAMPLE

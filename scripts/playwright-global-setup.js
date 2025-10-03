@@ -2,6 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = async () => {
+  if (!process.env.A11Y_RUN_TOKEN) {
+    process.env.A11Y_RUN_TOKEN = String(Date.now());
+  }
+
   if (String(process.env.PW_SKIP_RESULT_CLEAN || '').toLowerCase() === 'true') {
     console.log('⚠️  Skipping automatic result cleanup (PW_SKIP_RESULT_CLEAN=true).');
     return;
