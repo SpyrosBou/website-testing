@@ -47,7 +47,8 @@ const slugify = (value) =>
 
 const formatRuleSummary = (violations, title = 'Violation roll-up by rule') => {
   const aggregate = new Map();
-  for (const { page, entries } of violations) {
+  for (const { page, project, entries } of violations) {
+    const viewport = project || 'default';
     for (const violation of entries) {
       const key = violation.id;
       if (!aggregate.has(key)) {
@@ -56,12 +57,16 @@ const formatRuleSummary = (violations, title = 'Violation roll-up by rule') => {
           impact: violation.impact,
           helpUrl: violation.helpUrl,
           pages: new Set(),
+          viewports: new Set(),
+          occurrences: new Set(),
           totalNodes: 0,
           levels: new Map(),
         });
       }
       const entry = aggregate.get(key);
       entry.pages.add(page);
+      entry.viewports.add(viewport);
+      entry.occurrences.add(`${viewport}::${page}`);
       entry.totalNodes += violation.nodes?.length || 0;
       const levels = extractWcagLevels(violation.tags || []);
       for (const level of levels) {
@@ -76,14 +81,15 @@ const formatRuleSummary = (violations, title = 'Violation roll-up by rule') => {
     const levels = Array.from(item.levels.values())
       .map((level) => level.label)
       .join('<br />') || 'n/a';
-    return `| ${item.impact || 'unknown'} | ${item.id} | ${item.pages.size} | ${item.totalNodes} | ${levels} | [link](${item.helpUrl}) |`;
+    const viewportText = Array.from(item.viewports).sort().join(', ') || 'n/a';
+    return `| ${item.impact || 'unknown'} | ${item.id} | ${viewportText} | ${item.pages.size} | ${item.totalNodes} | ${levels} | [link](${item.helpUrl}) |`;
   });
 
   const heading = `${title} (${aggregate.size} unique rule${aggregate.size === 1 ? '' : 's'})`;
 
   return (
     `### ${heading}\n\n` +
-    '| Impact | Rule | Pages | Nodes | WCAG level | Help |\n| --- | --- | --- | --- | --- | --- |\n' +
+    '| Impact | Rule | Viewport(s) | Pages | Nodes | WCAG level | Help |\n| --- | --- | --- | --- | --- | --- | --- |\n' +
     rows.join('\n') +
     '\n'
   );
@@ -115,7 +121,8 @@ const formatViolationTableMarkdown = (page, violations, options = {}) => {
 
 const formatRuleSummaryHtml = (violations, title = 'Rule summary') => {
   const aggregate = new Map();
-  for (const { page, entries } of violations) {
+  for (const { page, project, entries } of violations) {
+    const viewport = project || 'default';
     for (const violation of entries) {
       const key = violation.id;
       if (!aggregate.has(key)) {
@@ -124,12 +131,16 @@ const formatRuleSummaryHtml = (violations, title = 'Rule summary') => {
           impact: violation.impact,
           helpUrl: violation.helpUrl,
           pages: new Set(),
+          viewports: new Set(),
+          occurrences: new Set(),
           totalNodes: 0,
           levels: new Map(),
         });
       }
       const entry = aggregate.get(key);
       entry.pages.add(page);
+      entry.viewports.add(viewport);
+      entry.occurrences.add(`${viewport}::${page}`);
       entry.totalNodes += violation.nodes?.length || 0;
       const levels = extractWcagLevels(violation.tags || []);
       for (const level of levels) {
@@ -146,10 +157,12 @@ const formatRuleSummaryHtml = (violations, title = 'Rule summary') => {
       const wcagBadges = formatWcagLabels(Array.from(item.levels.values()), {
         asHtmlBadges: true,
       });
+      const viewportText = escapeHtml(Array.from(item.viewports).sort().join(', ') || 'n/a');
       return `
         <tr class="impact-${impact.toLowerCase()}">
           <td>${escapeHtml(impact)}</td>
           <td>${escapeHtml(item.id)}</td>
+          <td>${viewportText}</td>
           <td>${item.pages.size}</td>
           <td>${item.totalNodes}</td>
           <td>${wcagBadges}</td>
@@ -166,7 +179,7 @@ const formatRuleSummaryHtml = (violations, title = 'Rule summary') => {
       <h3>${escapeHtml(heading)}</h3>
       <table>
         <thead>
-          <tr><th>Impact</th><th>Rule</th><th>Pages</th><th>Nodes</th><th>WCAG level</th><th>Help</th></tr>
+          <tr><th>Impact</th><th>Rule</th><th>Viewport(s)</th><th>Pages</th><th>Nodes</th><th>WCAG level</th><th>Help</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -256,6 +269,7 @@ const formatPageCardHtml = (report) => {
     : '';
 
   const gatingLabel = report.gatingLabel || 'WCAG A/AA/AAA';
+  const viewportLabel = report.projectName || 'default';
 
   const gatingSections = [];
   if (Array.isArray(report.violations) && report.violations.length > 0) {
@@ -312,6 +326,7 @@ const formatPageCardHtml = (report) => {
         <span class="status-pill ${pillClass}">${escapeHtml(meta.label)}</span>
       </div>
       <div class="page-card__meta">
+        <p class="details"><strong>Viewport:</strong> ${escapeHtml(viewportLabel)}</p>
         <p class="details"><strong>Stability:</strong> ${stabilitySummary}</p>
         <p class="details"><strong>Gating:</strong> ${escapeHtml(gatingLabel)}</p>
         ${stabilityAttemptsHtml}
@@ -325,7 +340,13 @@ const formatPageCardHtml = (report) => {
 const formatPageCardMarkdown = (report) => {
   const meta = STATUS_METADATA[report.status] || STATUS_METADATA.skipped;
   const gatingLabel = report.gatingLabel || 'WCAG A/AA/AAA';
-  const lines = [`### ${report.page}`, '', `- Status: ${meta.label}`, `- Gating: ${gatingLabel}`];
+  const lines = [
+    `### ${report.page}`,
+    '',
+    `- Status: ${meta.label}`,
+    `- Gating: ${gatingLabel}`,
+    `- Viewport: ${report.projectName || 'default'}`,
+  ];
 
   if (report.stability) {
     if (report.stability.ok) {
@@ -491,8 +512,8 @@ const buildSuiteSummaryMarkdown = (
     '',
     '## Per-page breakdown',
     '',
-    '| Page | Status | Notes |',
-    '| --- | --- | --- |',
+    '| Page | Viewport | Status | Notes |',
+    '| --- | --- | --- | --- |',
   ];
 
   pageReports.forEach((report) => {
@@ -520,7 +541,7 @@ const buildSuiteSummaryMarkdown = (
     if (Array.isArray(report.bestPractice) && report.bestPractice.length > 0) {
       notes.push(`${report.bestPractice.length} best-practice advisory finding(s)`);
     }
-    lines.push(`| \`${report.page}\` | ${meta.label} | ${notes.join('; ') || '—'} |`);
+    lines.push(`| \`${report.page}\` | ${report.projectName || 'default'} | ${meta.label} | ${notes.join('; ') || '—'} |`);
   });
 
   const gatingRuleSummary = formatRuleSummary(aggregatedViolations, 'Gating rule summary');
@@ -682,19 +703,20 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
 
         console.log(`➡️  [${index + 1}/${totalPages}] Accessibility scan for ${testPage}`);
 
-        const pageReport = {
-          page: testPage,
-          index: index + 1,
-          runToken: RUN_TOKEN,
-          status: 'skipped',
-          httpStatus: null,
-          stability: null,
-          notes: [],
-          violations: [],
-          advisory: [],
-          bestPractice: [],
-          gatingLabel: failOnLabel,
-        };
+      const pageReport = {
+        page: testPage,
+        index: index + 1,
+        runToken: RUN_TOKEN,
+        status: 'skipped',
+        httpStatus: null,
+        stability: null,
+        notes: [],
+        violations: [],
+        advisory: [],
+        bestPractice: [],
+        gatingLabel: failOnLabel,
+        projectName: testInfo.project?.name || 'default',
+      };
 
         let response;
         try {
@@ -876,13 +898,25 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
 
       for (const report of reports) {
         if (Array.isArray(report.violations) && report.violations.length > 0) {
-          aggregatedViolations.push({ page: report.page, entries: report.violations });
+          aggregatedViolations.push({
+            page: report.page,
+            project: report.projectName || 'default',
+            entries: report.violations,
+          });
         }
         if (Array.isArray(report.advisory) && report.advisory.length > 0) {
-          aggregatedAdvisories.push({ page: report.page, entries: report.advisory });
+          aggregatedAdvisories.push({
+            page: report.page,
+            project: report.projectName || 'default',
+            entries: report.advisory,
+          });
         }
         if (Array.isArray(report.bestPractice) && report.bestPractice.length > 0) {
-          aggregatedBestPractices.push({ page: report.page, entries: report.bestPractice });
+          aggregatedBestPractices.push({
+            page: report.page,
+            project: report.projectName || 'default',
+            entries: report.bestPractice,
+          });
         }
       }
 
