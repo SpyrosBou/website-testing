@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const { createHash } = require('node:crypto');
 const { renderReportHtml, formatBytes } = require('./report-templates');
+const { SCHEMA_ID: SUMMARY_SCHEMA_ID } = require('./report-schema');
 
 const DEFAULT_INLINE_LIMIT = 8 * 1024 * 1024; // 8 MB
 const DEFAULT_MAX_TEXT_LENGTH = 200_000; // characters
@@ -102,6 +103,7 @@ class CustomHtmlReporter {
       durationFriendly: formatDuration(result.duration || 0),
       attachments: processedAttachments.attachments,
       summaries: processedAttachments.summaries,
+      schemaSummaries: processedAttachments.schemaSummaries,
       stdout: (result.stdout || []).map((entry) => this.normaliseStd(entry)),
       stderr: (result.stderr || []).map((entry) => this.normaliseStd(entry)),
       errors: this.normaliseErrors(
@@ -118,6 +120,10 @@ class CustomHtmlReporter {
 
     if (processedAttachments.summaries.length > 0) {
       entry.summaryBlocks = processedAttachments.summaries;
+    }
+
+    if (processedAttachments.schemaSummaries.length > 0) {
+      entry.schemaSummaries = (entry.schemaSummaries || []).concat(processedAttachments.schemaSummaries);
     }
 
     entry.stdout = (entry.stdout || []).concat(attempt.stdout);
@@ -164,11 +170,12 @@ class CustomHtmlReporter {
 
   processAttachments(attachments) {
     if (!this.options.includeAttachments) {
-      return { attachments: [], summaries: [] };
+      return { attachments: [], summaries: [], schemaSummaries: [] };
     }
 
     const processed = [];
     const summaries = [];
+    const schemaSummaries = [];
 
     for (const attachment of attachments) {
       const name = attachment?.name || 'attachment';
@@ -196,6 +203,10 @@ class CustomHtmlReporter {
       if (contentType === 'application/json' && buffer) {
         try {
           const parsed = JSON.parse(buffer.toString('utf8'));
+          if (parsed?.schema === SUMMARY_SCHEMA_ID) {
+            schemaSummaries.push(parsed);
+            continue;
+          }
           if (parsed?.type === 'custom-report-summary') {
             summaries.push({
               baseName: parsed.baseName || name.replace(/\.summary\.json$/, ''),
@@ -269,7 +280,7 @@ class CustomHtmlReporter {
       processed.push(attachmentEntry);
     }
 
-    return { attachments: processed, summaries };
+    return { attachments: processed, summaries, schemaSummaries };
   }
 
   buildRunData() {
@@ -361,6 +372,16 @@ class CustomHtmlReporter {
         node: process.version,
       },
       tests: serialisedTests,
+      schemaSummaries: serialisedTests.reduce((acc, test) => {
+        if (Array.isArray(test.schemaSummaries) && test.schemaSummaries.length > 0) {
+          acc.push({
+            testAnchorId: test.anchorId,
+            projectName: test.projectName,
+            summaries: test.schemaSummaries,
+          });
+        }
+        return acc;
+      }, []),
       runSummaries,
     };
 
@@ -402,6 +423,7 @@ class CustomHtmlReporter {
         durationFriendly: attempt.durationFriendly,
       })),
       summaryBlocks: entry.summaryBlocks || [],
+      schemaSummaries: entry.schemaSummaries || [],
       stdout: entry.stdout || [],
       stderr: entry.stderr || [],
       errors: entry.errors || [],
