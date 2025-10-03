@@ -756,6 +756,46 @@ main {
   min-width: 0;
 }
 
+.debug-deck {
+  margin-top: 3rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.debug-deck > summary {
+  list-style: none;
+  margin: 0;
+  padding: 0.9rem 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.debug-deck > summary::-webkit-details-marker {
+  display: none;
+}
+
+.debug-deck__body {
+  padding: 1.2rem 1.3rem 1.4rem;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.debug-deck__intro {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
 .report-layout__sidebar {
   position: sticky;
   top: 2rem;
@@ -1282,6 +1322,9 @@ main {
   .report-layout__sidebar .test-navigation {
     max-height: none;
   }
+  .debug-deck__body {
+    padding: 1.2rem 1.1rem 1.3rem;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1368,15 +1411,21 @@ function renderReportHtml(run) {
     .join('\n');
   const statusFilters = renderStatusFilters(run.statusCounts);
   const layoutHtml = `
-    <div class="report-layout">
-      ${navigationHtml ? `<aside class="report-layout__sidebar">${navigationHtml}</aside>` : ''}
-      <div class="report-layout__content">
-        ${statusFilters}
-        <section class="tests-list" aria-label="Test results">
-          ${testsHtml}
-        </section>
+    <details class="debug-deck">
+      <summary>Debug testing</summary>
+      <div class="debug-deck__body">
+        <p class="debug-deck__intro">Use the navigation below to inspect raw Playwright projects, attachments, and logs.</p>
+        <div class="report-layout">
+          ${navigationHtml ? `<aside class="report-layout__sidebar">${navigationHtml}</aside>` : ''}
+          <div class="report-layout__content">
+            ${statusFilters}
+            <section class="tests-list" aria-label="Test results">
+              ${testsHtml}
+            </section>
+          </div>
+        </div>
       </div>
-    </div>
+    </details>
   `;
   const metadataHtml = renderMetadata(run);
   const summaryCards = renderSummaryCards(run);
