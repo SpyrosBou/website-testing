@@ -41,7 +41,13 @@ The utilities in this folder power site loading, sitemap discovery, Playwright o
 
 ### `reporting-utils.js`
 - Wraps reporting attachment logic (`attachSummary`) and consistent HTML styling for summary tables consumed by the custom reporter.
+- Feeds promoted run summaries, per-page accordions, and the debug deck cards—keep HTML lean so it renders cleanly both inline and inside the collapsed deck.
 - Use this when emitting new structured attachments so the custom report stays visually consistent.
+
+### `report-schema.js`
+- Defines helpers for emitting schema-tagged `run-summary`/`page-summary` payloads (`codex.report.summary` v1).
+- Specs will migrate to these helpers so the reporter can render a unified layout while retaining legacy attachments as a fallback.
+- Update docs/tests whenever the schema evolves; downstream validation depends on these constructors.
 
 ## Working With the Runner
 - Prefer adding new CLI flags in `run-tests.js` and plumbing them through `TestRunner` rather than shelling out from elsewhere.

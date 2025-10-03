@@ -3,9 +3,9 @@
 ## Project Structure & Module Organization
 - `tests/` Playwright specs: responsive (`responsive.*.spec.js`), functionality (`functionality.*.spec.js`), and `baseline-snapshots/` for visual baselines.
 - `sites/` JSON site configs (e.g., `example-site.json`, `*-local.json`, `*-live.json`).
-- `utils/` helpers (`test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`, `reporting-utils.js`).
+- `utils/` helpers (`test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`, `reporting-utils.js`, `report-schema.js`).
 - `specs/` experimental YAML definitions + generator (not wired into the runner).
-- Reports/artifacts: `reports/`, `playwright-report/`, `test-results/` (git-ignored).
+- Reports/artifacts: `reports/` (timestamped folders with `report.html` + `data/run.json`), `playwright-report/`, `test-results/` (git-ignored).
 
 ## Build, Test, and Development Commands
 - `npm run setup` — install deps and Playwright browsers.
@@ -29,7 +29,7 @@
 - Optional discovery: when `discover.strategy` is `sitemap`, run `npm run discover_pages -- --site=<name>` to fetch the sitemap, merge up to `maxPages` paths, and apply optional `include`/`exclude` filters without executing tests. Always keep `testPages` aligned with critical routes even when discovery is enabled.
 
 ## Testing Guidelines
-- Frameworks: `@playwright/test` + `@axe-core/playwright`; reporting via the custom HTML reporter in `utils/custom-html-reporter.js`.
+- Frameworks: `@playwright/test` + `@axe-core/playwright`; reporting via the custom HTML reporter in `utils/custom-html-reporter.js` with the new layout (headline cards → metadata → promoted summaries → collapsible "Debug testing" deck).
 - Default runs execute only the Chrome desktop Playwright project; pass `--project=all` or comma-separated names to broaden browser coverage.
 - Required env: set `SITE_NAME` implicitly via runner (`--site=<name>`). Running Playwright directly: `SITE_NAME=my-site npx playwright test`.
 - Add new tests under `tests/`.
@@ -47,7 +47,7 @@
 - `a11y.keyboard.spec.js` (focus order, skip links, keyboard traps, focus visibility; summaries cite WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7).
 - `a11y.resilience.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2).
 - `a11y.structure.spec.js` (landmark + heading integrity; summaries cite WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10).
-- Each functionality spec publishes HTML + Markdown attachments via `utils/reporting-utils.js`, so the custom report includes readable tables (availability, HTTP responses, link coverage, interactive errors, plugin/theme detection) instead of bare pass/fail icons.
+- Each functionality spec publishes HTML + Markdown attachments via `utils/reporting-utils.js`, feeding the promoted summary cards (aggregated per browser/viewport) and the per-page accordions in the headline. Detailed tables remain available once you expand a page accordion or the debug deck.
   - The manual accessibility suites add a dedicated “WCAG coverage” banner to their summaries; mirror that pattern for any new audit so reviewers immediately know which success criteria were exercised.
   - When adding a new spec, always publish a styled HTML + Markdown overview using `attachSummary` so the report stays scannable without diving into raw attachments.
 - WCAG-impact findings (e.g., contrast, keyboard traps) are never ignored in automated runs. If the suite flags one, treat it as a bug for the product/design team—do not whitelist it in configs just to satisfy CI.

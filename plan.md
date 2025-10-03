@@ -12,6 +12,13 @@
 - Maintain existing insight depth (tables, summaries, attachments) currently surfaced via `utils/reporting-utils.js` by migrating that logic into the new reporter pipeline.
 - Ensure cross-platform support for the view command (Windows, macOS, Linux) and work within the repo’s Node dependency footprint.
 
+## Status (2025-10-03)
+- ✅ Allure dependencies and scripts removed; custom HTML reporter is now the default.
+- ✅ Run layout delivers summary cards, run metadata, promoted spec summaries, and a collapsible "Debug testing" deck with persistent navigation.
+- ✅ Accessibility suite promotes aggregated per-browser summaries (page accordions, viewport distinction) via `buildSuiteSummaryHtml`.
+- 🟡 Schema helpers (`utils/report-schema.js`) scaffolded; reporter accepts schema payloads but rendering still depends on legacy HTML until more specs migrate.
+- 🟡 Non-accessibility specs yet to emit schema summaries; validation tooling and migration tasks remain scoped in `report-standardisation-plan.md`.
+
 ## Workstreams & Key Tasks
 
 ### 1. Decommission Allure

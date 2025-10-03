@@ -606,6 +606,9 @@ const a11yResultsBaseDir = path.join(
   '__a11y',
   slugify(siteConfig.name || siteName)
 );
+const globalSummaryDir = path.join(a11yResultsBaseDir, '__global');
+const resolveGlobalSummaryFlagPath = () =>
+  path.join(globalSummaryDir, `${RUN_TOKEN}-summary.json`);
 
 const resolveProjectResultsDir = (projectName) =>
   path.join(a11yResultsBaseDir, slugify(projectName || 'default'));
@@ -638,6 +641,127 @@ const readAllPageReports = async (projectName) => {
     if (error.code === 'ENOENT') return [];
     throw error;
   }
+};
+
+const resolveAvailableProjectNames = async () => {
+  try {
+    const entries = await fsp.readdir(a11yResultsBaseDir, { withFileTypes: true });
+    const candidates = entries
+      .filter((entry) => entry.isDirectory() && entry.name !== '__global')
+      .map((entry) => entry.name);
+
+    const projects = [];
+    for (const name of candidates) {
+      const reports = await readAllPageReports(name);
+      if (reports.some((report) => report.runToken === RUN_TOKEN)) {
+        projects.push(name);
+      }
+    }
+    return projects.length > 0 ? projects : candidates;
+  } catch (_error) {
+    return [];
+  }
+};
+
+const deriveAggregatedFindings = (reports) => {
+  const aggregatedViolations = [];
+  const aggregatedAdvisories = [];
+  const aggregatedBestPractices = [];
+
+  for (const report of reports) {
+    if (Array.isArray(report.violations) && report.violations.length > 0) {
+      aggregatedViolations.push({
+        page: report.page,
+        project: report.projectName || 'default',
+        entries: report.violations,
+      });
+    }
+    if (Array.isArray(report.advisory) && report.advisory.length > 0) {
+      aggregatedAdvisories.push({
+        page: report.page,
+        project: report.projectName || 'default',
+        entries: report.advisory,
+      });
+    }
+    if (Array.isArray(report.bestPractice) && report.bestPractice.length > 0) {
+      aggregatedBestPractices.push({
+        page: report.page,
+        project: report.projectName || 'default',
+        entries: report.bestPractice,
+      });
+    }
+  }
+
+  return { aggregatedViolations, aggregatedAdvisories, aggregatedBestPractices };
+};
+
+const maybeAttachGlobalSummary = async ({
+  testInfo,
+  totalPagesExpected,
+  failOnLabel,
+}) => {
+  const flagPath = resolveGlobalSummaryFlagPath();
+  try {
+    await fsp.access(flagPath);
+    return false;
+  } catch (_error) {
+    // flag not set; continue
+  }
+
+  const projectNames = await resolveAvailableProjectNames();
+  if (projectNames.length === 0) {
+    return false;
+  }
+  const combinedReports = [];
+
+  for (const projectName of projectNames) {
+    const reports = (await readAllPageReports(projectName))
+      .filter((report) => report.runToken === RUN_TOKEN && typeof report.index === 'number')
+      .sort((a, b) => (a.index || 0) - (b.index || 0));
+
+    if (reports.length < totalPagesExpected) {
+      return false; // other projects still processing; try later
+    }
+
+    combinedReports.push(...reports.slice(0, totalPagesExpected));
+  }
+
+  if (combinedReports.length === 0) return false;
+
+  const { aggregatedViolations, aggregatedAdvisories, aggregatedBestPractices } =
+    deriveAggregatedFindings(combinedReports);
+
+  const summaryHtml = buildSuiteSummaryHtml(
+    combinedReports,
+    aggregatedViolations,
+    aggregatedAdvisories,
+    aggregatedBestPractices,
+    failOnLabel
+  );
+  const summaryMarkdown = buildSuiteSummaryMarkdown(
+    combinedReports,
+    aggregatedViolations,
+    aggregatedAdvisories,
+    aggregatedBestPractices,
+    failOnLabel
+  );
+
+  await attachSummary({
+    baseName: 'a11y-summary',
+    htmlBody: summaryHtml,
+    markdown: summaryMarkdown,
+    setDescription: true,
+    title: 'Sitewide WCAG findings',
+  });
+
+  await fsp.mkdir(globalSummaryDir, { recursive: true });
+  await fsp.writeFile(
+    flagPath,
+    JSON.stringify({ attachedAt: new Date().toISOString(), project: testInfo.project.name }, null, 2),
+    'utf8'
+  );
+
+  return true;
 };
 
 const waitForPageReports = async (projectName, expectedCount, timeoutMs = 300000, pollMs = 1000) => {
@@ -862,33 +986,8 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
         return;
       }
 
-      const aggregatedViolations = [];
-      const aggregatedAdvisories = [];
-      const aggregatedBestPractices = [];
-
-      for (const report of reports) {
-        if (Array.isArray(report.violations) && report.violations.length > 0) {
-          aggregatedViolations.push({
-            page: report.page,
-            project: report.projectName || 'default',
-            entries: report.violations,
-          });
-        }
-        if (Array.isArray(report.advisory) && report.advisory.length > 0) {
-          aggregatedAdvisories.push({
-            page: report.page,
-            project: report.projectName || 'default',
-            entries: report.advisory,
-          });
-        }
-        if (Array.isArray(report.bestPractice) && report.bestPractice.length > 0) {
-          aggregatedBestPractices.push({
-            page: report.page,
-            project: report.projectName || 'default',
-            entries: report.bestPractice,
-          });
-        }
-      }
+      const { aggregatedViolations, aggregatedAdvisories, aggregatedBestPractices } =
+        deriveAggregatedFindings(reports);
 
       const summaryHtml = buildSuiteSummaryHtml(
         reports,
@@ -906,11 +1005,17 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
       );
 
       await attachSummary({
-        baseName: 'a11y-summary',
+        baseName: `a11y-summary-${slugify(testInfo.project.name)}`,
         htmlBody: summaryHtml,
         markdown: summaryMarkdown,
-        setDescription: true,
-        title: 'Sitewide WCAG findings',
+        setDescription: false,
+        title: `WCAG findings – ${testInfo.project.name}`,
+      });
+
+      await maybeAttachGlobalSummary({
+        testInfo,
+        totalPagesExpected: totalPages,
+        failOnLabel,
       });
 
       const totalViolations = aggregatedViolations.reduce(

@@ -23,6 +23,7 @@ Actions:
 - Remove `.withTags(WCAG_AXE_TAGS)` from both specs so `.analyze()` runs the full ruleset.
 - Keep severity gating logic unchanged. Continue to compute a “gating” bucket (impact ∈ `a11yFailOn`) and split out non-gating advisory results.
 - Reporting enhancement: add a third bucket for “Best-practice advisories (no WCAG tag)” to ensure non-WCAG rules surface clearly without conflating them with WCAG-mapped items.
+- Reporting enhancement: headline now reads “Analyzed X page(s) per browser across Y viewport(s)” so cross-browser scope is explicit; keep the text in sync if sampling logic changes.
 - Optional: introduce a runner flag or site config switch for compliance-only runs (e.g., `a11yTagsMode: 'all' | 'wcagOnly'`) to support audits where teams want WCAG-only views without altering gating defaults.
 
 Success Criteria:
@@ -165,7 +166,7 @@ Phase 3 (as needed)
 
 ## Success Criteria
 
-- Reports show three a11y buckets with counts; homepage is tested in all suites.
+- Reports show the per-browser/viewport headline text and three a11y buckets with counts; homepage is tested in all suites.
 - Keyboard, reduced-motion, and reflow checks present per page with clear pass/fail signals.
 - Nightly runs demonstrate broader coverage without flake spikes; daytime runs stay fast and reliable.
 

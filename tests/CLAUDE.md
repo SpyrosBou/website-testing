@@ -1,6 +1,6 @@
 # Tests Directory Guidance
 
-This directory houses the canonical Playwright specs executed by `run-tests.js`. Tests assume `SITE_NAME` is set (the runner does this automatically) and rely on helpers from `utils/` for navigation safety, retries, report attachments, and WordPress-specific selectors.
+This directory houses the canonical Playwright specs executed by `run-tests.js`. Tests assume `SITE_NAME` is set (the runner does this automatically) and rely on helpers from `utils/` for navigation safety, retries, report attachments, and WordPress-specific selectors. Summaries emitted here drive the new report layout: run headline cards, per-browser/viewport aggregation, and the per-page accordions surfaced above the "Debug testing" deck.
 
 ## Suite Overview
 
@@ -111,7 +111,7 @@ The runner categorizes specs based on filename patterns:
 - Always retrieve the site config via `SiteLoader.loadSite(process.env.SITE_NAME)` inside `beforeEach` to ensure environment parity with the runner.
 - Prefer helper utilities (`safeNavigate`, `waitForPageStability`, `retryOperation`) over ad hoc sleeps or `page.goto` calls.
 - Emit structured errors/logs; when logging console errors, include both message and URL for traceability.
-- When adding reporting output, reuse `attachSummary` from `utils/reporting-utils.js` so both HTML and Markdown attachments stay consistent.
+- When adding reporting output, reuse `attachSummary` from `utils/reporting-utils.js` so promoted summaries (run headline cards, per-page accordions) stay consistent and the debug deck inherits the same styling.
 - Keep form interactions idempotent—mock submissions where possible and avoid POSTing to production endpoints.
 
 ## Snapshot & Artifact Tips

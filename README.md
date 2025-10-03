@@ -11,7 +11,7 @@ On every run (`node run-tests.js --site=your-site`):
 - The suite loads the config, opens each page, and checks the layout on mobile, tablet, and desktop sizes.
 - It makes sure critical pieces like headers, menus, and footers are visible, and it compares screenshots to catch visual regressions.
 - It looks for broken links, slow or failing responses, JavaScript errors, and accessibility issues using axe-core plus targeted keyboard/resilience/form/structure audits that call out the relevant WCAG success criteria.
-- It writes a self-contained HTML report to `reports/run-<timestamp>/report.html` (plus JSON snapshots) so you can review results offline or share them, and you can open the latest run anytime with `npm run viewreport`.
+- It writes a self-contained HTML report to `reports/run-<timestamp>/report.html` (plus JSON snapshots) with a run headline, cross-browser summary tables, per-page accordions, and a collapsible "Debug testing" deck for raw Playwright output. Open the latest run anytime with `npm run viewreport`.
 
 To try it locally: run `npm run setup`, copy `sites/example-site.json` to your own file, update the URLs, then execute `node run-tests.js --site=<your-site>`. The HTML report will show you exactly what passed and what needs attention before users notice.
 
@@ -54,6 +54,16 @@ To try it locally: run `npm run setup`, copy `sites/example-site.json` to your o
    npm run viewreport
    ```
    This launches the most recent `reports/run-*/report.html` in your default browser. Use `npm run viewreport -- --list` to see the available run history or `npm run viewreport -- --file=run-20240101-101010` to open a specific run.
+
+### Report layout
+
+Every report folder contains `report.html` and a `data/` directory with the machine-readable JSON that powered it (for example: `reports/run-20251003-170959/data/run.json`). Opening the HTML shows three stacked sections:
+
+- **Headline + metadata** – summary cards (total/passed/failed/flaky) followed by run metadata (site, profile, browsers, start/end times) so you can confirm scope at a glance.
+- **Promoted summaries** – spec-provided overviews such as the accessibility run summary. These cards now aggregate findings "per browser across N viewport(s)" so Chrome desktop vs mobile distinctions are visible without duplicate blocks. Per-page detail lives behind an accordion for faster scanning.
+- **Debug testing accordion** – collapsed by default. Expanding reveals the navigation sidebar, status filters, and every individual Playwright project/test for deep dives into attachments, console output, and stack traces.
+
+Because the debug deck stays hidden unless you opt in, the top of the report remains stakeholder-friendly while power users still have one-click access to raw data when needed.
 
 ## Quick Setup (macOS)
 
