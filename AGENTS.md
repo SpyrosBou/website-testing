@@ -8,7 +8,7 @@
 - Reports/artifacts: `reports/`, `playwright-report/`, `test-results/` (git-ignored).
 
 ## Build, Test, and Development Commands
-- `npm run setup` — install deps and Playwright browsers.
+- `npm run setup` — install deps and download Playwright browsers into `.pw-browsers/`.
 - `npm test` or `node run-tests.js` — run suite for `example-site` (CLI only; no interactive mode).
 - `node run-tests.js --site=<name>` — run against a specific config.
 - `--responsive` / `--functionality` — filter suites (example: `node run-tests.js --site=daygroup-local --responsive`).
