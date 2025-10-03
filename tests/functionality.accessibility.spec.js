@@ -659,12 +659,12 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
   test.describe.parallel('Page scans', () => {
     let errorContext;
 
-    test.beforeEach(async ({ page, context }) => {
-      errorContext = await setupTestPage(page, context);
+    test.beforeEach(async ({ page, context }, testInfo) => {
+      errorContext = await setupTestPage(page, context, testInfo);
     });
 
-    test.afterEach(async ({ page, context }) => {
-      await teardownTestPage(page, context, errorContext);
+    test.afterEach(async ({ page, context }, testInfo) => {
+      await teardownTestPage(page, context, errorContext, testInfo);
     });
 
     accessibilityPages.forEach((testPage, index) => {

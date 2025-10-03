@@ -42,7 +42,7 @@ class SpecificationToTestGenerator {
     testCode.push(this.indent('let errorContext;'));
     testCode.push('');
 
-    testCode.push(this.indent('test.beforeEach(async ({ page, context }) => {'));
+    testCode.push(this.indent('test.beforeEach(async ({ page, context }, testInfo) => {'));
     this.indentLevel++;
     testCode.push(this.indent('const siteName = process.env.SITE_NAME;'));
     testCode.push(this.indent('if (!siteName) {'));
@@ -52,14 +52,14 @@ class SpecificationToTestGenerator {
     testCode.push(this.indent('siteConfig = SiteLoader.loadSite(siteName);'));
     testCode.push(this.indent('SiteLoader.validateSiteConfig(siteConfig);'));
     testCode.push('');
-    testCode.push(this.indent('errorContext = await setupTestPage(page, context);'));
+    testCode.push(this.indent('errorContext = await setupTestPage(page, context, testInfo);'));
     this.indentLevel--;
     testCode.push(this.indent('});'));
     testCode.push('');
 
-    testCode.push(this.indent('test.afterEach(async ({ page, context }) => {'));
+    testCode.push(this.indent('test.afterEach(async ({ page, context }, testInfo) => {'));
     this.indentLevel++;
-    testCode.push(this.indent('await teardownTestPage(page, context, errorContext);'));
+    testCode.push(this.indent('await teardownTestPage(page, context, errorContext, testInfo);'));
     this.indentLevel--;
     testCode.push(this.indent('});'));
     testCode.push('');

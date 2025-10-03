@@ -8,6 +8,22 @@
  * following Playwright and testing-library best practices.
  */
 
+const { createBrowserDisconnectMonitor } = require('./browser-disconnect-monitor');
+
+const browserDisconnectMonitor = createBrowserDisconnectMonitor();
+const pageMonitorRegistrations = new WeakMap();
+
+function resolveBrowser(context) {
+  if (!context || typeof context.browser !== 'function') {
+    return null;
+  }
+  try {
+    return context.browser();
+  } catch (error) {
+    return null;
+  }
+}
+
 // Error types for better error handling
 const ErrorTypes = {
   NETWORK: 'network',
@@ -563,32 +579,41 @@ class ErrorContext {
 }
 
 // Test setup and teardown helpers
-async function setupTestPage(page, context) {
-  // Set up comprehensive error tracking
-  page.on('crash', async () => {
-    console.error('💥 Page crashed - this indicates a serious browser issue');
-    await debugBrowserState(page, context, 'page-crash');
-  });
-
-  page.on('close', () => {
-    console.log('📝 Page closed event triggered');
-  });
-
-  // Monitor browser disconnection
-  if (context.browser()) {
-    context.browser().on('disconnected', () => {
-      console.error('💥 Browser disconnected unexpectedly');
-    });
+async function setupTestPage(page, context, testInfo) {
+  const browser = resolveBrowser(context);
+  const registration = browserDisconnectMonitor.registerTestStart(browser, testInfo);
+  if (registration) {
+    pageMonitorRegistrations.set(page, registration);
   }
 
-  // Set generous timeouts for stability
-  page.setDefaultNavigationTimeout(30000);
-  page.setDefaultTimeout(20000);
+  try {
+    page.on('crash', async () => {
+      console.error('💥 Page crashed - this indicates a serious browser issue');
+      await debugBrowserState(page, context, 'page-crash');
+    });
 
-  return new ErrorContext();
+    page.on('close', () => {
+      console.log('📝 Page closed event triggered');
+    });
+
+    // Set generous timeouts for stability
+    page.setDefaultNavigationTimeout(30000);
+    page.setDefaultTimeout(20000);
+
+    return new ErrorContext();
+  } catch (error) {
+    if (registration) {
+      browserDisconnectMonitor.registerTestEnd(registration, {
+        reason: 'setup-failure',
+        testInfo,
+      });
+      pageMonitorRegistrations.delete(page);
+    }
+    throw error;
+  }
 }
 
-async function teardownTestPage(page, context, errorContext) {
+async function teardownTestPage(page, context, errorContext, testInfo) {
   try {
     if (!page.isClosed()) {
       const currentUrl = await page.url();
@@ -601,6 +626,15 @@ async function teardownTestPage(page, context, errorContext) {
       errorContext.logError(error, { phase: 'teardown' });
     }
     await debugBrowserState(page, context, 'teardown-error');
+  } finally {
+    const registration = pageMonitorRegistrations.get(page);
+    if (registration) {
+      browserDisconnectMonitor.registerTestEnd(registration, {
+        reason: 'teardown-complete',
+        testInfo,
+      });
+      pageMonitorRegistrations.delete(page);
+    }
   }
 }
 

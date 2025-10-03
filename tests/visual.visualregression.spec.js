@@ -74,16 +74,16 @@ test.describe('Visual Regression', () => {
   let siteConfig;
   let errorContext;
 
-  test.beforeEach(async ({ page, context }) => {
+  test.beforeEach(async ({ page, context }, testInfo) => {
     const siteName = process.env.SITE_NAME;
     if (!siteName) throw new Error('SITE_NAME environment variable is required');
     siteConfig = SiteLoader.loadSite(siteName);
     SiteLoader.validateSiteConfig(siteConfig);
-    errorContext = await setupTestPage(page, context);
+    errorContext = await setupTestPage(page, context, testInfo);
   });
 
-  test.afterEach(async ({ page, context }) => {
-    await teardownTestPage(page, context, errorContext);
+  test.afterEach(async ({ page, context }, testInfo) => {
+    await teardownTestPage(page, context, errorContext, testInfo);
   });
 
   const enabledViewportKeys = resolveViewports();
