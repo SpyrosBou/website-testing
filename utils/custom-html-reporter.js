@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { createHash } = require('node:crypto');
-const { renderReportHtml, formatBytes } = require('./report-templates');
+const { renderReportHtml, formatBytes, renderSchemaSummariesMarkdown, renderRunSummariesMarkdown } = require('./report-templates');
 const { SCHEMA_ID: SUMMARY_SCHEMA_ID } = require('./report-schema');
 
 const DEFAULT_INLINE_LIMIT = 8 * 1024 * 1024; // 8 MB
@@ -465,6 +465,32 @@ class CustomHtmlReporter {
 
     for (const test of runData.tests) {
       fs.writeFileSync(path.join(testsDir, `${test.anchorId}.json`), JSON.stringify(test, null, 2));
+    }
+
+    const schemaMarkdownRender = renderSchemaSummariesMarkdown(runData.schemaSummaries || []);
+    const schemaMarkdown = schemaMarkdownRender.markdown || '';
+    const schemaPromotedBaseNames = schemaMarkdownRender.promotedBaseNames || new Set();
+    const filteredMarkdownSummaries = (runData.runSummaries || []).filter((summary) =>
+      summary?.baseName ? !schemaPromotedBaseNames.has(summary.baseName) : true
+    );
+    const runSummariesMarkdown = renderRunSummariesMarkdown(filteredMarkdownSummaries);
+    const markdownSections = [schemaMarkdown, runSummariesMarkdown]
+      .map((section) => (section || '').trim())
+      .filter((section) => section.length > 0);
+
+    if (markdownSections.length > 0) {
+      const headerLines = [
+        `# ${runData.title || 'Playwright Test Report'}`,
+        '',
+        `- Run ID: ${runData.runId}`,
+      ];
+      if (runData.durationFriendly) headerLines.push(`- Duration: ${runData.durationFriendly}`);
+      headerLines.push(`- Total Tests: ${runData.totalTests}`);
+      if (runData.site) headerLines.push(`- Site: ${runData.site}`);
+      if (runData.profile) headerLines.push(`- Profile: ${runData.profile}`);
+
+      const markdownContent = `${headerLines.join('\n')}\n\n${markdownSections.join('\n\n')}\n`;
+      fs.writeFileSync(path.join(runDir, 'report.md'), markdownContent, 'utf8');
     }
 
     const relativeReportPath = path.relative(rootDir, reportPath).split(path.sep).join('/');

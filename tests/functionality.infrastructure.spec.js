@@ -7,201 +7,14 @@ const {
   waitForPageStability,
 } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
-const { attachSummary, attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSchemaSummary } = require('../utils/reporting-utils');
 const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
-
-const statusClassName = (status) => {
-  if (status >= 400) return 'status-error';
-  if (status >= 300) return 'status-redirect';
-  return 'status-ok';
-};
 
 const slugify = (value) =>
   String(value || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'section';
-
-const formatHttpSummaryHtml = (results) => {
-  const rows = results
-    .map((entry) => {
-      const className = statusClassName(entry.status);
-      const checksHtml = entry.checks
-        .map(
-          (check) =>
-            `<li class="${check.passed ? 'check-pass' : 'check-fail'}">${escapeHtml(check.label)}${
-              check.details ? ` <span class="details">(${escapeHtml(check.details)})</span>` : ''
-            }</li>`
-        )
-        .join('');
-      const redirectNote =
-        entry.status >= 300 && entry.status < 400 && entry.location
-          ? `<div class="note">Location: <code>${escapeHtml(entry.location)}</code></div>`
-          : '';
-      return `
-        <tr class="${className}">
-          <td><code>${escapeHtml(entry.page)}</code></td>
-          <td>${entry.status}${entry.statusText ? ` ${escapeHtml(entry.statusText)}` : ''}</td>
-          <td>
-            <ul class="checks">${checksHtml || '<li>No 200 OK validation run</li>'}</ul>
-            ${redirectNote}
-          </td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  return `
-    <section class="summary-report summary-http">
-      <h3>HTTP response &amp; content integrity</h3>
-      <p class="legend">
-        <span class="badge ok">200 OK</span>
-        <span class="badge redirect">3xx redirect</span>
-        <span class="badge error">4xx/5xx</span>
-      </p>
-      <table>
-        <thead>
-          <tr><th>Path</th><th>Status</th><th>Checks</th></tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </section>
-  `;
-};
-
-const formatHttpSummaryMarkdown = (results) =>
-  ['# HTTP response & content integrity summary', '', '| Path | Status | Notes |', '| --- | --- | --- |']
-    .concat(
-      results.map((entry) => {
-        const notes = entry.checks
-          .map((check) => `${check.passed ? '✅' : '⚠️'} ${check.label}${check.details ? ` (${check.details})` : ''}`)
-          .join('<br />');
-        const statusLabel = entry.statusText ? `${entry.status} ${entry.statusText}` : `${entry.status}`;
-        return `| \`${entry.page}\` | ${statusLabel} | ${notes || 'No 200 OK validation run'} |`;
-      })
-    )
-    .join('\n');
-
-const renderElementCheck = (value) => (value ? '✅' : '⚠️');
-
-const formatAvailabilitySummaryHtml = (results) => {
-  const rows = results
-    .map((entry) => {
-      const className = statusClassName(entry.status ?? 0);
-      const headerCell = entry.elements ? renderElementCheck(entry.elements.header) : '—';
-      const navCell = entry.elements ? renderElementCheck(entry.elements.navigation) : '—';
-      const contentCell = entry.elements ? renderElementCheck(entry.elements.content) : '—';
-      const footerCell = entry.elements ? renderElementCheck(entry.elements.footer) : '—';
-      const notesHtml = entry.notes.length
-        ? `<ul class="checks">${entry.notes
-            .map((note) => `<li class="${note.type === 'info' ? 'check-pass' : 'check-fail'}">${escapeHtml(note.message)}</li>`)
-            .join('')}</ul>`
-        : '<ul class="checks"><li class="check-pass">OK</li></ul>';
-      const statusLabel = entry.status === null ? 'n/a' : entry.status;
-      return `
-        <tr class="${className}">
-          <td><code>${escapeHtml(entry.page)}</code></td>
-          <td>${statusLabel}</td>
-          <td>${headerCell}</td>
-          <td>${navCell}</td>
-          <td>${contentCell}</td>
-          <td>${footerCell}</td>
-          <td>${notesHtml}</td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  return `
-    <section class="summary-report summary-availability">
-      <h3>Page availability &amp; structure</h3>
-      <table>
-        <thead><tr><th>Page</th><th>Status</th><th>Header</th><th>Navigation</th><th>Content</th><th>Footer</th><th>Notes</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </section>
-  `;
-};
-
-const formatAvailabilitySummaryMarkdown = (results) => {
-  const header = ['# Page availability summary', '', '| Page | Status | Header | Navigation | Content | Footer | Notes |', '| --- | --- | --- | --- | --- | --- | --- |'];
-  const rows = results.map((entry) => {
-    const statusLabel = entry.status === null ? 'n/a' : entry.status;
-    const notes = entry.notes.map((note) => `${note.type === 'info' ? 'ℹ️' : '⚠️'} ${note.message}`).join('<br />') || 'OK';
-    const headerCell = entry.elements ? renderElementCheck(entry.elements.header) : '—';
-    const navCell = entry.elements ? renderElementCheck(entry.elements.navigation) : '—';
-    const contentCell = entry.elements ? renderElementCheck(entry.elements.content) : '—';
-    const footerCell = entry.elements ? renderElementCheck(entry.elements.footer) : '—';
-    return `| \`${entry.page}\` | ${statusLabel} | ${headerCell} | ${navCell} | ${contentCell} | ${footerCell} | ${notes} |`;
-  });
-  return header.concat(rows).join('\n');
-};
-
-const formatPerformanceSummaryHtml = (data, breaches) => {
-  const breachMap = new Map();
-  breaches.forEach((entry) => {
-    if (!breachMap.has(entry.page)) breachMap.set(entry.page, []);
-    breachMap.get(entry.page).push(entry);
-  });
-
-  const rows = data
-    .map((entry) => {
-      const pageBreaches = breachMap.get(entry.page) || [];
-      const className = pageBreaches.length > 0 ? 'status-error' : 'status-ok';
-      const breachNotes = pageBreaches
-        .map(
-          (breach) =>
-            `<li class="check-fail">${escapeHtml(breach.metric)} ${Math.round(breach.value)}ms (budget ${breach.budget}ms)</li>`
-        )
-        .join('');
-      const notesHtml = pageBreaches.length
-        ? `<ul class="checks">${breachNotes}</ul>`
-        : '<ul class="checks"><li class="check-pass">Within budgets</li></ul>';
-      return `
-        <tr class="${className}">
-          <td><code>${escapeHtml(entry.page)}</code></td>
-          <td>${Math.round(entry.loadTime)}ms</td>
-          <td>${Math.round(entry.domContentLoaded)}ms</td>
-          <td>${Math.round(entry.loadComplete)}ms</td>
-          <td>${Math.round(entry.firstContentfulPaint)}ms</td>
-          <td>${notesHtml}</td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  return `
-    <section class="summary-report summary-performance">
-      <h3>Performance metrics (sample pages)</h3>
-      <table>
-        <thead><tr><th>Page</th><th>Load time</th><th>DOM content loaded</th><th>Load complete</th><th>FCP</th><th>Budget notes</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </section>
-  `;
-};
-
-const formatPerformanceSummaryMarkdown = (data, breaches) => {
-  const breachMap = new Map();
-  breaches.forEach((entry) => {
-    if (!breachMap.has(entry.page)) breachMap.set(entry.page, []);
-    breachMap.get(entry.page).push(entry);
-  });
-  const header = ['# Performance metrics summary', '', '| Page | Load time | DOMContentLoaded | Load complete | FCP | Notes |', '| --- | --- | --- | --- | --- | --- |'];
-  const rows = data.map((entry) => {
-    const pageBreaches = breachMap.get(entry.page) || [];
-    const notes =
-      pageBreaches.length === 0
-        ? 'Within budgets'
-        : pageBreaches
-            .map(
-              (breach) => `${breach.metric}: ${Math.round(breach.value)}ms (budget ${breach.budget}ms)`
-            )
-            .join('<br />');
-    return `| \`${entry.page}\` | ${Math.round(entry.loadTime)}ms | ${Math.round(entry.domContentLoaded)}ms | ${Math.round(entry.loadComplete)}ms | ${Math.round(entry.firstContentfulPaint)}ms | ${notes} |`;
-  });
-  return header.concat(rows).join('\n');
-};
 
 const buildAvailabilitySchemaPayloads = (results, projectName) => {
   if (!Array.isArray(results) || results.length === 0) return null;
@@ -436,16 +249,6 @@ test.describe('Functionality: Core Infrastructure', () => {
     }
 
     if (availabilityResults.length > 0) {
-      const summaryHtml = formatAvailabilitySummaryHtml(availabilityResults);
-      const summaryMarkdown = formatAvailabilitySummaryMarkdown(availabilityResults);
-      await attachSummary({
-        baseName: 'availability-summary',
-        htmlBody: summaryHtml,
-        markdown: summaryMarkdown,
-        setDescription: true,
-        title: 'Availability & uptime summary',
-      });
-
       const testInfo = test.info();
       const schemaPayloads = buildAvailabilitySchemaPayloads(availabilityResults, testInfo.project.name);
       if (schemaPayloads) {
@@ -520,16 +323,6 @@ test.describe('Functionality: Core Infrastructure', () => {
     }
 
     if (responseResults.length > 0) {
-      const summaryHtml = formatHttpSummaryHtml(responseResults);
-      const summaryMarkdown = formatHttpSummaryMarkdown(responseResults);
-      await attachSummary({
-        baseName: 'http-response-summary',
-        htmlBody: summaryHtml,
-        markdown: summaryMarkdown,
-        setDescription: true,
-        title: 'HTTP response validation summary',
-      });
-
       const testInfo = test.info();
       const schemaPayloads = buildHttpSchemaPayloads(responseResults, testInfo.project.name);
       if (schemaPayloads) {
@@ -624,16 +417,6 @@ test.describe('Functionality: Core Infrastructure', () => {
           .join('\n');
         console.error(`⚠️  Performance budgets exceeded:\n${details}`);
       }
-      const summaryHtml = formatPerformanceSummaryHtml(performanceData, performanceBreaches);
-      const summaryMarkdown = formatPerformanceSummaryMarkdown(performanceData, performanceBreaches);
-      await attachSummary({
-        baseName: 'performance-summary',
-        htmlBody: summaryHtml,
-        markdown: summaryMarkdown,
-        setDescription: true,
-        title: 'Performance monitoring summary',
-      });
-
       const testInfo = test.info();
       const schemaPayloads = buildPerformanceSchemaPayloads(
         performanceData,

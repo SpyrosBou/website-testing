@@ -8,100 +8,93 @@ const {
 } = require('../utils/test-helpers');
 const { TestDataFactory, createTestData } = require('../utils/test-data-factory');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
-const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSchemaSummary } = require('../utils/reporting-utils');
+const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 
 const slugify = (value) =>
   String(value || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'root';
+    .replace(/^-+|-+$/g, '') || 'root';const buildInteractiveSchemaPayloads = ({
+  pages,
+  consoleErrors,
+  resourceErrors,
+  resourceBudget,
+  projectName,
+}) => {
+  if (!Array.isArray(pages) || pages.length === 0) return null;
 
-const formatInteractiveSummaryHtml = (summaries, resourceBudget) => {
-  const rows = summaries
-    .map((entry) => {
-      const hasErrors = entry.consoleErrors.length > 0 || entry.resourceErrors.length > 0;
-      const statusClass = hasErrors || (entry.status && entry.status !== 200) ? 'status-error' : 'status-ok';
-      const statusLabel = entry.status === null ? 'n/a' : entry.status;
+  const totalConsoleErrors = Array.isArray(consoleErrors)
+    ? consoleErrors.length
+    : pages.reduce((total, entry) => total + entry.consoleErrors.length, 0);
+  const totalResourceErrors = Array.isArray(resourceErrors)
+    ? resourceErrors.length
+    : pages.reduce((total, entry) => total + entry.resourceErrors.length, 0);
+  const pagesWithConsoleErrors = pages.filter((entry) => entry.consoleErrors.length > 0).length;
+  const pagesWithResourceErrors = pages.filter((entry) => entry.resourceErrors.length > 0).length;
+  const pagesWithWarnings = pages.filter((entry) => entry.notes.some((note) => note.type === 'warning')).length;
 
-      const consoleList =
-        entry.consoleErrors.length === 0
-          ? '<li class="check-pass">No console errors</li>'
-          : entry.consoleErrors
-              .slice(0, 3)
-              .map((err) => `<li class="check-fail">${escapeHtml(err.message)}</li>`)
-              .join('');
-
-      const resourceList =
-        entry.resourceErrors.length === 0
-          ? '<li class="check-pass">No failed requests</li>'
-          : entry.resourceErrors
-              .slice(0, 3)
-              .map((err) => {
-                if (err.type === 'requestfailed') {
-                  return `<li class="check-fail">${escapeHtml(err.type)} &mdash; <code>${escapeHtml(err.url)}</code> (${escapeHtml(err.failure || 'unknown')})</li>`;
-                }
-                return `<li class="check-fail">${escapeHtml(err.type)} ${err.status} ${escapeHtml(err.method || '')} &mdash; <code>${escapeHtml(err.url)}</code></li>`;
-              })
-              .join('');
-
-      const notesHtml = entry.notes.length
-        ? `<ul class="checks">${entry.notes
-            .map((note) => `<li class="${note.type === 'info' ? 'check-pass' : 'check-fail'}">${escapeHtml(note.message)}</li>`)
-            .join('')}</ul>`
-        : '';
-
-      return `
-        <tr class="${statusClass}">
-          <td><code>${escapeHtml(entry.page)}</code></td>
-          <td>${statusLabel}</td>
-          <td><ul class="checks">${consoleList}</ul></td>
-          <td><ul class="checks">${resourceList}</ul></td>
-          <td>${notesHtml}</td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  return `
-    <section class="summary-report summary-interactive">
-      <h3>JavaScript &amp; resource monitoring</h3>
-      <p>Resource error budget: <strong>${resourceBudget}</strong></p>
-      <table>
-        <thead>
-          <tr><th>Page</th><th>Status</th><th>Console</th><th>Resources</th><th>Notes</th></tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </section>
-  `;
-};
-
-const formatInteractiveSummaryMarkdown = (summaries, resourceBudget) => {
-  const header = ['# JavaScript & resource monitoring summary', '', `Resource error budget: **${resourceBudget}**`, '', '| Page | Status | Console | Resources | Notes |', '| --- | --- | --- | --- | --- |'];
-  const rows = summaries.map((entry) => {
-    const statusLabel = entry.status === null ? 'n/a' : entry.status;
-    const consoleText =
-      entry.consoleErrors.length === 0
-        ? '✅ None'
-        : entry.consoleErrors
-            .slice(0, 3)
-            .map((err) => `⚠️ ${err.message}`)
-            .join('<br />');
-    const resourceText =
-      entry.resourceErrors.length === 0
-        ? '✅ None'
-        : entry.resourceErrors
-            .slice(0, 3)
-            .map((err) =>
-              err.type === 'requestfailed'
-                ? `⚠️ requestfailed ${err.url} (${err.failure || 'unknown'})`
-                : `⚠️ ${err.type} ${err.status} ${err.method || ''} ${err.url}`
-            )
-            .join('<br />');
-    const notesText = entry.notes.map((note) => `${note.type === 'info' ? 'ℹ️' : '⚠️'} ${note.message}`).join('<br />');
-    return `| \`${entry.page}\` | ${statusLabel} | ${consoleText || '—'} | ${resourceText || '—'} | ${notesText || '—'} |`;
+  const runPayload = createRunSummaryPayload({
+    baseName: `interactive-${slugify(projectName)}`,
+    title: 'Interactive smoke summary',
+    overview: {
+      totalPages: pages.length,
+      totalConsoleErrors,
+      totalResourceErrors,
+      pagesWithConsoleErrors,
+      pagesWithResourceErrors,
+      pagesWithWarnings,
+      resourceErrorBudget: resourceBudget,
+      budgetExceeded: totalResourceErrors > resourceBudget,
+    },
+    metadata: {
+      spec: 'functionality.interactive',
+      summaryType: 'interactive',
+      projectName,
+      scope: 'project',
+    },
   });
-  return header.concat(rows).join('\n');
+
+  const MAX_SAMPLE = 10;
+  const pagePayloads = pages.map((entry) => {
+    const consoleSample = entry.consoleErrors.slice(0, MAX_SAMPLE).map((error) => ({
+      message: error.message,
+      url: error.url || null,
+    }));
+    const resourceSample = entry.resourceErrors.slice(0, MAX_SAMPLE).map((error) => ({
+      type: error.type,
+      status: error.status ?? null,
+      method: error.method || null,
+      url: error.url,
+      failure: error.failure || null,
+    }));
+    const warnings = entry.notes.filter((note) => note.type === 'warning').map((note) => note.message);
+    const infoNotes = entry.notes.filter((note) => note.type !== 'warning').map((note) => note.message);
+
+    return createPageSummaryPayload({
+      baseName: `interactive-${slugify(projectName)}-${slugify(entry.page)}`,
+      title: `Interactive checks – ${entry.page}`,
+      page: entry.page,
+      viewport: projectName,
+      summary: {
+        status: entry.status,
+        consoleErrors: entry.consoleErrors.length,
+        resourceErrors: entry.resourceErrors.length,
+        consoleSample,
+        resourceSample,
+        warnings,
+        info: infoNotes,
+      },
+      metadata: {
+        spec: 'functionality.interactive',
+        summaryType: 'interactive',
+        projectName,
+        resourceErrorBudget: resourceBudget,
+      },
+    });
+  });
+
+  return { runPayload, pagePayloads };
 };
 
 test.describe('Functionality: Interactive Elements', () => {
@@ -274,15 +267,20 @@ test.describe('Functionality: Interactive Elements', () => {
     }
     expect.soft(resourceErrors.length).toBeLessThanOrEqual(resourceBudget);
 
-    const summaryHtml = formatInteractiveSummaryHtml(pageSummaries, resourceBudget);
-    const summaryMarkdown = formatInteractiveSummaryMarkdown(pageSummaries, resourceBudget);
-    await attachSummary({
-      baseName: 'interactive-summary',
-      htmlBody: summaryHtml,
-      markdown: summaryMarkdown,
-      setDescription: true,
-      title: 'Interactive smoke summary',
+    const schemaPayloads = buildInteractiveSchemaPayloads({
+      pages: pageSummaries,
+      consoleErrors,
+      resourceErrors,
+      resourceBudget,
+      projectName: test.info().project.name,
     });
+    if (schemaPayloads) {
+      const testInfo = test.info();
+      await attachSchemaSummary(testInfo, schemaPayloads.runPayload);
+      for (const payload of schemaPayloads.pagePayloads) {
+        await attachSchemaSummary(testInfo, payload);
+      }
+    }
   });
 
   test('Form interactions and validation (if configured)', async ({ page }) => {

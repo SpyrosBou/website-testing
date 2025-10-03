@@ -6,7 +6,8 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSchemaSummary } = require('../utils/reporting-utils');
+const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 
 const LINK_CHECK_DEFAULTS = {
   maxPerPage: 20,
@@ -72,86 +73,72 @@ const slugify = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'root';
 
-const statusClassName = (status) => {
-  if (status >= 400) return 'status-error';
-  if (status >= 300) return 'status-redirect';
-  return 'status-ok';
-};
+const buildLinksSchemaPayloads = (pages, brokenLinks, projectName, config = {}) => {
+  if (!Array.isArray(pages) || pages.length === 0) return null;
 
-const formatLinksSummaryHtml = (pages, brokenLinks) => {
-  const pageRows = pages
-    .map((entry) => {
-      const className = entry.broken.length > 0 ? 'status-error' : 'status-ok';
-      return `
-        <tr class="${className}">
-          <td><code>${escapeHtml(entry.page)}</code></td>
-          <td>${entry.totalLinks}</td>
-          <td>${entry.uniqueChecked}</td>
-          <td>${entry.broken.length}</td>
-        </tr>
-      `;
-    })
-    .join('');
+  const totalLinksFound = pages.reduce((total, entry) => total + (entry.totalLinks || 0), 0);
+  const totalLinksChecked = pages.reduce((total, entry) => total + (entry.uniqueChecked || 0), 0);
+  const pagesWithBroken = pages.filter((entry) => Array.isArray(entry.broken) && entry.broken.length > 0)
+    .length;
 
-  const brokenRows = brokenLinks
-    .map((link) => `
-      <tr class="status-error">
-        <td><code>${escapeHtml(link.page)}</code></td>
-        <td><code>${escapeHtml(link.url)}</code></td>
-        <td>${link.status ? escapeHtml(String(link.status)) : escapeHtml(link.error || 'error')}</td>
-        <td>${escapeHtml(link.method || 'HEAD')}</td>
-      </tr>
-    `)
-    .join('');
+  const normalisedConfig = {
+    maxPerPage: Number.isFinite(config.maxPerPage) ? config.maxPerPage : null,
+    timeoutMs: Number.isFinite(config.timeoutMs) ? config.timeoutMs : null,
+    followRedirects: config.followRedirects !== false,
+    methodFallback: config.methodFallback !== false,
+  };
 
-  const brokenSection = brokenLinks.length
-    ? `
-        <section class="summary-report summary-links">
-          <h3>Broken links (${brokenLinks.length})</h3>
-          <table>
-            <thead><tr><th>Source page</th><th>URL</th><th>Status / Error</th><th>Method</th></tr></thead>
-            <tbody>${brokenRows}</tbody>
-          </table>
-        </section>
-      `
-    : `
-        <section class="summary-report summary-links">
-          <h3>Broken links</h3>
-          <p>None detected 🎉</p>
-        </section>
-      `;
+  const runPayload = createRunSummaryPayload({
+    baseName: `links-audit-${slugify(projectName)}`,
+    title: 'Internal link audit summary',
+    overview: {
+      totalPages: pages.length,
+      totalLinksFound,
+      uniqueLinksChecked: totalLinksChecked,
+      brokenLinksDetected: brokenLinks.length,
+      pagesWithBrokenLinks: pagesWithBroken,
+      maxChecksPerPage: normalisedConfig.maxPerPage,
+    },
+    metadata: {
+      spec: 'functionality.links',
+      summaryType: 'internal-links',
+      projectName,
+      scope: 'project',
+      followRedirects: normalisedConfig.followRedirects,
+      methodFallback: normalisedConfig.methodFallback,
+      timeoutMs: normalisedConfig.timeoutMs,
+    },
+  });
 
-  return `
-    <section class="summary-report summary-links">
-      <h3>Internal link coverage</h3>
-      <table>
-        <thead><tr><th>Page</th><th>Links found</th><th>Checked</th><th>Broken</th></tr></thead>
-        <tbody>${pageRows}</tbody>
-      </table>
-    </section>
-    ${brokenSection}
-  `;
-};
+  const MAX_BROKEN_DETAILS = 20;
+  const pagePayloads = pages.map((entry) => {
+    const brokenSample = (entry.broken || []).slice(0, MAX_BROKEN_DETAILS).map((issue) => ({
+      url: issue.url,
+      status: issue.status ?? null,
+      methodTried: issue.method || null,
+      error: issue.error || null,
+    }));
 
-const formatLinksSummaryMarkdown = (pages, brokenLinks) => {
-  const header = [
-    '# Internal link coverage summary',
-    '',
-    '| Page | Links found | Checked | Broken |',
-    '| --- | --- | --- | --- |',
-  ];
-  const pageRows = pages.map(
-    (entry) => `| \`${entry.page}\` | ${entry.totalLinks} | ${entry.uniqueChecked} | ${entry.broken.length} |`
-  );
-  const brokenSection =
-    brokenLinks.length === 0
-      ? ['', '## Broken links', '', 'None 🎉']
-      : ['', '## Broken links', '', '| Page | URL | Status | Method |', '| --- | --- | --- | --- |'].concat(
-          brokenLinks.map((link) =>
-            `| \`${link.page}\` | ${link.url} | ${link.status ? link.status : link.error || 'error'} | ${link.method || 'HEAD'} |`
-          )
-        );
-  return header.concat(pageRows).concat(brokenSection).join('\n');
+    return createPageSummaryPayload({
+      baseName: `links-audit-${slugify(projectName)}-${slugify(entry.page)}`,
+      title: `Internal links – ${entry.page}`,
+      page: entry.page,
+      viewport: projectName,
+      summary: {
+        totalLinks: entry.totalLinks,
+        uniqueChecked: entry.uniqueChecked,
+        brokenCount: entry.broken.length,
+        brokenSample,
+      },
+      metadata: {
+        spec: 'functionality.links',
+        summaryType: 'internal-links',
+        projectName,
+      },
+    });
+  });
+
+  return { runPayload, pagePayloads };
 };
 
 test.describe('Functionality: Internal Links', () => {
@@ -283,14 +270,18 @@ test.describe('Functionality: Internal Links', () => {
       console.log('✅ All internal links are functional');
     }
 
-    const summaryHtml = formatLinksSummaryHtml(pageSummaries, brokenLinks);
-    const summaryMarkdown = formatLinksSummaryMarkdown(pageSummaries, brokenLinks);
-    await attachSummary({
-      baseName: 'internal-links-summary',
-      htmlBody: summaryHtml,
-      markdown: summaryMarkdown,
-      setDescription: true,
-      title: 'Internal link audit summary',
+    const schemaPayloads = buildLinksSchemaPayloads(pageSummaries, brokenLinks, test.info().project.name, {
+      maxPerPage,
+      timeoutMs: linkCheckConfig.timeoutMs,
+      followRedirects: linkCheckConfig.followRedirects,
+      methodFallback: linkCheckConfig.methodFallback,
     });
+    if (schemaPayloads) {
+      const testInfo = test.info();
+      await attachSchemaSummary(testInfo, schemaPayloads.runPayload);
+      for (const payload of schemaPayloads.pagePayloads) {
+        await attachSchemaSummary(testInfo, payload);
+      }
+    }
   });
 });

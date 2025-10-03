@@ -12,9 +12,10 @@
 - Accessibility suite now produces:
   - Shared summary layout (main summary → per-page accordion → debug deck).
   - Viewport-aware rule tables.
-  - JSON schema scaffolded but not yet adopted by other specs; a11y still uses legacy attachment format.
-- Other specs (links, infrastructure, visual, etc.) continue to emit bespoke attachments and renderings.
-- HTML reporter is schema-aware but currently only sees the legacy attachments from non-a11y specs.
+  - Emits schema payloads alongside the legacy attachments (HTML removal still pending).
+- Infrastructure, links, interactive, and visual suites emit schema-formatted run/page payloads and no longer attach bespoke HTML/Markdown summaries.
+- Remaining legacy attachments live only in the accessibility suite while we validate downstream consumption.
+- HTML reporter ingests schema payloads from all core functionality suites; fallback attachments now cover only specs pending migration.
 
 ## Proposed schema
 
@@ -39,7 +40,7 @@
   2. **Links**
   3. **Interactive**
   4. **Visual regression** (needs image handling override)
-  5. **Accessibility** (final migration after others proved out)
+  5. **Accessibility** (schema payloads shipped; retire legacy attachments once other suites migrate)
 - For each spec:
   - Emit `run-summary` & `page-summary` schema payloads.
   - Stop emitting bespoke HTML/Markdown blocks once schema path is validated.
@@ -53,7 +54,7 @@
   - ✅ Render per-page accordions based on schema data (align with existing a11y layout).
   - ✅ Normalise duplicate per-viewport payloads so Chrome desktop vs. Chrome desktop large contribute a single aggregated row.
   - ✅ Fallback to legacy attachments until all specs migrate.
-- Ensure Markdown export mirror matches HTML sections (pending once schema fully replaces HTML summaries).
+- ✅ Markdown export now reuses schema payloads to mirror the HTML sections.
 - ✅ Promote schema summaries to the headline once emitted; otherwise keep visible via fallback cards.
 
 ### Phase 4 – Cleanup & enforcement
@@ -64,13 +65,11 @@
 
 ## Outstanding Work (as of 2025-10-03)
 
-- Links/interactive/visual specs still emit only legacy attachments — migrate them to the schema helpers.
-- Markdown export still relies on legacy HTML summaries; mirror the schema sections when the markdown pipeline is updated.
-- Accessibility spec still emits legacy HTML alongside schema payloads; remove HTML once all downstream consumers confirm the schema layout.
+- Accessibility suite still emits legacy HTML alongside schema payloads; retire the HTML once downstream consumers confirm the new layout.
+- Validate downstream tooling against the schema-driven Markdown report before deleting any remaining legacy attachments.
 
 ## Next Steps
 
-1. Migrate `tests/functionality.links.spec.js` to emit schema payloads (run + per-page) using the validator helper.
-2. Repeat for interactive and visual specs, including image/diff metadata in the schema once visual migration begins.
-3. Update the markdown export path to consume schema payloads so CLI/CI summaries match the HTML layout.
-4. Retire legacy HTML/Markdown attachments after all core suites use the schema and downstream consumers approve the new layout.
+1. Finalise the accessibility suite migration by removing its legacy HTML once the schema layout is signed off.
+2. Exercise the new Markdown report within CLI/CI flows and capture any tooling updates that depend on the schema structure.
+3. Refresh developer documentation to highlight the schema-driven summaries and the new Markdown artefact pipeline.

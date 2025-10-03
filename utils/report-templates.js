@@ -271,6 +271,139 @@ const renderSchemaSummaries = (records = []) => {
   return { html, promotedBaseNames };
 };
 
+const formatSchemaValueMarkdown = (value) => {
+  if (value == null) return '—';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'number') return value.toLocaleString();
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '—';
+    const simple = value.every((item) => item == null || ['string', 'number', 'boolean'].includes(typeof item));
+    if (simple) {
+      return value
+        .map((item) => (item == null ? '—' : formatSchemaValueMarkdown(item)))
+        .join(', ');
+    }
+    return value.map((item) => formatSchemaValueMarkdown(item)).join('; ');
+  }
+  if (isPlainObject(value)) {
+    return Object.entries(value)
+      .map(([key, val]) => `${humaniseKey(key)}: ${formatSchemaValueMarkdown(val)}`)
+      .join('; ');
+  }
+  return String(value);
+};
+
+const renderSchemaMetricsMarkdown = (data) => {
+  if (!isPlainObject(data) || Object.keys(data).length === 0) return '';
+  const lines = Object.entries(data).map(
+    ([key, value]) => `- **${humaniseKey(key)}**: ${formatSchemaValueMarkdown(value)}`
+  );
+  return lines.join('\n');
+};
+
+const renderRuleSnapshotsMarkdown = (snapshots) => {
+  if (!Array.isArray(snapshots) || snapshots.length === 0) return '';
+  const header = '| Impact | Rule | Pages | Nodes | Viewports | WCAG |';
+  const separator = '| --- | --- | --- | --- | --- | --- |';
+  const rows = snapshots.map((snapshot) => {
+    const impact = snapshot.impact || snapshot.category || 'info';
+    const rule = snapshot.rule || 'rule';
+    const pages = Array.isArray(snapshot.pages) && snapshot.pages.length > 0
+      ? snapshot.pages.join(', ')
+      : '—';
+    const nodes = snapshot.nodes != null ? String(snapshot.nodes) : '—';
+    const viewports = Array.isArray(snapshot.viewports) && snapshot.viewports.length > 0
+      ? snapshot.viewports.join(', ')
+      : '—';
+    const wcagTags = Array.isArray(snapshot.wcagTags) && snapshot.wcagTags.length > 0
+      ? snapshot.wcagTags.join(', ')
+      : '—';
+    return `| ${impact} | ${rule} | ${pages} | ${nodes} | ${viewports} | ${wcagTags} |`;
+  });
+  return [header, separator, ...rows].join('\n');
+};
+
+const renderSchemaRunEntryMarkdown = (entry) => {
+  const payload = entry.payload || {};
+  const metadata = payload.metadata || {};
+  const labelParts = [];
+  if (metadata.scope) labelParts.push(metadata.scope);
+  if (metadata.projectName) labelParts.push(metadata.projectName);
+  if (Array.isArray(metadata.viewports) && metadata.viewports.length > 0) {
+    labelParts.push(metadata.viewports.join(', '));
+  }
+  const headingLabel = labelParts.length > 0 ? labelParts.join(' • ') : 'summary';
+  const heading = `### Run Summary – ${headingLabel}`;
+  const overview = payload.overview ? renderSchemaMetricsMarkdown(payload.overview) : '';
+  const rules = renderRuleSnapshotsMarkdown(payload.ruleSnapshots);
+  const sections = [overview, rules].filter(Boolean).join('\n\n');
+  return `${heading}\n\n${sections || '_No overview metrics provided._'}`;
+};
+
+const renderSchemaPageEntriesMarkdown = (entries) => {
+  if (!Array.isArray(entries) || entries.length === 0) return '';
+  const lines = entries.map((entry) => {
+    const payload = entry.payload || {};
+    const page = payload.page || 'Unknown page';
+    const viewport = payload.viewport || entry.projectName || 'default';
+    const summary = payload.summary && Object.keys(payload.summary).length > 0
+      ? formatSchemaValueMarkdown(payload.summary)
+      : 'No summary data';
+    return `- **${page} – ${viewport}**: ${summary}`;
+  });
+  return lines.join('\n');
+};
+
+const renderSchemaGroupMarkdown = (group) => {
+  const headline = group.title || humaniseKey(group.baseName);
+  const runMarkdown = (group.runEntries || []).map(renderSchemaRunEntryMarkdown).join('\n\n');
+  const pageMarkdown = renderSchemaPageEntriesMarkdown(group.pageEntries || []);
+  const sections = [`## ${headline}`];
+  if (runMarkdown) sections.push(runMarkdown);
+  if (pageMarkdown) sections.push('### Page Summaries', pageMarkdown);
+  return sections.join('\n\n');
+};
+
+const renderSchemaSummariesMarkdown = (records = []) => {
+  if (!Array.isArray(records) || records.length === 0) {
+    return { markdown: '', promotedBaseNames: new Set() };
+  }
+
+  const groups = buildSchemaGroups(records).filter(
+    (group) => group.runEntries.length > 0 || group.pageEntries.length > 0
+  );
+
+  if (groups.length === 0) {
+    return { markdown: '', promotedBaseNames: new Set() };
+  }
+
+  const promotedBaseNames = new Set();
+  const sections = groups
+    .map((group) => {
+      if ((group.runEntries || []).length > 0) {
+        promotedBaseNames.add(group.baseName);
+      }
+      return renderSchemaGroupMarkdown(group);
+    })
+    .filter(Boolean);
+
+  const markdown = sections.join('\n\n');
+  return { markdown, promotedBaseNames };
+};
+
+const renderRunSummariesMarkdown = (summaries = []) => {
+  if (!Array.isArray(summaries) || summaries.length === 0) return '';
+  const sections = summaries
+    .map((summary) => {
+      const title = summary.title || summary.baseName || 'Summary';
+      const body = summary.markdown || '_No markdown body provided._';
+      return `## ${title}\n\n${body.trim()}`;
+    })
+    .filter(Boolean);
+  return sections.join('\n\n');
+};
+
 const STATUS_LABELS = {
   passed: 'Passed',
   failed: 'Failed',
@@ -1713,4 +1846,6 @@ module.exports = {
   renderReportHtml,
   escapeHtml,
   formatBytes,
+  renderSchemaSummariesMarkdown,
+  renderRunSummariesMarkdown,
 };

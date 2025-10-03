@@ -8,7 +8,14 @@ const {
   waitForPageStability,
   ErrorContext,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'item';
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
@@ -68,6 +75,82 @@ const parseDiffMetrics = (message) => {
   }
 
   return metrics;
+};
+
+const buildVisualSchemaPayloads = ({ summaries, viewportName, projectName }) => {
+  if (!Array.isArray(summaries) || summaries.length === 0) return null;
+
+  const diffs = summaries.filter((entry) => entry.result !== 'pass');
+  const passes = summaries.length - diffs.length;
+  const thresholds = Array.from(
+    new Set(
+      summaries
+        .map((entry) => (typeof entry.threshold === 'number' ? entry.threshold : null))
+        .filter((value) => value !== null)
+    )
+  );
+
+  const pixelDiffs = diffs
+    .map((entry) => entry.diffMetrics?.pixelDiff)
+    .filter((value) => Number.isFinite(value));
+  const pixelRatios = diffs
+    .map((entry) => entry.diffMetrics?.pixelRatio)
+    .filter((value) => Number.isFinite(value));
+
+  const runPayload = createRunSummaryPayload({
+    baseName: `visual-${slugify(projectName)}-${slugify(viewportName)}`,
+    title: `Visual regression summary — ${viewportName}`,
+    overview: {
+      viewport: viewportName,
+      totalPages: summaries.length,
+      passes,
+      diffs: diffs.length,
+      thresholdsUsed: thresholds,
+      maxPixelDiff: pixelDiffs.length > 0 ? Math.max(...pixelDiffs) : null,
+      maxPixelRatio: pixelRatios.length > 0 ? Math.max(...pixelRatios) : null,
+      diffPages: diffs.map((entry) => entry.page),
+    },
+    metadata: {
+      spec: 'visual.visualregression',
+      summaryType: 'visual',
+      projectName,
+      scope: 'project',
+      viewport: viewportName,
+    },
+  });
+
+  const pagePayloads = summaries.map((entry) => {
+    const diffMetrics = entry.diffMetrics || {};
+    const artifacts = entry.artifacts || {};
+    return createPageSummaryPayload({
+      baseName: `visual-${slugify(projectName)}-${slugify(viewportName)}-${slugify(entry.page)}`,
+      title: `Visual regression – ${entry.page} (${viewportName})`,
+      page: entry.page,
+      viewport: viewportName,
+      summary: {
+        result: entry.result,
+        threshold: entry.threshold,
+        pixelDiff: Number.isFinite(diffMetrics.pixelDiff) ? diffMetrics.pixelDiff : null,
+        pixelRatio: Number.isFinite(diffMetrics.pixelRatio) ? diffMetrics.pixelRatio : null,
+        expectedSize: diffMetrics.expectedSize || null,
+        actualSize: diffMetrics.actualSize || null,
+        artifacts: {
+          baseline: artifacts.baseline?.name || null,
+          actual: artifacts.actual?.name || null,
+          diff: artifacts.diff?.name || null,
+        },
+        error: entry.error || null,
+      },
+      metadata: {
+        spec: 'visual.visualregression',
+        summaryType: 'visual',
+        projectName,
+        viewport: viewportName,
+      },
+    });
+  });
+
+  return { runPayload, pagePayloads };
 };
 
 test.describe('Visual Regression', () => {
@@ -253,100 +336,18 @@ test.describe('Visual Regression', () => {
           });
         }
 
-        // Attach report summary for this viewport
-        const rowsHtml = visualSummaries
-          .map((e) => {
-            const className = e.result === 'pass' ? 'status-ok' : 'status-error';
-            const noteItems = [];
-            if (e.result === 'pass') {
-              noteItems.push('<li class="check-pass">Matched baseline</li>');
-            } else {
-              noteItems.push('<li class="check-fail">Diff detected</li>');
-              if (e.diffMetrics?.pixelDiff) {
-                const percent = e.diffMetrics.pixelRatio
-                  ? `${(Number(e.diffMetrics.pixelRatio) * 100).toFixed(2)}%`
-                  : null;
-                noteItems.push(
-                  `<li class="details">Pixel delta: ${e.diffMetrics.pixelDiff.toLocaleString()}${percent ? ` (${percent})` : ''}</li>`
-                );
-              }
-              if (e.diffMetrics?.expectedSize && e.diffMetrics?.actualSize) {
-                const { expectedSize, actualSize } = e.diffMetrics;
-                const heightDelta = actualSize.height - expectedSize.height;
-                const widthDelta = actualSize.width - expectedSize.width;
-                noteItems.push(
-                  `<li class="details">Expected ${expectedSize.width}×${expectedSize.height}px, got ${actualSize.width}×${actualSize.height}px${
-                    heightDelta || widthDelta
-                      ? ` (${widthDelta ? `ΔW ${widthDelta}` : ''}${heightDelta ? `${widthDelta ? ', ' : ''}ΔH ${heightDelta}` : ''})`
-                      : ''
-                  }</li>`
-                );
-              }
-              if (e.error) {
-                noteItems.push(`<li class="details">${escapeHtml(e.error)}</li>`);
-              }
-            }
-            const notes = `<ul class="checks">${noteItems.join('')}</ul>`;
-            const hasArtifacts = Boolean(e.artifacts?.baseline || e.artifacts?.actual || e.artifacts?.diff);
-            const renderLink = (artifact, label) =>
-              artifact?.name
-                ? `<li><a href="attachment://${escapeHtml(artifact.name)}" target="_blank">${label}</a></li>`
-                : '';
-            const artifactsCell = hasArtifacts
-              ? `<ul class="checks">${renderLink(e.artifacts?.baseline, 'Baseline')}${renderLink(e.artifacts?.actual, 'Actual')}${renderLink(e.artifacts?.diff, 'Diff')}</ul>`
-              : '<span class="details">—</span>';
-            return `
-              <tr class="${className}">
-                <td><code>${escapeHtml(e.page)}</code></td>
-                <td>${escapeHtml(String(e.screenshot))}</td>
-                <td>${e.threshold}</td>
-                <td>${notes}</td>
-                <td>${artifactsCell}</td>
-              </tr>
-            `;
-          })
-          .join('');
 
-        const htmlBody = `
-          <section class="summary-report summary-visual">
-            <h3>Visual regression summary — ${escapeHtml(viewportName)}</h3>
-            <table>
-              <thead><tr><th>Page</th><th>Screenshot</th><th>Threshold</th><th>Notes</th><th>Artifacts</th></tr></thead>
-              <tbody>${rowsHtml}</tbody>
-            </table>
-          </section>
-        `;
-
-        const mdRows = visualSummaries.map((e) => {
-          const artifacts = [];
-          if (e.artifacts?.baseline?.name) artifacts.push('Baseline');
-          if (e.artifacts?.actual?.name) artifacts.push('Actual');
-          if (e.artifacts?.diff?.name) artifacts.push('Diff');
-          const artifactText = artifacts.length > 0 ? artifacts.join(', ') : '—';
-          const diffDetailsMd = e.diffMetrics?.pixelDiff
-            ? `${e.diffMetrics.pixelDiff.toLocaleString()} px${
-                e.diffMetrics.pixelRatio ? ` (${(e.diffMetrics.pixelRatio * 100).toFixed(2)}%)` : ''
-              }`
-            : e.result === 'pass'
-              ? '—'
-              : 'diff detected';
-          return `| \`${e.page}\` | ${e.screenshot} | ${e.threshold} | ${e.result === 'pass' ? '✅ matched' : `⚠️ ${diffDetailsMd}`} | ${artifactText} |`;
+        const schemaPayloads = buildVisualSchemaPayloads({
+          summaries: visualSummaries,
+          viewportName,
+          projectName: testInfo.project.name,
         });
-        const markdown = [
-          `# Visual regression summary — ${viewportName}`,
-          '',
-          '| Page | Screenshot | Threshold | Result | Artifacts |',
-          '| --- | --- | --- | --- | --- |',
-          ...mdRows,
-        ].join('\n');
-
-        await attachSummary({
-          baseName: `visual-regression-${viewportName}-summary`,
-          htmlBody,
-          markdown,
-          setDescription: true,
-          title: `Visual regression summary — ${viewportName}`,
-        });
+        if (schemaPayloads) {
+          await attachSchemaSummary(testInfo, schemaPayloads.runPayload);
+          for (const payload of schemaPayloads.pagePayloads) {
+            await attachSchemaSummary(testInfo, payload);
+          }
+        }
 
         for (const artifact of pendingAttachments) {
           await testInfo.attach(artifact.name, {
