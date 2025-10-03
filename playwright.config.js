@@ -96,7 +96,6 @@ module.exports = defineConfig({
       use: {
         ...devices['iPhone 12'],
         viewport: { width: 375, height: 667 }, // Standard mobile viewport
-        ...chromiumUseOverrides,
       },
     },
 
@@ -106,7 +105,6 @@ module.exports = defineConfig({
       use: {
         ...devices['iPad Pro'],
         viewport: { width: 768, height: 1024 }, // Standard tablet viewport
-        ...chromiumUseOverrides,
       },
     },
 
