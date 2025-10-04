@@ -207,7 +207,7 @@ node run-tests.js -s my-site -a -t wcag
 
 # Expand accessibility sampling to all configured pages (affects responsive + new resilience specs)
 node run-tests.js --site=my-site --accessibility --a11y-sample=all
-node run-tests.js -s my-site -a -y all
+node run-tests.js -s my-site -a -n all
 
 # Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
 A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
