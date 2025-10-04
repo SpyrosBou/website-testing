@@ -275,6 +275,14 @@ class TestRunner {
         'runtime'
       );
 
+      if (options.limit != null) {
+        const limitNumber = Number.parseInt(options.limit, 10);
+        if (Number.isFinite(limitNumber) && limitNumber > 0) {
+          siteConfig.testPages = siteConfig.testPages.slice(0, limitNumber);
+          console.log(`ℹ️  Page limit applied: first ${limitNumber} page(s) will be tested.`);
+        }
+      }
+
       if (options.profile === 'smoke') {
         console.log('🚬 SMOKE profile: functionality-only, Chrome, homepage only');
       }

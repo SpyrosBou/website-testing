@@ -192,6 +192,10 @@ node run-tests.js -s my-site
 node run-tests.js --site=my-site tests/a11y.audit.wcag.spec.js
 node run-tests.js -s daygroup-local -s daygroup-live -t responsive.layout.structure.spec.js
 
+# Limit the number of pages (applies before suite selection)
+node run-tests.js --site=my-site --limit=5
+node run-tests.js -s my-site -n 5
+
 # Using npm script (pass args after --)
 npm run test:site -- --site=my-site
 
@@ -207,7 +211,7 @@ node run-tests.js -s my-site -g -A wcag
 
 # Expand accessibility sampling to all configured pages (affects responsive + new resilience specs)
 node run-tests.js --site=my-site --accessibility --a11y-sample=all
-node run-tests.js -s my-site -g -n all
+node run-tests.js -s my-site -g -Y all
 
 # Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
 A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
