@@ -10,11 +10,12 @@
 ## Build, Test, and Development Commands
 - `npm run setup` — install deps and download Playwright browsers into `.pw-browsers/`.
 - `npm test` or `node run-tests.js` — run suite for `example-site` (CLI only; no interactive mode).
-- `node run-tests.js --site=<name>` — run against a specific config.
-- `--responsive` / `--functionality` — filter suites (example: `node run-tests.js --site=daygroup-local --responsive`).
+- `node run-tests.js --site=<name>` — run against a specific config (repeat `--site` for multi-site runs or append spec paths/globs for ad-hoc targeting; defaults to the Chrome project with auto workers).
+- `--responsive` / `--functionality` — filter suites (example: `node run-tests.js --site=daygroup-local --responsive`). Combine with `--spec` or positional spec paths to override individual files when needed.
 - `--profile=smoke|full|nightly` — presets for common runs (smoke = responsive + Chrome + first page only).
 - `npm run read-reports [count]` — open the newest HTML report (optionally pass a numeric `count` to open that many recent runs).
 - Notes: reports live in `reports/run-*/report.html`; use `npm run clean-reports` to prune history, and `npm run clean-test-results` to clear Playwright artifacts.
+- Quick lookup: `node run-tests.js --list-sites` prints all configs (use `--complete-sites` to feed shell completions).
 - Cleanup: `npm run clean-reports`, `npm run clean-test-results`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
 - For CI smoke runs, consider `sites/nfsmediation-smoke.json` (homepage only) or use `nfsmediation-live`.

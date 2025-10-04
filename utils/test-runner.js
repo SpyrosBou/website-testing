@@ -6,6 +6,45 @@ const http = require('http');
 const https = require('https');
 const { discoverFromSitemap } = require('./sitemap-loader');
 
+const toPosixPath = (value) => value.split(path.sep).join('/');
+
+function normaliseSpecPattern(specInput) {
+  const raw = String(specInput || '').trim();
+  if (!raw) return null;
+
+  const hasGlob = /[\*\?\[\]\{\}]/.test(raw);
+
+  const resolveRelative = (candidate) => {
+    const absolute = path.resolve(process.cwd(), candidate);
+    if (fs.existsSync(absolute)) {
+      return toPosixPath(path.relative(process.cwd(), absolute) || candidate);
+    }
+    return null;
+  };
+
+  if (path.isAbsolute(raw)) {
+    return toPosixPath(path.relative(process.cwd(), raw) || raw);
+  }
+
+  const direct = resolveRelative(raw);
+  if (direct) {
+    return direct;
+  }
+
+  if (!raw.startsWith('tests/')) {
+    const nested = resolveRelative(path.join('tests', raw));
+    if (nested) {
+      return nested;
+    }
+  }
+
+  if (!hasGlob && !raw.startsWith('tests/')) {
+    return toPosixPath(path.join('tests', raw));
+  }
+
+  return toPosixPath(raw);
+}
+
 function ensureHomepagePresence(pages, siteName, contextLabel = 'runtime') {
   const sourceList = Array.isArray(pages) ? pages.filter((item) => typeof item === 'string') : [];
   const unique = Array.from(new Set(sourceList));
@@ -265,52 +304,75 @@ class TestRunner {
     }
 
     // Determine which tests to run (avoid relying on shell glob expansion)
-    const testsDir = path.join(process.cwd(), 'tests');
-    const testEntries = fs
-      .readdirSync(testsDir, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.spec.js'))
-      .map((entry) => path.join('tests', entry.name));
+    const specFilters = Array.isArray(options.specs) ? options.specs.filter(Boolean) : [];
+    const specTargets = Array.from(
+      new Set(
+        specFilters
+          .map(normaliseSpecPattern)
+          .filter(Boolean)
+      )
+    );
 
-    const groupExplicitlySelected =
-      options.visual ||
-      options.responsive ||
-      options.functionality ||
-      options.accessibility ||
-      options.full;
-
-    const runAllGroups = options.full || !groupExplicitlySelected;
-    const selectedTests = new Set();
-
-    for (const file of testEntries) {
-      const baseName = path.basename(file);
-      const isVisual = baseName.startsWith('visual.');
-      const isResponsiveStructure = baseName.startsWith('responsive.') && !/a11y/i.test(baseName);
-      const isFunctionality = baseName.startsWith('functionality.');
-      const isAccessibility = /accessibility|a11y/i.test(baseName);
-
-      if (runAllGroups) {
-        selectedTests.add(file);
-        continue;
-      }
-
-      if (options.visual && isVisual) {
-        selectedTests.add(file);
-        continue;
-      }
-      if (options.responsive && isResponsiveStructure) {
-        selectedTests.add(file);
-        continue;
-      }
-      if (options.functionality && isFunctionality) {
-        selectedTests.add(file);
-        continue;
-      }
-      if (options.accessibility && isAccessibility) {
-        selectedTests.add(file);
+    if (specTargets.length > 0) {
+      console.log('ℹ️  Running explicit spec target(s):');
+      for (const specTarget of specTargets) {
+        console.log(`   - ${specTarget}`);
       }
     }
 
-    const testTargets = selectedTests.size > 0 ? Array.from(selectedTests) : ['tests'];
+    let testTargets;
+
+    if (specTargets.length > 0) {
+      testTargets = specTargets;
+    } else {
+      const testsDir = path.join(process.cwd(), 'tests');
+      const testEntries = fs
+        .readdirSync(testsDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.spec.js'))
+        .map((entry) => path.join('tests', entry.name));
+
+      const groupExplicitlySelected =
+        options.visual ||
+        options.responsive ||
+        options.functionality ||
+        options.accessibility ||
+        options.full;
+
+      const runAllGroups = options.full || !groupExplicitlySelected;
+      const selectedTests = new Set();
+
+      for (const file of testEntries) {
+        const baseName = path.basename(file);
+        const isVisual = baseName.startsWith('visual.');
+        const isResponsiveStructure =
+          baseName.startsWith('responsive.') && !/a11y/i.test(baseName);
+        const isFunctionality = baseName.startsWith('functionality.');
+        const isAccessibility = /accessibility|a11y/i.test(baseName);
+
+        if (runAllGroups) {
+          selectedTests.add(file);
+          continue;
+        }
+
+        if (options.visual && isVisual) {
+          selectedTests.add(file);
+          continue;
+        }
+        if (options.responsive && isResponsiveStructure) {
+          selectedTests.add(file);
+          continue;
+        }
+        if (options.functionality && isFunctionality) {
+          selectedTests.add(file);
+          continue;
+        }
+        if (options.accessibility && isAccessibility) {
+          selectedTests.add(file);
+        }
+      }
+
+      testTargets = selectedTests.size > 0 ? Array.from(selectedTests) : ['tests'];
+    }
 
     // Set environment variables for test execution
     process.env.SITE_NAME = siteName;
@@ -353,7 +415,10 @@ class TestRunner {
       }
     }
 
-    if (!spawnEnv.PWTEST_WORKERS || String(spawnEnv.PWTEST_WORKERS).trim().length === 0) {
+    if (options.workers) {
+      spawnEnv.PWTEST_WORKERS = String(options.workers).trim() || 'auto';
+      console.log(`ℹ️  Worker pool: ${spawnEnv.PWTEST_WORKERS}`);
+    } else if (!spawnEnv.PWTEST_WORKERS || String(spawnEnv.PWTEST_WORKERS).trim().length === 0) {
       spawnEnv.PWTEST_WORKERS = 'auto';
       console.log('ℹ️  Worker pool: auto (all logical cores exposed)');
     } else {
@@ -459,7 +524,6 @@ class TestRunner {
         } else {
           console.log('❌ Test run completed with issues.');
         }
-        const viewTarget = summary?.reportFile || summary?.reportPath;
         console.log('📰 View report: npm run read-reports');
         console.log('📁 Reports directory: ./reports/');
         console.log('📸 Test artifacts: ./test-results/');

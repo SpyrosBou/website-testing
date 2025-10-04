@@ -57,6 +57,14 @@ To try it locally: run `npm run setup` (this installs dependencies and caches Pl
    ```
    This launches the most recent `reports/run-*/report.html` in your default browser. Use `npm run read-reports 3` to open the latest three runs.
 
+### Focused runs & advanced options
+
+- **Single spec globs**: `node run-tests.js --site=my-site tests/a11y.audit.wcag.spec.js`
+- **Multiple sites**: repeat `--site` (e.g. `node run-tests.js --site=daygroup-local --site=daygroup-live`)
+- **Project overrides**: `node run-tests.js --site=my-site --browsers Chrome,Firefox`
+- **Worker overrides**: `node run-tests.js --site=my-site --workers 4` (defaults to `auto`)
+- **Site lookup / completion**: `node run-tests.js --list-sites` or `node run-tests.js --complete-sites`
+
 ### Report layout
 
 Every report folder contains `report.html` and a `data/` directory with the machine-readable JSON that powered it (for example: `reports/run-20251003-170959/data/run.json`). Opening the HTML shows three stacked sections:
@@ -172,11 +180,15 @@ An experimental generator lives under `specs/`. These YAML definitions map to th
 ## Commands
 
 ```bash
-# List available sites
-node run-tests.js --list
+# List available sites (also supports shell completion via --complete-sites)
+node run-tests.js --list-sites
 
-# Test specific site
+# Test a specific site (defaults to Chrome + auto workers)
 node run-tests.js --site=my-site
+
+# Target specific spec files (accepts multiple patterns and sites)
+node run-tests.js --site=my-site tests/a11y.audit.wcag.spec.js
+node run-tests.js --site=daygroup-local --site=daygroup-live --spec responsive.layout.structure.spec.js
 
 # Using npm script (pass args after --)
 npm run test:site -- --site=my-site
@@ -195,6 +207,9 @@ node run-tests.js --site=my-site --accessibility --a11y-sample=all
 
 # Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
 A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
+
+# Pin worker count or expand browser coverage
+node run-tests.js --site=my-site --workers 4 --browsers Chrome,Firefox
 
 # Update visual baselines for a site (visual regression only)
 npm run update-baselines -- --site=my-site

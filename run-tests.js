@@ -3,102 +3,209 @@
 const minimist = require('minimist');
 const TestRunner = require('./utils/test-runner');
 
-// Parse command line arguments
-const argv = minimist(process.argv.slice(2));
+const argv = minimist(process.argv.slice(2), {
+  string: ['site', 'sites', 'project', 'browser', 'browsers', 'workers', 'profile', 'viewport', 'spec'],
+  boolean: [
+    'help',
+    'list',
+    'list-sites',
+    'discover',
+    'local',
+    'visual',
+    'responsive',
+    'functionality',
+    'accessibility',
+    'full',
+    'headed',
+    'debug',
+    'update-baselines',
+    'complete-sites',
+  ],
+  alias: {
+    h: 'help',
+    l: 'list',
+    s: 'site',
+    p: 'profile',
+    w: 'workers',
+    b: 'browsers',
+    'list-sites': ['ls'],
+  },
+});
 
-const coerceFlag = (value) => {
+const coerceBoolean = (value) => {
   if (value === undefined) return false;
   if (typeof value === 'string') {
     const normalised = value.trim().toLowerCase();
-    if (normalised === 'false' || normalised === '0') return false;
-    if (normalised === 'true' || normalised === '1' || normalised.length === 0) return true;
+    if (['false', '0', 'no', 'off'].includes(normalised)) {
+      return false;
+    }
+    if (['true', '1', 'yes', 'on', ''].includes(normalised)) {
+      return true;
+    }
   }
   return Boolean(value);
 };
 
+const toStringArray = (input) => {
+  if (input === undefined || input === null) return [];
+  if (Array.isArray(input)) {
+    return input
+      .flatMap((item) =>
+        typeof item === 'string' ? item.split(',') : Array.isArray(item) ? item : [item]
+      )
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
+  }
+  if (typeof input === 'string') {
+    return input
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+  return [String(input)].filter(Boolean);
+};
+
 function showUsage() {
-  console.log(`
-WordPress Testing Suite Usage:
-
-  npm test                          # Run tests for example-site
-  node run-tests.js --site=my-site  # Run for specific site
-  node run-tests.js --list          # List available sites
-  node run-tests.js --discover      # Refresh sitemap-backed test pages then run
-  node run-tests.js --help          # Show this help
-
-Available options:
-  --site=SITE_NAME    Test specific site configuration
-  --profile=smoke|full|nightly  Preset options (smoke = functionality+Chrome)
-  --visual            Run only visual regression tests
-  --responsive        Run only responsive structure tests
-  --functionality     Run only functionality tests
-  --accessibility     Run only accessibility-focused tests
-  --full              Run the entire suite (visual + responsive + functionality + accessibility)
-  --project=NAME|all  Choose Playwright project(s); defaults to Chrome (desktop)
-  --viewport=list|all Comma-separated responsive viewports (mobile,tablet,desktop); defaults to desktop
-  --update-baselines  Update visual baselines for visual regression tests
-  --discover          Refresh the site's testPages from its sitemap before running
-  --a11y-tags=all|wcag  Toggle axe rule scoping (default: all)
-  --a11y-sample=N|all  Override responsive a11y sample size (default: all pages)
-  --a11y-keyboard-steps=N  Override keyboard audit TAB depth (default: 20)
-  --local             Enable DDEV preflight for local sites (sets ENABLE_DDEV=true and attempts to infer DDEV_PROJECT_PATH)
-  --list              List all available site configurations
-  --help              Show this help message
-
-Examples:
-  npm test                                       # Default run for example-site
-  node run-tests.js --site=daygroup-local        # Test local development site
-  node run-tests.js --site=daygroup-live         # Test live production site
-  node run-tests.js --site=nfsmediation-local --visual
-  node run-tests.js --site=daygroup-live --functionality
-  node run-tests.js --site=daygroup-live --accessibility
-  node run-tests.js --site=daygroup-live --full
-  node run-tests.js --site=daygroup-live --visual --project=all --viewport=all
-`);
+  const lines = [
+    '',
+    'Smart Playwright runner',
+    '',
+    'Usage:',
+    '  node run-tests.js [options] --site <site> [extra sites...] [spec patterns...]',
+    '',
+    'Common examples:',
+    '  node run-tests.js --site example-site',
+    '  node run-tests.js --site daygroup-local tests/a11y.audit.wcag.spec.js',
+    '  node run-tests.js --site daygroup-local --site daygroup-live --spec responsive.layout.structure.spec.js',
+    '  node run-tests.js --site agilitas-live --profile smoke',
+    '  node run-tests.js --site daygroup-live --workers 4 --browsers Chrome,Firefox',
+    '',
+    'Key options:',
+    '  --site, -s            One or more site config names (comma-separated or repeated)',
+    '  --spec                Specific spec file(s) or glob(s) to run (repeat or pass multiple)',
+    '  --profile             smoke | full | nightly presets (mirrors previous behaviour)',
+    '  --visual              Run only visual regression specs',
+    '  --responsive          Run only responsive structure specs',
+    '  --functionality       Run only functionality specs',
+    '  --accessibility       Run only accessibility specs',
+    '  --full                Shortcut for running all groups',
+    '  --browsers, --project Comma-separated Playwright projects (default Chrome)',
+    "  --workers, -w         Worker count (number or 'auto', default auto)",
+    "  --discover            Refresh sitemap-backed pages before running",
+    "  --local               Attempt DDEV preflight for local '.ddev.site' hosts",
+    '  --list-sites          Print site configs (also used for shell completion helpers)',
+    '  --update-baselines    Update visual baselines for the chosen site(s)',
+    '  --help                Show this help message',
+    '',
+    'Tips:',
+    '  - Site arguments accept wildcards when using shell completion. Run "node run-tests.js --list-sites" to see available configs.',
+    '  - Append additional spec globs after the options (e.g. "node run-tests.js --site foo tests/*.spec.js").',
+    '  - Use environment variables like REPORT_BROWSER to override the default browser launcher when opening reports.',
+    '',
+  ];
+  console.log(lines.join('\n'));
 }
 
-async function runTests() {
-  // Handle help and list commands
-  if (argv.help || argv.h) {
+function collectSiteNames() {
+  const { localSites, liveSites, otherSites } = TestRunner.listSites();
+  return [...localSites, ...liveSites, ...otherSites].map((entry) => entry.name);
+}
+
+function parseSites() {
+  const explicitSites = [...toStringArray(argv.site), ...toStringArray(argv.sites)];
+  const positional = argv._.map((item) => String(item).trim()).filter(Boolean);
+  const inferredSites = positional.filter((value) => !/\.(spec\.[jt]s|[jt]s)$/i.test(value) && !value.includes('/'));
+
+  const sites = [...explicitSites, ...inferredSites].filter(Boolean);
+  if (sites.length === 0) return ['example-site'];
+  return Array.from(new Set(sites));
+}
+
+function parseSpecs() {
+  const positional = argv._.map((item) => String(item).trim()).filter(Boolean);
+  const positionalSpecs = positional.filter((value) =>
+    /\.(spec\.[jt]s|[jt]s)$/i.test(value) || value.includes('/') || value.includes('*')
+  );
+  const specOptions = toStringArray(argv.spec);
+  const inputs = [...specOptions, ...positionalSpecs];
+  return Array.from(new Set(inputs));
+}
+
+async function handleListSites() {
+  TestRunner.displaySites();
+}
+
+function printSitesForCompletion() {
+  collectSiteNames().forEach((name) => console.log(name));
+}
+
+async function runForSites(sites, baseOptions) {
+  let exitCode = 0;
+  for (const siteName of sites) {
+    console.log(`\n==============================`);
+    console.log(`Running Playwright suite for site: ${siteName}`);
+    console.log('==============================\n');
+
+    try {
+      const result = await TestRunner.runTestsForSite(siteName, baseOptions);
+      exitCode = result.code !== 0 ? result.code : exitCode;
+    } catch (error) {
+      console.error(`❌ Run failed for ${siteName}:`, error.message || error);
+      exitCode = 1;
+    }
+  }
+  return exitCode;
+}
+
+async function main() {
+  if (argv.help) {
     showUsage();
     return;
   }
 
-  if (argv.list || argv.l) {
-    TestRunner.displaySites();
-    return;
-  }
-  if (argv['update-baselines'] || argv.updateBaselines) {
-    const siteName = argv.site || argv.s || 'example-site';
-    await TestRunner.updateBaselines(siteName);
+  if (argv['list-sites'] || argv.list) {
+    await handleListSites();
     return;
   }
 
-  // Determine site to test
-  const siteName = argv.site || argv.s || 'example-site';
+  if (argv['complete-sites']) {
+    printSitesForCompletion();
+    return;
+  }
 
-  // Build options from CLI arguments and profile
+  const sites = parseSites();
+  const specs = parseSpecs();
+
+  if (argv['update-baselines']) {
+    for (const site of sites) {
+      // eslint-disable-next-line no-await-in-loop
+      await TestRunner.updateBaselines(site);
+    }
+    return;
+  }
+
   const profile = argv.profile;
   const options = {
-    visual: coerceFlag(argv.visual),
-    responsive: coerceFlag(argv.responsive),
-    functionality: coerceFlag(argv.functionality),
-    accessibility: coerceFlag(argv.accessibility),
-    full: coerceFlag(argv.full),
-    headed: argv.headed,
-    debug: argv.debug,
-    project: argv.project,
-    viewport: argv.viewport || argv.viewports,
+    visual: coerceBoolean(argv.visual),
+    responsive: coerceBoolean(argv.responsive),
+    functionality: coerceBoolean(argv.functionality),
+    accessibility: coerceBoolean(argv.accessibility),
+    full: coerceBoolean(argv.full),
+    headed: coerceBoolean(argv.headed),
+    debug: coerceBoolean(argv.debug),
+    discover: coerceBoolean(argv.discover),
+    local: coerceBoolean(argv.local),
     profile,
-    discover: Boolean(argv.discover),
-    local: Boolean(argv.local),
+    project: argv.browsers || argv.browser || argv.project,
+    viewport: argv.viewport,
     a11yTags: argv['a11y-tags'] || argv.a11yTags,
     a11ySample: argv['a11y-sample'] || argv.a11ySample,
     a11yKeyboardSteps: argv['a11y-keyboard-steps'] || argv.a11yKeyboardSteps,
+    specs,
+    workers: argv.workers,
   };
 
   if (profile === 'smoke') {
-    // Smoke = functionality-only, single browser, homepage only
     options.visual = false;
     options.responsive = false;
     options.functionality = true;
@@ -124,17 +231,11 @@ async function runTests() {
     options.full = true;
   }
 
-  try {
-    const result = await TestRunner.runTestsForSite(siteName, options);
-    process.exit(result.code);
-  } catch (_error) {
-    console.error(_error);
-    process.exit(1);
-  }
+  const exitCode = await runForSites(sites, options);
+  process.exit(exitCode);
 }
 
-async function main() {
-  await runTests();
-}
-
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
