@@ -346,6 +346,13 @@ class TestRunner {
       SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || '',
     };
 
+    if (siteConfig.baseUrl) {
+      spawnEnv.SITE_BASE_URL = siteConfig.baseUrl;
+      if (!spawnEnv.BASE_URL) {
+        spawnEnv.BASE_URL = siteConfig.baseUrl;
+      }
+    }
+
     if (!spawnEnv.PWTEST_WORKERS || String(spawnEnv.PWTEST_WORKERS).trim().length === 0) {
       spawnEnv.PWTEST_WORKERS = 'auto';
       console.log('ℹ️  Worker pool: auto (all logical cores exposed)');

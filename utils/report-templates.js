@@ -136,7 +136,13 @@ const buildSchemaGroups = (records = []) => {
       const entry = { payload: summary, projectName, testAnchorId };
       if (summary.kind === KIND_RUN_SUMMARY) {
         group.runEntries.push(entry);
+        if (summary.metadata?.suppressPageEntries) {
+          group.suppressPageEntries = true;
+        }
       } else if (summary.kind === KIND_PAGE_SUMMARY) {
+        if (summary.metadata?.suppressPageEntries) {
+          group.suppressPageEntries = true;
+        }
         group.pageEntries.push(entry);
       }
     });
@@ -160,14 +166,20 @@ const renderSchemaRunEntry = (entry) => {
   const metaHtml = chips.length
     ? `<div class="schema-meta">${chips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join('')}</div>`
     : '';
-  const overviewHtml = payload.overview ? renderSchemaMetrics(payload.overview) : '';
-  const rulesHtml = renderRuleSnapshotsTable(payload.ruleSnapshots);
+  const hasCustomHtml = Boolean(payload.htmlBody);
+  const overviewHtml = hasCustomHtml
+    ? payload.htmlBody
+    : payload.overview
+      ? renderSchemaMetrics(payload.overview)
+      : '';
+  const rulesHtml = hasCustomHtml ? '' : renderRuleSnapshotsTable(payload.ruleSnapshots);
+
+  const body = [metaHtml, overviewHtml, rulesHtml].filter(Boolean).join('\n');
+  if (!body) return '';
 
   return `
     <section class="schema-overview">
-      ${metaHtml}
-      ${overviewHtml}
-      ${rulesHtml}
+      ${body}
     </section>
   `;
 };
@@ -185,31 +197,48 @@ const renderSchemaPageEntries = (entries) => {
   const accordions = Array.from(grouped.entries())
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([page, pageEntries]) => {
-      const rows = pageEntries
-        .sort((a, b) => (a.payload.viewport || '').localeCompare(b.payload.viewport || ''))
-        .map((entry) => {
-          const payload = entry.payload || {};
-          const viewport = payload.viewport || entry.projectName || 'default';
-          const summaryHtml = payload.summary
-            ? renderSchemaMetrics(payload.summary)
-            : '<span class="schema-value schema-value--empty">No summary data</span>';
-          return `
-            <tr>
-              <td>${escapeHtml(viewport)}</td>
-              <td>${summaryHtml}</td>
-            </tr>
-          `;
-        })
-        .join('');
+      const sortedEntries = pageEntries.sort((a, b) => (a.payload.viewport || '').localeCompare(b.payload.viewport || ''));
+      const hasCustomCards = sortedEntries.some((entry) => Boolean(entry.payload?.summary?.cardHtml));
+
+      const content = hasCustomCards
+        ? sortedEntries
+            .map((entry) => {
+              const payload = entry.payload || {};
+              const summaryData = payload.summary || {};
+              if (summaryData.cardHtml) return summaryData.cardHtml;
+              const fallback = renderSchemaMetrics(summaryData);
+              return `<div class="schema-metrics">${fallback}</div>`;
+            })
+            .join('\n')
+        : (() => {
+            const rows = sortedEntries
+              .map((entry) => {
+                const payload = entry.payload || {};
+                const viewport = payload.viewport || entry.projectName || 'default';
+                const summaryHtml = payload.summary
+                  ? renderSchemaMetrics(payload.summary)
+                  : '<span class="schema-value schema-value--empty">No summary data</span>';
+                return `
+                  <tr>
+                    <td>${escapeHtml(viewport)}</td>
+                    <td>${summaryHtml}</td>
+                  </tr>
+                `;
+              })
+              .join('');
+            return `
+              <table class="schema-table">
+                <thead><tr><th>Viewport</th><th>Summary</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+          })();
 
       return `
         <details class="summary-page schema-page-accordion">
           <summary>${escapeHtml(page)}</summary>
           <div class="summary-page__body">
-            <table class="schema-table">
-              <thead><tr><th>Viewport</th><th>Summary</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
+            ${content}
           </div>
         </details>
       `;
@@ -311,8 +340,13 @@ const renderAccessibilityGroupHtml = (group) => {
         .map((entry) => entry.payload || {})
         .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
       const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
-      const overviewHtml =
-        runPayload?.htmlBody || (runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '');
+      const suppressPageEntries = Boolean(runPayload?.metadata?.suppressPageEntries || group.suppressPageEntries);
+      const hasCustomRunHtml = Boolean(runPayload?.htmlBody);
+      const overviewHtml = hasCustomRunHtml
+        ? runPayload.htmlBody
+        : runPayload?.overview
+          ? renderSchemaMetrics(runPayload.overview)
+          : '';
 
       const pageCards = pages
         .map((payload) => {
@@ -343,11 +377,14 @@ const renderAccessibilityGroupHtml = (group) => {
         })
         .join('\n');
 
+      const headerHtml = hasCustomRunHtml ? '' : `<h3>${escapeHtml(projectLabel)} – WCAG findings</h3>`;
+      const pagesHtml = hasCustomRunHtml || suppressPageEntries ? '' : pageCards;
+
       return `
       <section class="summary-report summary-a11y">
-        <h3>${escapeHtml(projectLabel)} – WCAG findings</h3>
+        ${headerHtml}
         ${overviewHtml}
-        ${pageCards}
+        ${pagesHtml}
       </section>
     `;
     })
@@ -859,7 +896,7 @@ const renderSchemaGroupFallbackHtml = (group) => {
     return left - right;
   });
   const runHtml = runEntries.map(renderSchemaRunEntry).join('');
-  const pageHtml = renderSchemaPageEntries(group.pageEntries || []);
+  const pageHtml = group.suppressPageEntries ? '' : renderSchemaPageEntries(group.pageEntries || []);
   const body = [runHtml, pageHtml].filter(Boolean).join('');
   if (!body) return '';
   return `
@@ -1594,16 +1631,33 @@ const renderTestGroup = (group, options = {}) => {
 const renderMetadata = (run) => {
   const rows = [];
   if (run.site?.name || run.site?.baseUrl) {
-    rows.push({
-      label: 'Site',
-      value: [run.site?.name, run.site?.baseUrl].filter(Boolean).join(' • '),
-    });
+    let domain = null;
+    if (run.site?.baseUrl) {
+      try {
+        const parsed = new URL(run.site.baseUrl);
+        domain = parsed.host || parsed.hostname || run.site.baseUrl;
+      } catch (_) {
+        domain = run.site.baseUrl;
+      }
+    }
+    const parts = [];
+    if (domain) parts.push(domain);
+    if (run.site?.name && (!domain || domain !== run.site.name)) {
+      parts.push(run.site.name);
+    }
+    const value = parts.join(' • ').trim();
+    if (value) {
+      rows.push({
+        label: 'Site',
+        value,
+      });
+    }
   }
   if (run.profile) {
     rows.push({ label: 'Profile', value: run.profile });
   }
   if (Array.isArray(run.projects) && run.projects.length > 0) {
-    rows.push({ label: 'Projects', value: run.projects.join(', ') });
+    rows.push({ label: 'Browsers', value: run.projects.join(', ') });
   }
   if (run.startedAt) {
     rows.push({ label: 'Started', value: run.startedAtFriendly || run.startedAt });

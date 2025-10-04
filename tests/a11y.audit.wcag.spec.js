@@ -441,17 +441,15 @@ const buildSuiteSummaryHtml = (
     (report) => Array.isArray(report.bestPractice) && report.bestPractice.length > 0
   ).length;
 
-  const ruleSummaryHtml = formatRuleSummaryHtml(aggregatedViolations, 'Gating rule summary');
+  const ruleSummaryHtml = formatRuleSummaryHtml(aggregatedViolations, 'Blocking WCAG violations');
   const advisoryRuleSummaryHtml =
     aggregatedAdvisories && aggregatedAdvisories.length > 0
-      ? formatRuleSummaryHtml(aggregatedAdvisories, 'Non-gating rule summary')
+      ? formatRuleSummaryHtml(aggregatedAdvisories, 'WCAG advisory findings')
       : '';
   const bestPracticeRuleSummaryHtml =
     aggregatedBestPractices && aggregatedBestPractices.length > 0
-      ? formatRuleSummaryHtml(aggregatedBestPractices, 'Best-practice advisory summary')
+      ? formatRuleSummaryHtml(aggregatedBestPractices, 'Best-practice advisories')
       : '';
-  const pageCardsHtml = pageReports.map((report) => formatPageCardHtml(report)).join('\n');
-
   const uniqueViewports = Array.from(
     new Set(pageReports.map((report) => report.projectName || 'default'))
   );
@@ -478,15 +476,19 @@ const buildSuiteSummaryHtml = (
     ${ruleSummaryHtml}
     ${advisoryRuleSummaryHtml}
     ${bestPracticeRuleSummaryHtml}
-    <section class="summary-report summary-a11y">
+    <section class="summary-report summary-a11y" data-per-page="controls">
       <h3>Per-page breakdown</h3>
+      <div class="summary-toggle-controls">
+        <button type="button" class="summary-toggle-button" data-toggle="expand">Show all</button>
+        <button type="button" class="summary-toggle-button" data-toggle="collapse">Hide all</button>
+      </div>
     </section>
-    <section class="summary-report summary-a11y">
+    <section class="summary-report summary-a11y" data-per-page="list">
       ${pageReports
         .map((report) => {
           const cardHtml = formatPageCardHtml(report);
           return `
-        <details class="summary-page">
+        <details class="summary-page summary-page--wcag">
           <summary>${escapeHtml(formatPageLabel(report.page))}</summary>
           <div class="summary-page__body">${cardHtml}</div>
         </details>
@@ -494,6 +496,27 @@ const buildSuiteSummaryHtml = (
         })
         .join('\n')}
     </section>
+    <script>
+      (function () {
+        const scriptEl = document.currentScript;
+        if (!scriptEl) return;
+        const listSection = scriptEl.previousElementSibling;
+        const controlsSection = listSection && listSection.previousElementSibling;
+        if (!listSection || !controlsSection) return;
+        const accordions = Array.from(listSection.querySelectorAll('details'));
+        if (accordions.length === 0) return;
+        const setOpenState = (open) => {
+          accordions.forEach((accordion) => {
+            accordion.open = open;
+          });
+        };
+        controlsSection.querySelectorAll('[data-toggle]').forEach((button) => {
+          button.addEventListener('click', () => {
+            setOpenState(button.dataset.toggle === 'expand');
+          });
+        });
+      })();
+    </script>
   `;
 };
 
@@ -909,6 +932,7 @@ const maybeAttachGlobalSummary = async ({
       scope: 'run',
       projectName: 'aggregate',
       summaryType: 'wcag',
+      suppressPageEntries: true,
     },
   });
   if (schemaRunPayload) {
