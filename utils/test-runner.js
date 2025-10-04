@@ -344,9 +344,9 @@ class TestRunner {
         options.responsive ||
         options.functionality ||
         options.accessibility ||
-        options.full;
+        options.allGroups;
 
-      const runAllGroups = options.full || !groupExplicitlySelected;
+      const runAllGroups = options.allGroups || !groupExplicitlySelected;
       const selectedTests = new Set();
 
       for (const file of testEntries) {
@@ -449,17 +449,10 @@ class TestRunner {
       spawnEnv.A11Y_RUN_TOKEN = `${Date.now()}`;
     }
 
-    if (options.a11yKeyboardSteps) {
-      spawnEnv.A11Y_KEYBOARD_STEPS = String(options.a11yKeyboardSteps);
-    } else if (!spawnEnv.A11Y_KEYBOARD_STEPS && options.profile === 'nightly') {
-      spawnEnv.A11Y_KEYBOARD_STEPS = '40';
-    }
-
     // Run Playwright tests
     const playwrightArgs = ['test', ...testTargets];
 
     // Add additional args
-    if (options.headed) playwrightArgs.push('--headed');
     if (options.debug) playwrightArgs.push('--debug');
     if (projectArgsList.length > 0) {
       for (const projectName of projectArgsList) {

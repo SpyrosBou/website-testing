@@ -16,7 +16,6 @@ const argv = minimist(process.argv.slice(2), {
     'limit',
     'a11y-tags',
     'a11y-sample',
-    'a11y-keyboard-steps',
   ],
   boolean: [
     'help',
@@ -28,8 +27,6 @@ const argv = minimist(process.argv.slice(2), {
     'responsive',
     'functionality',
     'accessibility',
-    'full',
-    'headed',
     'debug',
     'update-baselines',
   ],
@@ -114,7 +111,6 @@ function showUsage() {
     '  --responsive, -r      Run only responsive structure specs',
     '  --functionality, -F   Run only functionality specs',
     '  --accessibility, -g   Run only accessibility specs',
-    '  --full               Shortcut for running all groups',
     '  --limit, -n           Limit number of pages under test (applies before grouping)',
     '  --browsers, --project, -b  Comma-separated Playwright projects (default Chrome)',
     "  --workers, -w         Worker count (number or 'auto', default auto)",
@@ -125,7 +121,6 @@ function showUsage() {
     '  --debug, -D           Enable Playwright debug mode',
     '  --a11y-tags, -A       Override WCAG tagging scope (e.g. wcag)',
     '  --a11y-sample, -Y     Limit responsive accessibility sample size',
-    '  --a11y-keyboard-steps Adjust keyboard audit traversal depth',
     '  --help, -h            Show this help message',
     '',
     'Tips:',
@@ -212,8 +207,7 @@ async function main() {
     responsive: coerceBoolean(argv.responsive),
     functionality: coerceBoolean(argv.functionality),
     accessibility: coerceBoolean(argv.accessibility),
-    full: coerceBoolean(argv.full),
-    headed: coerceBoolean(argv.headed),
+    allGroups: false,
     debug: coerceBoolean(argv.debug),
     discover: coerceBoolean(argv.discover),
     local: coerceBoolean(argv.local),
@@ -222,7 +216,6 @@ async function main() {
     limit: argv.limit,
     a11yTags: argv['a11y-tags'] || argv.a11yTags,
     a11ySample: argv['a11y-sample'] || argv.a11ySample,
-    a11yKeyboardSteps: argv['a11y-keyboard-steps'] || argv.a11yKeyboardSteps,
     specs,
     workers: argv.workers,
   };
@@ -232,7 +225,7 @@ async function main() {
     options.responsive = false;
     options.functionality = true;
     options.accessibility = false;
-    options.full = false;
+    options.allGroups = false;
     options.project = options.project || 'Chrome';
     process.env.SMOKE = '1';
   }
@@ -242,15 +235,17 @@ async function main() {
     options.responsive = true;
     options.functionality = true;
     options.accessibility = true;
-    options.full = false;
+    options.allGroups = true;
     options.project = options.project || 'Chrome';
     options.a11ySample = options.a11ySample || 'all';
-    options.a11yKeyboardSteps = options.a11yKeyboardSteps || '40';
+    if (!process.env.A11Y_KEYBOARD_STEPS) {
+      process.env.A11Y_KEYBOARD_STEPS = '40';
+    }
     process.env.NIGHTLY = '1';
   }
 
   if (profile === 'full') {
-    options.full = true;
+    options.allGroups = true;
   }
 
   const exitCode = await runForSites(sites, options);

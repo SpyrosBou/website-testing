@@ -215,7 +215,6 @@ node run-tests.js -s my-site -g -Y all
 
 # Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
 A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
-node run-tests.js -s my-site -g -k 40
 
 # Pin worker count or expand browser coverage
 node run-tests.js --site=my-site --workers 4 --browsers Chrome,Firefox
@@ -229,7 +228,7 @@ npm run discover_pages -- --site=my-site
 
 ### Profiles
 - `--profile=smoke` → functionality-only, Chrome-only, homepage only (fast).
-- `--profile=full` → default behavior (same as `--full`, all spec groups, all configured projects).
+- `--profile=full` → default behavior (all spec groups, all configured projects).
 - `--profile=nightly` → runs visual + responsive + functionality + accessibility suites, forces `--a11y-sample=all`, and bumps the keyboard audit depth (`A11Y_KEYBOARD_STEPS=40`). Override those env vars if you need a different breadth for a given run.
 
 ## Smoke Site Config
@@ -240,20 +239,14 @@ npm run discover_pages -- --site=my-site
 node run-tests.js --site=my-site --visual
 
 # Expand coverage (examples)
-node run-tests.js --site=my-site --visual --project=all --viewport=all
-node run-tests.js --site=my-site --visual --project=Chrome,Firefox --viewport=desktop,tablet
+node run-tests.js --site=my-site --visual --project=all
+node run-tests.js --site=my-site --visual --project=Chrome,Firefox
 
 # Run only responsive structure tests
 node run-tests.js --site=my-site --responsive
 
 # Run only functionality tests
 node run-tests.js --site=my-site --functionality
-
-# Run full suite explicitly
-node run-tests.js --site=my-site --full
-
-# Run with browser visible (debugging)
-node run-tests.js --site=my-site --headed
 
 # Test specific browser (defaults to Chrome when omitted)
 node run-tests.js --site=my-site --project="Chrome"
