@@ -433,21 +433,6 @@ class TestRunner {
       console.log(`ℹ️  Worker pool: ${spawnEnv.PWTEST_WORKERS}`);
     }
 
-    const viewportInputRaw =
-      typeof options.viewport === 'string'
-        ? options.viewport.trim()
-        : options.viewport === true
-          ? 'desktop'
-          : '';
-    const viewportSpecifier = viewportInputRaw ? viewportInputRaw.toLowerCase() : 'desktop';
-    spawnEnv.RESPONSIVE_VIEWPORTS = viewportSpecifier;
-    if (!spawnEnv.VISUAL_VIEWPORTS) {
-      spawnEnv.VISUAL_VIEWPORTS = viewportSpecifier;
-    }
-    if (viewportSpecifier !== 'desktop') {
-      console.log(`ℹ️  Responsive viewports: ${viewportSpecifier}`);
-    }
-
     if (options.a11yTags) {
       spawnEnv.A11Y_TAGS_MODE = String(options.a11yTags).toLowerCase();
     } else if (!spawnEnv.A11Y_TAGS_MODE) {
