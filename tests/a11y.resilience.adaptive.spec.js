@@ -521,7 +521,7 @@ test.describe('Accessibility: Resilience checks', () => {
     errorContext = sharedErrorContext;
   });
 
-  test('Respects prefers-reduced-motion', async ({ page }) => {
+  test('Respects prefers-reduced-motion', async ({ page }, testInfo) => {
     test.setTimeout(7200000);
 
     const pages = selectAccessibilityTestPages(siteConfig, {
@@ -657,7 +657,7 @@ test.describe('Accessibility: Resilience checks', () => {
     expect(gatingTotal, 'Reduced motion gating issues detected').toBe(0);
   });
 
-  test('Maintains layout under 320px reflow', async ({ page }) => {
+  test('Maintains layout under 320px reflow', async ({ page }, testInfo) => {
     test.setTimeout(7200000);
 
     const originalViewport = page.viewportSize() || { width: 1280, height: 720 };
@@ -787,7 +787,7 @@ test.describe('Accessibility: Resilience checks', () => {
     expect(gatingTotal, 'Reflow gating issues detected').toBe(0);
   });
 
-  test('Iframes expose accessible metadata', async ({ page }) => {
+  test('Iframes expose accessible metadata', async ({ page }, testInfo) => {
     test.setTimeout(7200000);
 
     const pages = selectAccessibilityTestPages(siteConfig, {

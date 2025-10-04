@@ -255,7 +255,7 @@ test.describe('Accessibility: Structural landmarks', () => {
     errorContext = sharedErrorContext;
   });
 
-  test('Landmarks and headings meet baseline accessibility expectations', async ({ page }) => {
+  test('Landmarks and headings meet baseline accessibility expectations', async ({ page }, testInfo) => {
     test.setTimeout(7200000);
 
     const pages = selectAccessibilityTestPages(siteConfig, {

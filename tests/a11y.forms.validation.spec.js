@@ -204,10 +204,11 @@ const renderFormCardMarkdown = (report) => {
   if (report.fields.length) {
     lines.push('', '### Fields audited');
     report.fields.forEach((field) => {
+      const accessibleLabel = field.accessibleName ? `"${field.accessibleName}"` : 'missing';
       lines.push(
-        `- \\`${field.name}\\` (${field.selectorUsed || 'selector n/a'}) — required: ${field.required ? 'yes' : 'no'}, accessible name: ${
-          field.accessibleName ? `"${field.accessibleName}"` : 'missing'
-        }`
+        `- \`${field.name}\` (${field.selectorUsed || 'selector n/a'}) — required: ${
+          field.required ? 'yes' : 'no'
+        }, accessible name: ${accessibleLabel}`
       );
       field.issues.forEach((issue) => lines.push(`  - ⚠️ ${issue}`));
     });
@@ -384,7 +385,7 @@ test.describe('Accessibility: Forms', () => {
     errorContext = sharedErrorContext;
   });
 
-  test('Forms provide accessible labelling and validation feedback', async ({ page }) => {
+  test('Forms provide accessible labelling and validation feedback', async ({ page }, testInfo) => {
     test.setTimeout(7200000);
 
     const formConfigs = Array.isArray(siteConfig.forms) ? siteConfig.forms : [];

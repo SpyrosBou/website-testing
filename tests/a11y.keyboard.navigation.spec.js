@@ -433,7 +433,7 @@ test.describe('Accessibility: Keyboard navigation', () => {
     errorContext = sharedErrorContext;
   });
 
-  test('Keyboard focus flows are accessible', async ({ page }) => {
+  test('Keyboard focus flows are accessible', async ({ page }, testInfo) => {
     test.setTimeout(7200000);
 
     const pages = selectAccessibilityTestPages(siteConfig, {

@@ -26,7 +26,8 @@
     "lint:teardown": "node scripts/check-browser-teardown.js",
     "test:unit": "node --test tests/unit/**/*.test.js",
     "format": "prettier -w .",
-    "viewreport": "node scripts/view-report.js"
+    "viewreport": "node scripts/view-report.js",
+    "read-reports": "node scripts/read-reports.js"
   },
   "lint-staged": {},
   "keywords": [
