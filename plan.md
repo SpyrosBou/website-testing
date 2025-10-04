@@ -56,7 +56,7 @@
   - Without args: opens the most recent `report.html` using a cross-platform `open` utility (`open` package or hand-rolled spawn logic).
   - `--file=<name>`: validates existence and opens that report.
   - `--list`: prints available runs sorted newest → oldest with metadata (timestamp, status counts if available).
-- Provide a `cleanup` target to prune old reports (e.g., repurpose `clean-backup-html` or add a new `clean-reports` script that keeps the 10 most recent report folders and deletes older ones).
+- Provide a `clean-reports` target to prune old runs (keeps the 10 most recent folders).
 
 ### 6. Documentation & Developer Experience
 - Rewrite README + internal docs to describe the new workflow, prerequisites (Java no longer required), and how to consume reports.

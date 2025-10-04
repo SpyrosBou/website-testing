@@ -5,7 +5,7 @@
 - `sites/` JSON site configs (e.g., `example-site.json`, `*-local.json`, `*-live.json`).
 - `utils/` helpers (`test-helpers.js`, `test-runner.js`, `wordpress-page-objects.js`, `test-data-factory.js`, `reporting-utils.js`, `report-schema.js`).
 - `specs/` experimental YAML definitions + generator (not wired into the runner).
-- Reports/artifacts: `reports/` (timestamped folders with `report.html` + `data/run.json`), `playwright-report/`, `test-results/` (git-ignored).
+- Reports/artifacts: `reports/` (timestamped folders with `report.html` + `data/run.json`) and `test-results/` (Playwright screenshots/videos/traces; git-ignored).
 
 ## Build, Test, and Development Commands
 - `npm run setup` — install deps and download Playwright browsers into `.pw-browsers/`.
@@ -15,8 +15,8 @@
 - `--profile=smoke|full|nightly` — presets for common runs (smoke = responsive + Chrome + first page only).
 - `npm run viewreport` — open the latest HTML report generated under `reports/` (pass `--list` or `--file=<run>` for history).
 - `npm run read-reports -- <n>` — open the latest `<n>` HTML reports (defaults to Chrome `--new-window`; override with `--browser`).
-- Notes: reports live in `reports/run-*/report.html`; use `npm run clean-reports` to prune history, and `npm run clean-all-results` to clear Playwright artifacts.
-- Cleanup: `npm run clean-reports`, `npm run clean-old-results`, `npm run clean-all-results`, `npm run clean-backup-html`.
+- Notes: reports live in `reports/run-*/report.html`; use `npm run clean-reports` to prune history, and `npm run clean-test-results` to clear Playwright artifacts.
+- Cleanup: `npm run clean-reports`, `npm run clean-test-results`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
 - For CI smoke runs, consider `sites/nfsmediation-smoke.json` (homepage only) or use `nfsmediation-live`.
  - Deterministic CI option: set `SMOKE_SITE=static-smoke` to use the built-in static server (`scripts/static-server.js`) and `sites/static-smoke.json`.

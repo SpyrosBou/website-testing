@@ -325,17 +325,14 @@ Each Allure summary now includes a “WCAG coverage” banner for these manual a
 ### Managing Reports
 
 ```bash
-# Clean backup HTML report folder
-npm run clean-backup-html
+# Wipe all Playwright artifacts (screenshots/traces/videos)
+npm run clean-test-results
 
-# Clean old test artifacts (older than 15 days)
-npm run clean-old-results
-
-# Clean all test artifacts
-npm run clean-all-results
+# Prune HTML reports to the 10 newest runs
+npm run clean-reports
 ```
 
-**Note**: HTML reports live under `reports/run-*/report.html`. Test artifacts (videos/screenshots) remain in `test-results/`.
+**Note**: HTML reports live under `reports/run-*/report.html`. Playwright artifacts (videos/screenshots/traces) remain in `test-results/`.
 
 ### Working with the custom reporter
 

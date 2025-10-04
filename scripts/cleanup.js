@@ -90,37 +90,10 @@ function pruneOldReports(dir, keepCount = 10) {
 const cmd = process.argv[2];
 
 switch (cmd) {
-  case 'clean-old-results':
-    deleteOlderThan(path.join(process.cwd(), 'test-results'), 15);
-    console.log('Cleaned test results older than 15 days (and empty folders).');
-    break;
-  case 'clean-videos':
-    deleteByGlob(path.join(process.cwd(), 'test-results'), ['*.webm']);
-    console.log('Cleaned all test videos');
-    break;
-  case 'clean-traces':
-    deleteByGlob(path.join(process.cwd(), 'test-results'), ['*.zip']);
-    console.log('Cleaned all trace files');
-    break;
-  case 'clean-all-results':
+  case 'clean-test-results':
     rmrf(path.join(process.cwd(), 'test-results'));
     fs.mkdirSync(path.join(process.cwd(), 'test-results'), { recursive: true });
     console.log('Cleaned all test results');
-    break;
-  case 'clean-site-results':
-    {
-      const site = process.env.SITE;
-      if (!site) {
-        console.log('Usage: SITE=sitename npm run clean-site-results');
-        process.exit(0);
-      }
-      rmrf(path.join(process.cwd(), 'test-results', site));
-      console.log(`Cleaned results for site ${site}`);
-    }
-    break;
-  case 'clean-backup-html':
-    rmrf(path.join(process.cwd(), 'playwright-report'));
-    console.log('Cleaned backup HTML report');
     break;
   case 'clean-reports':
     {
