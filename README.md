@@ -190,7 +190,7 @@ node run-tests.js -s my-site
 
 # Target specific spec files (accepts multiple patterns and sites)
 node run-tests.js --site=my-site tests/a11y.audit.wcag.spec.js
-node run-tests.js -s daygroup-local -s daygroup-live -f responsive.layout.structure.spec.js
+node run-tests.js -s daygroup-local -s daygroup-live -t responsive.layout.structure.spec.js
 
 # Using npm script (pass args after --)
 npm run test:site -- --site=my-site
@@ -203,15 +203,15 @@ node run-tests.js --site=my-site --discover
 
 # Run accessibility scans with WCAG-only tagging (impact gate unchanged)
 node run-tests.js --site=my-site --accessibility --a11y-tags=wcag
-node run-tests.js -s my-site -a -t wcag
+node run-tests.js -s my-site -g -A wcag
 
 # Expand accessibility sampling to all configured pages (affects responsive + new resilience specs)
 node run-tests.js --site=my-site --accessibility --a11y-sample=all
-node run-tests.js -s my-site -a -n all
+node run-tests.js -s my-site -g -n all
 
 # Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
 A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
-node run-tests.js -s my-site -a -k 40
+node run-tests.js -s my-site -g -k 40
 
 # Pin worker count or expand browser coverage
 node run-tests.js --site=my-site --workers 4 --browsers Chrome,Firefox
