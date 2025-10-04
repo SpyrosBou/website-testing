@@ -63,7 +63,7 @@ To try it locally: run `npm run setup` (this installs dependencies and caches Pl
 - **Multiple sites**: repeat `--site` (e.g. `node run-tests.js --site=daygroup-local --site=daygroup-live`)
 - **Project overrides**: `node run-tests.js --site=my-site --browsers Chrome,Firefox`
 - **Worker overrides**: `node run-tests.js --site=my-site --workers 4` (defaults to `auto`)
-- **Site lookup / completion**: `node run-tests.js --list-sites` or `node run-tests.js --complete-sites`
+- **Site lookup**: `node run-tests.js --list-sites`
 
 ### Report layout
 
@@ -180,7 +180,7 @@ An experimental generator lives under `specs/`. These YAML definitions map to th
 ## Commands
 
 ```bash
-# List available sites (also supports shell completion via --complete-sites / -C)
+# List available sites
 node run-tests.js --list-sites
 
 # Test a specific site (defaults to Chrome + auto workers)

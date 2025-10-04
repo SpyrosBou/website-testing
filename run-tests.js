@@ -32,7 +32,6 @@ const argv = minimist(process.argv.slice(2), {
     'headed',
     'debug',
     'update-baselines',
-    'complete-sites',
   ],
   alias: {
     h: 'help',
@@ -49,16 +48,12 @@ const argv = minimist(process.argv.slice(2), {
     r: 'responsive',
     F: 'functionality',
     g: 'accessibility',
-    u: 'full',
-    H: 'headed',
     D: 'debug',
     B: 'update-baselines',
     L: 'list-sites',
-    C: 'complete-sites',
     n: 'limit',
     A: 'a11y-tags',
     Y: 'a11y-sample',
-    k: 'a11y-keyboard-steps',
     'list-sites': ['ls'],
   },
 });
@@ -119,7 +114,7 @@ function showUsage() {
     '  --responsive, -r      Run only responsive structure specs',
     '  --functionality, -F   Run only functionality specs',
     '  --accessibility, -g   Run only accessibility specs',
-    '  --full, -u            Shortcut for running all groups',
+    '  --full               Shortcut for running all groups',
     '  --limit, -n           Limit number of pages under test (applies before grouping)',
     '  --browsers, --project, -b  Comma-separated Playwright projects (default Chrome)',
     "  --workers, -w         Worker count (number or 'auto', default auto)",
@@ -127,11 +122,10 @@ function showUsage() {
     "  --local, -c           Attempt DDEV preflight for local '.ddev.site' hosts",
     '  --list-sites, -L      Print site configs (also used for shell completion helpers)',
     '  --update-baselines, -B Update visual baselines for the chosen site(s)',
-    '  --complete-sites, -C  Emit site list only (shell completion helper)',
     '  --debug, -D           Enable Playwright debug mode',
     '  --a11y-tags, -A       Override WCAG tagging scope (e.g. wcag)',
     '  --a11y-sample, -Y     Limit responsive accessibility sample size',
-    '  --a11y-keyboard-steps, -k  Adjust keyboard audit traversal depth',
+    '  --a11y-keyboard-steps Adjust keyboard audit traversal depth',
     '  --help, -h            Show this help message',
     '',
     'Tips:',
@@ -172,10 +166,6 @@ async function handleListSites() {
   TestRunner.displaySites();
 }
 
-function printSitesForCompletion() {
-  collectSiteNames().forEach((name) => console.log(name));
-}
-
 async function runForSites(sites, baseOptions) {
   let exitCode = 0;
   for (const siteName of sites) {
@@ -202,11 +192,6 @@ async function main() {
 
   if (argv['list-sites'] || argv.list) {
     await handleListSites();
-    return;
-  }
-
-  if (argv['complete-sites']) {
-    printSitesForCompletion();
     return;
   }
 
