@@ -344,7 +344,18 @@ class CustomHtmlReporter {
     const projects = Array.from(this.projectSet).sort();
 
     const siteName = process.env.SITE_NAME || process.env.SITE;
-    const siteBaseUrl = process.env.SITE_BASE_URL || process.env.BASE_URL || null;
+    let siteBaseUrl = process.env.SITE_BASE_URL || process.env.BASE_URL || null;
+    if (!siteBaseUrl && siteName) {
+      const siteConfigPath = path.join(process.cwd(), 'sites', `${siteName}.json`);
+      if (fs.existsSync(siteConfigPath)) {
+        try {
+          const parsed = JSON.parse(fs.readFileSync(siteConfigPath, 'utf8'));
+          if (parsed?.baseUrl) siteBaseUrl = parsed.baseUrl;
+        } catch (error) {
+          console.warn(`⚠️  Unable to read baseUrl from ${siteConfigPath}: ${error.message}`);
+        }
+      }
+    }
     let profile =
       process.env.PROFILE ||
       process.env.TEST_PROFILE ||

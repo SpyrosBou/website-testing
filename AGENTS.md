@@ -14,6 +14,7 @@
 - `--responsive` / `--functionality` — filter suites (example: `node run-tests.js --site=daygroup-local --responsive`).
 - `--profile=smoke|full|nightly` — presets for common runs (smoke = responsive + Chrome + first page only).
 - `npm run viewreport` — open the latest HTML report generated under `reports/` (pass `--list` or `--file=<run>` for history).
+- `npm run read-reports -- <n>` — open the latest `<n>` HTML reports (defaults to Chrome `--new-window`; override with `--browser`).
 - Notes: reports live in `reports/run-*/report.html`; use `npm run clean-reports` to prune history, and `npm run clean-all-results` to clear Playwright artifacts.
 - Cleanup: `npm run clean-reports`, `npm run clean-old-results`, `npm run clean-all-results`, `npm run clean-backup-html`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
@@ -50,6 +51,7 @@
 - Each functionality spec now emits schema payloads via `attachSchemaSummary`, and the reporter renders the same HTML/Markdown layouts inline (legacy suites still rely on `attachSummary` until migrated). Detailed tables remain available once you expand a page accordion or the debug deck.
   - The manual accessibility suites add a dedicated “WCAG coverage” banner to their summaries; mirror that pattern for any new audit so reviewers immediately know which success criteria were exercised.
   - When adding a new spec, emit schema payloads (`attachSchemaSummary`) so the reporter can promote them; use `attachSummary` only as a temporary fallback while migrating legacy code.
+  - **Reporter contract:** if you attach custom `htmlBody`/`cardHtml`, set `metadata.suppressPageEntries: true` on the corresponding run summary so the shared renderer doesn’t duplicate the per-page accordion. If you rely on the auto-rendered layout, do not provide `htmlBody`.
 - WCAG-impact findings (e.g., contrast, keyboard traps) are never ignored in automated runs. If the suite flags one, treat it as a bug for the product/design team—do not whitelist it in configs just to satisfy CI.
 - Keyboard audit depth can be tuned per run by exporting `A11Y_KEYBOARD_STEPS` (defaults to 20 forward tabs and one reverse tab sanity check).
 - Structural sample size honours `a11yStructureSampleSize` (falls back to `a11yResponsiveSampleSize`).

@@ -24,6 +24,7 @@
   - `overview`: counts, gating threshold, extra metadata.
   - `ruleSnapshots`: array with `ruleId`, `impact`, `viewports`, `pages`, `nodes`, `wcagTags`, etc.
   - `perPage`: page URL, viewport, status, key metrics, notes.
+- When a spec supplies custom HTML via `htmlBody` (or embeds `cardHtml` per page), it **must** set `metadata.suppressPageEntries: true` on the corresponding run summary; otherwise the renderer will produce duplicate fallback accordions.
 - Expandable for visual data (`screenshots`, diff info) when visual regression migrates.
 
 ## Migration Plan
@@ -62,6 +63,7 @@
 - Remove legacy summary builders once every spec uses the schema.
 - Add validation/CI check to confirm schema payload present for core specs.
 - Document schema in repo (`docs/report-schema.md`) with sample payloads and provide fixture JSON for test suites.
+- Update contributor docs to emphasise `suppressPageEntries` and the “one promoted layout per summary” rule.
 
 ## Outstanding Work (as of 2025-10-03)
 

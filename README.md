@@ -337,6 +337,22 @@ npm run clean-all-results
 
 **Note**: HTML reports live under `reports/run-*/report.html`. Test artifacts (videos/screenshots) remain in `test-results/`.
 
+### Working with the custom reporter
+
+- Every spec that emits HTML via `attachSchemaSummary` **must** set `metadata.suppressPageEntries: true` on the run-level payload when it also supplies `htmlBody` (or embedded cards). This tells the reporter not to render the fallback per-page accordion a second time.
+- Page-level payloads should focus on structured data (`summary`) and optional `cardHtml`/`cardMarkdown`; the run summary controls the promoted layout.
+- When a suite relies on the automatically generated tables (no custom HTML), omit `htmlBody` entirely so the shared renderer produces the standard accordion view.
+- Aggregate summaries (e.g. `a11y-summary`) are the only place we embed full “per-page breakdown” cards; per-project summaries should normally rely on the fallback tables unless they also provide their own `htmlBody` **and** request `suppressPageEntries`.
+- Generating reports manually:
+
+  ```bash
+  SITE_NAME=createarts-live npx playwright test tests/a11y.audit.wcag.spec.js --project=Chrome
+  npm run read-reports -- 3   # opens the three most recent reports (Chrome windows by default)
+  npm run viewreport          # open the single latest report
+  ```
+
+- The metadata header displays the domain if `SITE_BASE_URL` or `BASE_URL` is exported. Running via `node run-tests.js` is recommended because it sets that env automatically (fallback loads it from `sites/<SITE_NAME>.json`).
+
 ## Browser Coverage
 
 Tests run on:

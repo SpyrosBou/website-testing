@@ -49,9 +49,11 @@ async function main() {
   const rawCount = args._[0] ?? args.count ?? args.c ?? 1;
   const count = Math.max(1, Number.parseInt(rawCount, 10) || 1);
 
-  let toOpen = runEntries.slice(0, count);
+  let toOpen;
   if (order === 'oldest') {
-    toOpen = toOpen.slice().reverse();
+    toOpen = runEntries.slice(-count).reverse();
+  } else {
+    toOpen = runEntries.slice(0, count);
   }
   if (toOpen.length === 0) {
     console.log('No reports available to open.');
