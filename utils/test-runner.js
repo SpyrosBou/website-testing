@@ -460,11 +460,7 @@ class TestRunner {
           console.log('❌ Test run completed with issues.');
         }
         const viewTarget = summary?.reportFile || summary?.reportPath;
-        if (viewTarget) {
-          console.log(`📰 View report: npm run viewreport -- --file=${viewTarget}`);
-        } else {
-          console.log('📰 View report: npm run viewreport');
-        }
+        console.log('📰 View report: npm run read-reports');
         console.log('📁 Reports directory: ./reports/');
         console.log('📸 Test artifacts: ./test-results/');
 

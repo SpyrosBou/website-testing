@@ -13,8 +13,7 @@
 - `node run-tests.js --site=<name>` — run against a specific config.
 - `--responsive` / `--functionality` — filter suites (example: `node run-tests.js --site=daygroup-local --responsive`).
 - `--profile=smoke|full|nightly` — presets for common runs (smoke = responsive + Chrome + first page only).
-- `npm run viewreport` — open the latest HTML report generated under `reports/` (pass `--list` or `--file=<run>` for history).
-- `npm run read-reports -- <n>` — open the latest `<n>` HTML reports (defaults to Chrome `--new-window`; override with `--browser`).
+- `npm run read-reports [count]` — open the newest HTML report (optionally pass a numeric `count` to open that many recent runs).
 - Notes: reports live in `reports/run-*/report.html`; use `npm run clean-reports` to prune history, and `npm run clean-test-results` to clear Playwright artifacts.
 - Cleanup: `npm run clean-reports`, `npm run clean-test-results`.
 - `npm run test:site -- --site=<name>` — npm-script wrapper that forwards `--site`.
@@ -62,7 +61,7 @@ All shared suites traverse the full `testPages` list. The interactive audit is i
   - CLI: `npx playwright test tests/visual.regression.snapshots.spec.js --update-snapshots`
   - Runner helper: `node run-tests.js --update-baselines --site=<name>` or `npm run update-baselines -- --site=<name>`
 - Visual regression defaults to desktop viewports; expand with `--viewport=all` (or `VISUAL_VIEWPORTS`) when you need mobile/tablet snapshots.
-- Generate reports: the custom HTML reporter runs automatically; view them with `npm run viewreport`. Playwright artifacts for the latest run live in `test-results/` (cleared before each execution unless `PW_SKIP_RESULT_CLEAN=true`).
+- Generate reports: the custom HTML reporter runs automatically; view them with `npm run read-reports`. Playwright artifacts for the latest run live in `test-results/` (cleared before each execution unless `PW_SKIP_RESULT_CLEAN=true`).
 
 ### Accessibility Configuration (Optional)
 - Add to your site config to control gating and ignores:

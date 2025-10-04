@@ -3,7 +3,7 @@
 ## Goal Workflow
 - Run `npm test`/`node run-tests.js`; Playwright executes suites and emits one new HTML report inside `reports/` without removing earlier runs.
 - Each report file is self-contained (inline CSS/JS) with accessible summaries, per-test sections, and links to run artifacts stored alongside it.
-- `npm run viewreport` opens the newest report in the default browser; `npm run viewreport -- --file=<name>` targets a specific file, and `--list` enumerates available reports.
+- `npm run read-reports` opens the newest report in the default browser; provide a positional `<count>` to open more.
 
 ## Guiding Principles
 - Eliminate every Allure dependency, helper, artifact, and CI reference; no orphaned scripts or docs.
@@ -52,10 +52,9 @@
 
 ### 5. Runner, CLI, & Tooling Integration
 - Extend `run-tests.js` messaging to point developers to the new report location and CLI command.
-- Add `npm run viewreport` script (Node helper under `scripts/view-report.js`) that:
-  - Without args: opens the most recent `report.html` using a cross-platform `open` utility (`open` package or hand-rolled spawn logic).
-  - `--file=<name>`: validates existence and opens that report.
-  - `--list`: prints available runs sorted newest → oldest with metadata (timestamp, status counts if available).
+- Provide a consolidated `npm run read-reports` helper (Node script under `scripts/read-reports.js`) that:
+  - Without args: opens the most recent `report.html` using a cross-platform `open` utility (`open` package).
+  - `<count>` positional arg: opens the newest `<n>` reports.
 - Provide a `clean-reports` target to prune old runs (keeps the 10 most recent folders).
 
 ### 6. Documentation & Developer Experience
@@ -68,7 +67,7 @@
 - Run Playwright locally to confirm reporter emits expected HTML/asset structure; spot-check failure and success cases.
 - Add unit tests (Jest or Node asserts) for template rendering helpers using captured sample data to prevent regressions.
 - Lint/update ESLint configs if new files require adjustments; ensure `npm run lint` and the suite pass without Allure packages.
-- Verify `npm run viewreport` works across macOS/Linux (use `xdg-open`/`start` fallbacks) and handle missing report scenarios gracefully.
+- Verify `npm run read-reports` works across macOS/Linux (use `xdg-open`/`start` fallbacks) and handle missing report scenarios gracefully.
 
 ## Risks & Mitigations
 - **Spec helper migration churn**: introduce transitional helper that mimics Allure API shape to minimize simultaneous edits; refactor tests iteratively.
@@ -88,8 +87,8 @@
 - On completion it writes `reports/run-YYYYMMDD-HHMMSS/` containing:
   - `report.html`: self-contained run report with metadata, per-test narratives, embedded visuals/logs, anchored sections.
   - `data/`: machine-readable JSON mirrors for integrations.
-- CLI prints the new report path and prompts to use `npm run viewreport`.
-- `npm run viewreport` opens the latest report; `--file` targets a specific run; `--list` enumerates runs.
+- CLI prints the new report path and prompts to use `npm run read-reports`.
+- `npm run read-reports` opens the latest report; a positional numeric count controls history depth.
 - `npm run clean-reports` trims history to the 10 most recent runs.
 - CI archives the same run folders; teammates download a single HTML for offline review while JSON supports dashboards.
 - Docs clarify report structure, navigation, and reporter options (attachment handling, verbosity).
