@@ -3,6 +3,9 @@ const { assertReportSummaryPayload } = require('./report-schema-validator');
 
 const SUMMARY_STYLES = `
 <style>
+  .schema-group__project-block { margin: 1.5rem 0; }
+  .schema-group__project-block > header { margin-bottom: 0.5rem; }
+  .schema-group__project-block > header h3 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #111827; background: none; padding: 0; }
   .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
   .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
   .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }

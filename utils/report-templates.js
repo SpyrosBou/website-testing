@@ -333,6 +333,8 @@ const renderAccessibilityGroupHtml = (group) => {
   const buckets = collectSchemaProjects(group);
   if (buckets.length === 0) return '';
 
+  const multiProject = buckets.length > 1;
+
   const sections = buckets
     .map((bucket) => {
       const runPayload = firstRunPayload(bucket);
@@ -342,11 +344,10 @@ const renderAccessibilityGroupHtml = (group) => {
       const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
       const suppressPageEntries = Boolean(runPayload?.metadata?.suppressPageEntries || group.suppressPageEntries);
       const hasCustomRunHtml = Boolean(runPayload?.htmlBody);
-      const overviewHtml = hasCustomRunHtml
-        ? runPayload.htmlBody
-        : runPayload?.overview
-          ? renderSchemaMetrics(runPayload.overview)
-          : '';
+      const shouldRenderPageCards = !hasCustomRunHtml && !suppressPageEntries;
+      const defaultOverviewHtml = !hasCustomRunHtml && runPayload?.overview
+        ? renderSchemaMetrics(runPayload.overview)
+        : '';
 
       const pageCards = pages
         .map((payload) => {
@@ -377,14 +378,31 @@ const renderAccessibilityGroupHtml = (group) => {
         })
         .join('\n');
 
-      const headerHtml = hasCustomRunHtml ? '' : `<h3>${escapeHtml(projectLabel)} – WCAG findings</h3>`;
-      const pagesHtml = hasCustomRunHtml || suppressPageEntries ? '' : pageCards;
+      if (hasCustomRunHtml) {
+        const projectHeading = multiProject
+          ? `<header class="schema-group__project"><h3>${escapeHtml(projectLabel)}</h3></header>`
+          : '';
+        return `
+      <section class="schema-group__project-block">
+        ${projectHeading}
+        ${runPayload.htmlBody}
+      </section>
+    `;
+      }
+
+      const headingLabel = multiProject
+        ? `${projectLabel} – WCAG findings`
+        : 'WCAG findings';
+
+      const pagesHtml = shouldRenderPageCards ? pageCards : '';
 
       return `
-      <section class="summary-report summary-a11y">
-        ${headerHtml}
-        ${overviewHtml}
-        ${pagesHtml}
+      <section class="schema-group__project-block">
+        <section class="summary-report summary-a11y">
+          <h3>${escapeHtml(headingLabel)}</h3>
+          ${defaultOverviewHtml}
+          ${pagesHtml}
+        </section>
       </section>
     `;
     })
