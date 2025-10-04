@@ -6,7 +6,8 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 const {
   selectAccessibilityTestPages,
   DEFAULT_ACCESSIBILITY_SAMPLE,
@@ -18,6 +19,12 @@ const STRUCTURE_WCAG_REFERENCES = [
   { id: '2.4.6', name: 'Headings and Labels' },
   { id: '2.4.10', name: 'Section Headings' },
 ];
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'page';
 
 const renderWcagBadgesHtml = (references) =>
   references
@@ -137,6 +144,62 @@ const analyseStructureMarkdown = (reports) => {
     }
   });
 
+  return lines.join('\n');
+};
+
+const renderStructureCardHtml = (report) => {
+  const gatingList = report.gating
+    .map((item) => `<li class="check-fail">${escapeHtml(item)}</li>`)
+    .join('');
+  const advisoryList = report.advisories.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+  const headingSummary = report.headingLevels
+    .map((entry) => `<li><code>${escapeHtml(entry.text)}</code> (H${entry.level})</li>`)
+    .join('');
+
+  const landmarks = `
+    <ul class="details">
+      <li>Main landmark: ${report.hasMain ? 'present' : 'missing'}</li>
+      <li>Navigation landmarks: ${report.navigationCount}</li>
+      <li>Header landmarks: ${report.headerCount}</li>
+      <li>Footer landmarks: ${report.footerCount}</li>
+    </ul>
+  `;
+
+  const headingSkips = report.headingSkips.length
+    ? `<details><summary>Heading level skips</summary><ul class="details">${report.headingSkips
+        .map((skip) => `<li>${escapeHtml(skip)}</li>`)
+        .join('')}</ul></details>`
+    : '';
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(report.page)}</h3>
+        <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
+          ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
+        </span>
+      </div>
+      <p class="details">H1 count: ${report.h1Count}</p>
+      ${landmarks}
+      ${report.gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${report.advisories.length ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
+      ${headingSkips}
+      <details><summary>Heading outline (${report.headingLevels.length} headings)</summary><ul class="details">${headingSummary}</ul></details>
+    </section>
+  `;
+};
+
+const renderStructureCardMarkdown = (report) => {
+  const lines = [`## \`${report.page}\``, `- H1 count: ${report.h1Count}`, `- Main landmark: ${report.hasMain ? 'present' : 'missing'}`];
+  if (report.gating.length) {
+    lines.push('', '### Gating issues', ...report.gating.map((item) => `- ❗ ${item}`));
+  }
+  if (report.advisories.length) {
+    lines.push('', '### Advisories', ...report.advisories.map((item) => `- ℹ️ ${item}`));
+  }
+  if (report.headingSkips.length) {
+    lines.push('', '### Heading level skips', ...report.headingSkips.map((skip) => `- ${skip}`));
+  }
   return lines.join('\n');
 };
 
@@ -273,13 +336,57 @@ test.describe('Accessibility: Structural landmarks', () => {
 
     const gatingTotal = reports.reduce((sum, report) => sum + report.gating.length, 0);
 
-  await attachSummary({
-    baseName: 'a11y-structure-summary',
-    htmlBody: analyseStructureHtml(reports),
-    markdown: analyseStructureMarkdown(reports),
-    setDescription: true,
-    title: 'Landmark & heading structure summary',
-  });
+    const structureSummaryHtml = analyseStructureHtml(reports);
+    const structureSummaryMarkdown = analyseStructureMarkdown(reports);
+    const projectName = siteConfig.name || process.env.SITE_NAME || 'default';
+
+    const runPayload = createRunSummaryPayload({
+      baseName: `a11y-structure-summary-${slugify(projectName)}`,
+      title: 'Landmark & heading structure summary',
+      overview: {
+        totalPagesAudited: reports.length,
+        pagesMissingMain: reports.filter((report) => !report.hasMain).length,
+        pagesWithHeadingSkips: reports.filter((report) => report.headingSkips.length > 0).length,
+        pagesWithGatingIssues: reports.filter((report) => report.gating.length > 0).length,
+        pagesWithAdvisories: reports.filter((report) => report.advisories.length > 0).length,
+      },
+      metadata: {
+        spec: 'a11y.structure.landmarks',
+        summaryType: 'structure',
+        projectName,
+        scope: 'project',
+      },
+    });
+    if (structureSummaryHtml) runPayload.htmlBody = structureSummaryHtml;
+    if (structureSummaryMarkdown) runPayload.markdownBody = structureSummaryMarkdown;
+    await attachSchemaSummary(testInfo, runPayload);
+
+    for (const report of reports) {
+      const pagePayload = createPageSummaryPayload({
+        baseName: `a11y-structure-${slugify(projectName)}-${slugify(report.page)}`,
+        title: `Structure audit — ${report.page}`,
+        page: report.page,
+        viewport: 'structure',
+        summary: {
+          h1Count: report.h1Count,
+          hasMainLandmark: report.hasMain,
+          navigationLandmarks: report.navigationCount,
+          headerLandmarks: report.headerCount,
+          footerLandmarks: report.footerCount,
+          headingSkips: report.headingSkips,
+          gatingIssues: report.gating,
+          advisories: report.advisories,
+          cardHtml: renderStructureCardHtml(report),
+          cardMarkdown: renderStructureCardMarkdown(report),
+        },
+        metadata: {
+          spec: 'a11y.structure.landmarks',
+          summaryType: 'structure',
+          projectName,
+        },
+      });
+      await attachSchemaSummary(testInfo, pagePayload);
+    }
 
     expect(gatingTotal, 'Structural accessibility gating issues detected').toBe(0);
   });

@@ -9,7 +9,8 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 const {
   DEFAULT_ACCESSIBILITY_SAMPLE,
   selectAccessibilityTestPages,
@@ -364,6 +365,61 @@ const formatKeyboardSummaryMarkdown = (reports) => {
   return lines.join('\n');
 };
 
+const renderKeyboardCardHtml = (report) => {
+  const gatingList = report.gating
+    .map((issue) => `<li class="check-fail">${escapeHtml(issue)}</li>`)
+    .join('');
+  const advisoryList = report.advisories.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('');
+  const focusList = report.sequence
+    .map(
+      (entry) =>
+        `<li><strong>Step ${entry.index}</strong>: ${escapeHtml(entry.summary)} — ${entry.hasIndicator ? '✅ focus visible' : '⚠️ no focus indicator'}</li>`
+    )
+    .join('');
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(report.page)}</h3>
+        <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
+          ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
+        </span>
+      </div>
+      <p class="details">Focusable elements detected: ${report.focusableCount}</p>
+      <p class="details">Visited via keyboard: ${report.visitedCount}</p>
+      ${report.skipLink ? `<p class="details">Skip link detected: <code>${escapeHtml(report.skipLink.text || report.skipLink.href || 'skip link')}</code></p>` : '<p class="details">Skip link not detected.</p>'}
+      ${gatingList ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${advisoryList ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
+      ${focusList ? `<details><summary>Focus sequence (${report.sequence.length} stops)</summary><ul class="details">${focusList}</ul></details>` : ''}
+    </section>
+  `;
+};
+
+const renderKeyboardCardMarkdown = (report) => {
+  const lines = [`## ${report.page}`, `- Focusable elements: ${report.focusableCount}`, `- Focused via TAB: ${report.visitedCount}`, `- Skip link: ${report.skipLink ? 'detected' : 'not detected'}`];
+  if (report.gating.length) {
+    lines.push('', '### Gating issues', ...report.gating.map((issue) => `- ❗ ${issue}`));
+  }
+  if (report.advisories.length) {
+    lines.push('', '### Advisories', ...report.advisories.map((issue) => `- ℹ️ ${issue}`));
+  }
+  if (report.sequence.length) {
+    lines.push('', '### Focus sequence');
+    report.sequence.forEach((entry) =>
+      lines.push(
+        `- Step ${entry.index}: ${entry.summary}${entry.hasIndicator ? ' — ✅ focus visible' : ' — ⚠️ no focus indicator'}`
+      )
+    );
+  }
+  return lines.join('\n');
+};
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'page';
+
 test.describe('Accessibility: Keyboard navigation', () => {
   let siteConfig;
   let errorContext;
@@ -509,14 +565,52 @@ test.describe('Accessibility: Keyboard navigation', () => {
 
     const summaryHtml = formatKeyboardSummaryHtml(reports);
     const summaryMarkdown = formatKeyboardSummaryMarkdown(reports);
+    const projectName = siteConfig.name || process.env.SITE_NAME || 'default';
 
-    await attachSummary({
-      baseName: 'a11y-keyboard-summary',
-      htmlBody: summaryHtml,
-      markdown: summaryMarkdown,
-      setDescription: true,
+    const runPayload = createRunSummaryPayload({
+      baseName: `a11y-keyboard-summary-${slugify(projectName)}`,
       title: 'Keyboard navigation summary',
+      overview: {
+        totalPagesAudited: reports.length,
+        pagesWithGatingIssues: reports.filter((report) => report.gating.length > 0).length,
+        pagesWithAdvisories: reports.filter((report) => report.advisories.length > 0).length,
+        skipLinksDetected: reports.filter((report) => Boolean(report.skipLink)).length,
+      },
+      metadata: {
+        spec: 'a11y.keyboard.navigation',
+        summaryType: 'keyboard',
+        projectName,
+        scope: 'project',
+      },
     });
+    if (summaryHtml) runPayload.htmlBody = summaryHtml;
+    if (summaryMarkdown) runPayload.markdownBody = summaryMarkdown;
+    await attachSchemaSummary(testInfo, runPayload);
+
+    for (const report of reports) {
+      const pagePayload = createPageSummaryPayload({
+        baseName: `a11y-keyboard-${slugify(projectName)}-${slugify(report.page)}`,
+        title: `Keyboard audit — ${report.page}`,
+        page: report.page,
+        viewport: 'keyboard',
+        summary: {
+          gatingIssues: report.gating,
+          advisories: report.advisories,
+          focusableCount: report.focusableCount,
+          visitedCount: report.visitedCount,
+          skipLink: report.skipLink,
+          focusSequence: report.sequence,
+          cardHtml: renderKeyboardCardHtml(report),
+          cardMarkdown: renderKeyboardCardMarkdown(report),
+        },
+        metadata: {
+          spec: 'a11y.keyboard.navigation',
+          summaryType: 'keyboard',
+          projectName,
+        },
+      });
+      await attachSchemaSummary(testInfo, pagePayload);
+    }
 
     expect(gatingTotal, 'Keyboard navigation gating issues detected').toBe(0);
   });

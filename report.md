@@ -14,13 +14,12 @@ This report consolidates findings from a review of the current accessibility tes
 
 ### 1) WCAG Tag Scoping (Run Full Rules; Annotate WCAG When Present)
 
-- Current behavior (unintended): both specs restrict scans to WCAG-tagged rules via `withTags(WCAG_AXE_TAGS)`:
+- Current behavior (unintended): the WCAG suite restricts scans to WCAG-tagged rules via `withTags(WCAG_AXE_TAGS)`:
   - `tests/a11y.audit.wcag.spec.js:~600`
-  - `tests/a11y.responsive.audit.spec.js:~220`
 - Desired behavior: run the full axe ruleset (no `.withTags(...)`), gate failures by impact (`a11yFailOn`, default critical/serious), and display WCAG labels where available.
 
 Actions:
-- Remove `.withTags(WCAG_AXE_TAGS)` from both specs so `.analyze()` runs the full ruleset.
+- Remove `.withTags(WCAG_AXE_TAGS)` from the suite so `.analyze()` runs the full ruleset.
 - Keep severity gating logic unchanged. Continue to compute a “gating” bucket (impact ∈ `a11yFailOn`) and split out non-gating advisory results.
 - Reporting enhancement: add a third bucket for “Best-practice advisories (no WCAG tag)” to ensure non-WCAG rules surface clearly without conflating them with WCAG-mapped items.
 - Reporting enhancement: headline now reads “Analyzed X page(s) per browser across Y viewport(s)” so cross-browser scope is explicit; keep the text in sync if sampling logic changes.
@@ -116,7 +115,7 @@ Implementation:
 
 - Daytime/CI default:
   - Gating: `critical/serious` only.
-  - `tests/a11y.responsive.audit.spec.js` samples the first three pages per viewport by default (override via config/env when needed).
+  - To audit mobile/tablet viewports, include the corresponding Playwright projects (e.g., `--project="Chrome,Chrome Mobile,Chrome Tablet"`) when running `tests/a11y.audit.wcag.spec.js`.
 - Nightly:
   - Full rule scans across all pages for responsive a11y (or rotate through pages), all browsers if desired.
 

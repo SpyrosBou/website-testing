@@ -6,7 +6,8 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 
 const ERROR_SELECTORS = [
   '[role="alert"]',
@@ -148,6 +149,77 @@ const summariseFormsHtml = (reports) => {
     </section>
   `;
 };
+
+const renderFormCardHtml = (report) => {
+  const gatingList = report.gating
+    .map((item) => `<li class="check-fail">${escapeHtml(item)}</li>`)
+    .join('');
+  const advisoryList = report.advisories
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .join('');
+  const fieldRows = report.fields
+    .map((field) => {
+      const status = field.issues.length
+        ? `<ul class="details">${field.issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('')}</ul>`
+        : '<p class="details">No issues detected.</p>';
+      return `
+        <details>
+          <summary><code>${escapeHtml(field.name)}</code> — ${escapeHtml(field.accessibleName || 'no accessible name')}</summary>
+          <p class="details">Required: ${field.required ? 'Yes' : 'No'} | Accessible name present: ${
+            field.accessibleName ? 'Yes' : 'No'
+          }</p>
+          ${status}
+        </details>
+      `;
+    })
+    .join('');
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(report.formName)} — ${escapeHtml(report.page)}</h3>
+        <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
+          ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
+        </span>
+      </div>
+      <p class="details">Form selector: <code>${escapeHtml(report.selectorUsed || 'n/a')}</code></p>
+      ${report.gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${report.advisories.length ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
+      ${fieldRows}
+    </section>
+  `;
+};
+
+const renderFormCardMarkdown = (report) => {
+  const lines = [`## ${report.formName} — \`${report.page}\``];
+  lines.push(`- Selector: \`${report.selectorUsed || 'n/a'}\``);
+  lines.push(`- Gating issues: ${report.gating.length}`);
+  lines.push(`- Advisories: ${report.advisories.length}`);
+  if (report.gating.length) {
+    lines.push('', '### Gating issues', ...report.gating.map((issue) => `- ❗ ${issue}`));
+  }
+  if (report.advisories.length) {
+    lines.push('', '### Advisories', ...report.advisories.map((issue) => `- ℹ️ ${issue}`));
+  }
+  if (report.fields.length) {
+    lines.push('', '### Fields audited');
+    report.fields.forEach((field) => {
+      lines.push(
+        `- \\`${field.name}\\` (${field.selectorUsed || 'selector n/a'}) — required: ${field.required ? 'yes' : 'no'}, accessible name: ${
+          field.accessibleName ? `"${field.accessibleName}"` : 'missing'
+        }`
+      );
+      field.issues.forEach((issue) => lines.push(`  - ⚠️ ${issue}`));
+    });
+  }
+  return lines.join('\n');
+};
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'form';
 
 const getAccessibleNameDetails = async (fieldLocator) => {
   return fieldLocator.evaluate((el) => {
@@ -457,13 +529,53 @@ test.describe('Accessibility: Forms', () => {
 
     const gatingTotal = reports.reduce((sum, report) => sum + report.gating.length, 0);
 
-    await attachSummary({
-      baseName: 'a11y-form-summary',
-      htmlBody: summariseFormsHtml(reports),
-      markdown: summariseFormsMarkdown(reports),
-      setDescription: true,
+    const summaryHtml = summariseFormsHtml(reports);
+    const summaryMarkdown = summariseFormsMarkdown(reports);
+    const projectName = siteConfig.name || process.env.SITE_NAME || 'default';
+
+    const runPayload = createRunSummaryPayload({
+      baseName: `a11y-forms-summary-${slugify(projectName)}`,
       title: 'Forms accessibility summary',
+      overview: {
+        totalFormsAudited: reports.length,
+        formsWithGatingIssues: reports.filter((report) => report.gating.length > 0).length,
+        formsWithAdvisories: reports.filter((report) => report.advisories.length > 0).length,
+        totalFieldsAudited: reports.reduce((sum, report) => sum + report.fields.length, 0),
+        totalGatingFindings: reports.reduce((sum, report) => sum + report.gating.length, 0),
+        totalAdvisoryFindings: reports.reduce((sum, report) => sum + report.advisories.length, 0),
+      },
+      metadata: {
+        spec: 'a11y.forms.validation',
+        summaryType: 'forms',
+        projectName,
+        scope: 'project',
+      },
     });
+    if (summaryHtml) runPayload.htmlBody = summaryHtml;
+    if (summaryMarkdown) runPayload.markdownBody = summaryMarkdown;
+    await attachSchemaSummary(testInfo, runPayload);
+
+    for (const report of reports) {
+      const pagePayload = createPageSummaryPayload({
+        baseName: `a11y-forms-${slugify(projectName)}-${slugify(report.formName)}-${slugify(report.page)}`,
+        title: `${report.formName} — ${report.page}`,
+        page: report.page,
+        viewport: 'forms',
+        summary: {
+          gatingIssues: report.gating,
+          advisories: report.advisories,
+          fieldFindings: report.fields,
+          cardHtml: renderFormCardHtml(report),
+          cardMarkdown: renderFormCardMarkdown(report),
+        },
+        metadata: {
+          spec: 'a11y.forms.validation',
+          summaryType: 'forms',
+          projectName,
+        },
+      });
+      await attachSchemaSummary(testInfo, pagePayload);
+    }
 
     expect(gatingTotal, 'Form accessibility gating issues detected').toBe(0);
   });

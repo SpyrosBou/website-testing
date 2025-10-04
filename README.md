@@ -369,7 +369,9 @@ Tests run on:
 - `ignoreConsoleErrors`: array of substrings or regex patterns (string form) to suppress known console noise during interactive scans.
 - `resourceErrorBudget`: maximum number of failed network requests (request failures or 4xx/5xx responses) tolerated before the interactive spec soft-fails. Default: `0`.
 
-These fields are optional. When present, they control how the a11y tests in `tests/a11y.audit.wcag.spec.js` and `tests/a11y.responsive.audit.spec.js` decide which violations trigger failures. Both suites generate structured summaries (HTML + Markdown via `utils/reporting-utils.js`) that appear inline in the custom report:
+These fields are optional. When present, they control how the a11y tests in `tests/a11y.audit.wcag.spec.js` decide which violations trigger failures. The suite generates structured summaries (HTML + Markdown via `utils/reporting-utils.js`) that appear inline in the custom report:
+
+Include mobile/tablet Playwright projects (e.g., `--project="Chrome,Chrome Mobile,Chrome Tablet"`) when you need multi-viewport coverage.
 
 - Inline the full summary so reviewers don’t have to download artifacts.
 - Split the findings into **gating** (impact ∈ `a11yFailOn`), **non-gating WCAG advisories**, and **best-practice advisories** (rules without WCAG tags) so you can see the full axe signal without conflating compliance with severity.

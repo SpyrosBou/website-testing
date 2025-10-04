@@ -35,17 +35,18 @@
 - Add new tests under `tests/`.
 - Responsive specs are split into:
   - `responsive.layout.structure.spec.js` (layout/critical elements, cross-viewport consistency, WP features)
-- `visual.regression.snapshots.spec.js` (visual regression with masks/thresholds; defaults to desktop unless expanded via `--viewport`/`VISUAL_VIEWPORTS`)
-  - `a11y.responsive.audit.spec.js` (axe-core scans)
+- Visual regression:
+  - `visual.regression.snapshots.spec.js` (visual regression with masks/thresholds; defaults to desktop unless expanded via `--viewport`/`VISUAL_VIEWPORTS`)
 - Functionality specs are split into:
   - `functionality.infrastructure.health.spec.js` (availability, responses, performance)
   - `functionality.links.internal.spec.js` (internal links)
   - `functionality.interactive.smoke.spec.js` (touches every `testPages` URL with lightweight focus/hover taps while capturing console/resource failures; add client-specific specs when you need real user journeys)
-  - `a11y.audit.wcag.spec.js` (WCAG scans)
-- `a11y.forms.validation.spec.js` (form labelling + validation checks driven by `siteConfig.forms`; summaries highlight WCAG 1.3.1, 3.3.x, and 4.1.2 coverage).
-- `a11y.keyboard.navigation.spec.js` (focus order, skip links, keyboard traps, focus visibility; summaries cite WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7).
-- `a11y.resilience.adaptive.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2).
-- `a11y.structure.landmarks.spec.js` (landmark + heading integrity; summaries cite WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10).
+- Accessibility suites:
+  - `a11y.audit.wcag.spec.js` (WCAG scans; include mobile/tablet Playwright projects when you need multi-viewport coverage)
+  - `a11y.forms.validation.spec.js` (form labelling + validation checks driven by `siteConfig.forms`; summaries highlight WCAG 1.3.1, 3.3.x, and 4.1.2 coverage).
+  - `a11y.keyboard.navigation.spec.js` (focus order, skip links, keyboard traps, focus visibility; summaries cite WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7).
+  - `a11y.resilience.adaptive.spec.js` (reduced motion, 320px reflow, iframe metadata; summaries cite WCAG 2.2.2, 2.3.3, 1.4.4, 1.4.10, 4.1.2).
+  - `a11y.structure.landmarks.spec.js` (landmark + heading integrity; summaries cite WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10).
 - Each functionality spec now emits schema payloads via `attachSchemaSummary`, and the reporter renders the same HTML/Markdown layouts inline (legacy suites still rely on `attachSummary` until migrated). Detailed tables remain available once you expand a page accordion or the debug deck.
   - The manual accessibility suites add a dedicated “WCAG coverage” banner to their summaries; mirror that pattern for any new audit so reviewers immediately know which success criteria were exercised.
   - When adding a new spec, emit schema payloads (`attachSchemaSummary`) so the reporter can promote them; use `attachSummary` only as a temporary fallback while migrating legacy code.
