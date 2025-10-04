@@ -180,15 +180,17 @@ An experimental generator lives under `specs/`. These YAML definitions map to th
 ## Commands
 
 ```bash
-# List available sites (also supports shell completion via --complete-sites)
+# List available sites (also supports shell completion via --complete-sites / -C)
 node run-tests.js --list-sites
 
 # Test a specific site (defaults to Chrome + auto workers)
 node run-tests.js --site=my-site
+# or with short flags
+node run-tests.js -s my-site
 
 # Target specific spec files (accepts multiple patterns and sites)
 node run-tests.js --site=my-site tests/a11y.audit.wcag.spec.js
-node run-tests.js --site=daygroup-local --site=daygroup-live --spec responsive.layout.structure.spec.js
+node run-tests.js -s daygroup-local -s daygroup-live -f responsive.layout.structure.spec.js
 
 # Using npm script (pass args after --)
 npm run test:site -- --site=my-site
@@ -201,15 +203,19 @@ node run-tests.js --site=my-site --discover
 
 # Run accessibility scans with WCAG-only tagging (impact gate unchanged)
 node run-tests.js --site=my-site --accessibility --a11y-tags=wcag
+node run-tests.js -s my-site -a -t wcag
 
 # Expand accessibility sampling to all configured pages (affects responsive + new resilience specs)
 node run-tests.js --site=my-site --accessibility --a11y-sample=all
+node run-tests.js -s my-site -a -y all
 
 # Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
 A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
+node run-tests.js -s my-site -a -k 40
 
 # Pin worker count or expand browser coverage
 node run-tests.js --site=my-site --workers 4 --browsers Chrome,Firefox
+node run-tests.js -s my-site -w 4 -b Chrome,Firefox
 
 # Update visual baselines for a site (visual regression only)
 npm run update-baselines -- --site=my-site
