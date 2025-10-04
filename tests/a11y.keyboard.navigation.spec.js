@@ -580,6 +580,7 @@ test.describe('Accessibility: Keyboard navigation', () => {
         spec: 'a11y.keyboard.navigation',
         summaryType: 'keyboard',
         projectName,
+        suppressPageEntries: true,
         scope: 'project',
       },
     });

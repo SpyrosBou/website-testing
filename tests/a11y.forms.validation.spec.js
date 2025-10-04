@@ -549,6 +549,7 @@ test.describe('Accessibility: Forms', () => {
         spec: 'a11y.forms.validation',
         summaryType: 'forms',
         projectName,
+        suppressPageEntries: true,
         scope: 'project',
       },
     });

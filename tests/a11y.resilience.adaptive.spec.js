@@ -623,6 +623,7 @@ test.describe('Accessibility: Resilience checks', () => {
         spec: 'a11y.resilience.adaptive',
         summaryType: 'reduced-motion',
         projectName,
+        suppressPageEntries: true,
         scope: 'project',
       },
     });
@@ -752,6 +753,7 @@ test.describe('Accessibility: Resilience checks', () => {
         spec: 'a11y.resilience.adaptive',
         summaryType: 'reflow',
         projectName,
+        suppressPageEntries: true,
         scope: 'project',
       },
     });
@@ -899,6 +901,7 @@ test.describe('Accessibility: Resilience checks', () => {
         spec: 'a11y.resilience.adaptive',
         summaryType: 'iframe-metadata',
         projectName,
+        suppressPageEntries: true,
         scope: 'project',
       },
     });

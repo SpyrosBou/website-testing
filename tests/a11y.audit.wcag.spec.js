@@ -1158,14 +1158,15 @@ test.describe('Functionality: Accessibility (WCAG)', () => {
         failOnLabel,
         baseName: `a11y-summary-${slugify(testInfo.project.name)}`,
         title: `WCAG findings – ${testInfo.project.name}`,
-        htmlBody: summaryHtml,
-        markdownBody: summaryMarkdown,
-        metadata: {
-          scope: 'project',
-          projectName: testInfo.project.name,
-          summaryType: 'wcag',
-        },
-      });
+        // Avoid embedding the full HTML in per-project summaries to prevent
+        // duplicate sections (the aggregate summary renders the rich cards).
+      metadata: {
+        scope: 'project',
+        projectName: testInfo.project.name,
+        summaryType: 'wcag',
+        suppressPageEntries: true,
+      },
+    });
       if (schemaRunPayload) {
         await attachSchemaSummary(testInfo, schemaRunPayload);
       }

@@ -354,6 +354,7 @@ test.describe('Accessibility: Structural landmarks', () => {
         spec: 'a11y.structure.landmarks',
         summaryType: 'structure',
         projectName,
+        suppressPageEntries: true,
         scope: 'project',
       },
     });
