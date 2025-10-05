@@ -26,7 +26,7 @@ Whilst working on this repo you can assume we are concerned with the functionali
 ## Testing Guidelines
 
 - Tests rely on `@playwright/test` with custom fixtures in `utils/test-fixtures.js` and Axe accessibility helpers.
-- Use `node run-tests.js --list-sites` to discover configs; `--profile=smoke|nightly|full` tunes coverage breadth.
+- Use `node run-tests.js --list-sites` to discover configs; `--functionality`, `--visual`, `--responsive`, and `--accessibility` let you target specific suites.
 - Update visual baselines with `npx playwright test tests/visual.regression.snapshots.spec.js --update-snapshots` when UI changes are intentional.
 - Accessibility sampling honors `A11Y_SAMPLE` env vars and `a11yResponsiveSampleSize` config entries.
 

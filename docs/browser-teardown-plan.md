@@ -22,7 +22,7 @@
 ### 1. Baseline Audit (Day 0–1)
 - Inventory manual lifecycle calls via `rg "page.close"` / `rg "context.close"`; current sweep returns 0 matches (keep the check documented for regression monitoring).
 - Confirm every spec wraps helpers in `beforeEach` / `afterEach` to avoid orphaned pages.
-- Capture current console output from a smoke run (`node run-tests.js --profile=smoke`) to quantify noise.
+- Capture current console output from a smoke run (`node run-tests.js --site=<site> --functionality --pages=1 --project=Chrome`) to quantify noise.
 - Deliverable: shared checklist mapping suites → required cleanup changes.
 
 ### 2. Helper Refactor (Day 2–3)

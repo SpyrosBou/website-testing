@@ -172,9 +172,6 @@ const renderManifestPreview = (manifest, manifestPath) => {
   ) {
     console.log(`  A11y sample: ${manifest.limits.accessibilitySample}`);
   }
-  if (manifest.profile) {
-    console.log(`  Profile:     ${manifest.profile}`);
-  }
   if (manifestPath) {
     const relativePath = path.relative(process.cwd(), manifestPath);
     console.log(`  Manifest:    ${relativePath}`);
@@ -253,7 +250,6 @@ async function main() {
     local: coerceBoolean(argv.local),
     project: argv.browsers || argv.browser || argv.project,
     limit: argv.pages,
-    a11yKeyboardSteps: undefined,
     specs,
     workers: argv.workers,
     envOverrides: {},

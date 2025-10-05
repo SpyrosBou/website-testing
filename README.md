@@ -42,13 +42,10 @@ To try it locally: run `npm run setup` (this installs dependencies and caches Pl
 4. **Run smoke test (functionality only, Chrome, homepage)**
 
    ```bash
-   # Built-in smoke profile samples the first test page per responsive spec
-   node run-tests.js --site=nfsmediation-local --profile=smoke
+   node run-tests.js --site=nfsmediation-local --functionality --pages=1 --project=Chrome
 
-   # Convenience script for ddev setups (responsive across all pages)
-   npm run smoke:nfs -- --site=nfsmediation-local
-   # Or directly
-   node run-tests.js --site=nfsmediation-local --profile=smoke
+   # Convenience script for ddev setups
+   npm run smoke:nfs -- --functionality --pages=1 --project=Chrome
    ```
 
 5. **Open the latest report**
@@ -69,7 +66,7 @@ To try it locally: run `npm run setup` (this installs dependencies and caches Pl
 
 Every report folder contains `report.html` and a `data/` directory with the machine-readable JSON that powered it (for example: `reports/run-20251003-170959/data/run.json`). Opening the HTML shows three stacked sections:
 
-- **Headline + metadata** – summary cards (total/passed/failed/flaky) followed by run metadata (site, profile, browsers, start/end times) so you can confirm scope at a glance.
+- **Headline + metadata** – summary cards (total/passed/failed/flaky) followed by run metadata (site, browsers, start/end times) so you can confirm scope at a glance.
 - **Promoted summaries** – spec-provided overviews such as the accessibility run summary. These cards now aggregate findings "per browser across N viewport(s)" so Chrome desktop vs mobile distinctions are visible without duplicate blocks. Per-page detail lives behind an accordion for faster scanning.
 - **Debug testing accordion** – collapsed by default. Expanding reveals the navigation sidebar, status filters, and every individual Playwright project/test for deep dives into attachments, console output, and stack traces.
 
@@ -84,7 +81,7 @@ Use this streamlined flow on a Mac to verify everything works end-to-end:
 npm run setup
 
 # 2) Run a quick smoke (functionality only, Chrome, homepage)
-node run-tests.js --site=nfsmediation-live --profile=smoke
+node run-tests.js --site=nfsmediation-live --functionality --pages=1 --project=Chrome
 
 # 3) Open the report
 npm run read-reports
@@ -205,9 +202,6 @@ npm run smoke:nfs
 # Refresh sitemap-backed page list before running tests
 node run-tests.js --site=my-site --discover
 
-# Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
-A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
-
 # Pin worker count or expand browser coverage
 node run-tests.js --site=my-site --workers 4 --browsers Chrome,Firefox
 node run-tests.js -s my-site -w 4 -b Chrome,Firefox
@@ -217,12 +211,6 @@ npm run update-baselines -- --site=my-site
 
 # Refresh test pages from sitemap (no tests run)
 npm run discover_pages -- --site=my-site
-
-### Environment toggles
-- `SMOKE=1` trims most suites down to the homepage (specs check this flag directly).
-- `A11Y_SAMPLE=all` forces accessibility suites to scan every configured page.
-- `A11Y_KEYBOARD_STEPS=<n>` overrides the maximum TAB traversal depth (default 20).
-- `NIGHTLY=1` remains available if your CI relies on it for specialised reporting; set accompanying env vars (`A11Y_SAMPLE`, `A11Y_KEYBOARD_STEPS`) explicitly as needed.
 
 ## Smoke Site Config
 - A minimal CI-friendly config is provided at `sites/nfsmediation-smoke.json` (points to `https://nfs.atelierdev.uk`, homepage only).
@@ -398,7 +386,6 @@ Tests run on:
 - `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Use the site config (or the global `--pages` flag) when you need temporary breadth adjustments without code changes.
 - `a11yKeyboardSampleSize` / `a11yMotionSampleSize` / `a11yReflowSampleSize` / `a11yIframeSampleSize`: optional overrides for the keyboard, reduced-motion, reflow, and iframe audits. Each falls back to `a11yResponsiveSampleSize` when omitted.
 - `a11yStructureSampleSize`: optional override for the structural landmark audit (defaults to `a11yResponsiveSampleSize`).
-- `A11Y_KEYBOARD_STEPS` (env): override the maximum number of forward TAB steps the keyboard audit performs (default: `20`). The spec always performs a reverse TAB sanity check after the forward traversal.
 - `ignoreConsoleErrors`: array of substrings or regex patterns (string form) to suppress known console noise during interactive scans.
 - `resourceErrorBudget`: maximum number of failed network requests (request failures or 4xx/5xx responses) tolerated before the interactive spec soft-fails. Default: `0`.
 

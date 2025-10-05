@@ -19,6 +19,7 @@ This report consolidates findings from a review of the current accessibility tes
 - Desired behavior: run the full axe ruleset (no `.withTags(...)`), gate failures by impact (`a11yFailOn`, default critical/serious), and display WCAG labels where available.
 
 Actions:
+
 - Remove `.withTags(WCAG_AXE_TAGS)` from the suite so `.analyze()` runs the full ruleset.
 - Keep severity gating logic unchanged. Continue to compute a “gating” bucket (impact ∈ `a11yFailOn`) and split out non-gating advisory results.
 - Reporting enhancement: add a third bucket for “Best-practice advisories (no WCAG tag)” to ensure non-WCAG rules surface clearly without conflating them with WCAG-mapped items.
@@ -26,6 +27,7 @@ Actions:
 - Optional: introduce a runner flag or site config switch for compliance-only runs (e.g., `a11yTagsMode: 'all' | 'wcagOnly'`) to support audits where teams want WCAG-only views without altering gating defaults.
 
 Success Criteria:
+
 - Full-rule scans produce equal or more total findings; gating counts stay focused on impact.
 - Report a11y cards show three buckets: Gating, WCAG advisories, Best-practice advisories.
 
@@ -35,11 +37,13 @@ Success Criteria:
 - Why it happens: WordPress sitemaps often exclude the root path; curated lists sometimes focus on posts/pages. This is an easy oversight.
 
 Actions:
+
 - Add `'/'` to `testPages` in all site configs.
 - Add a runner safeguard that, if `testPages` does not include `'/'`, logs a warning and (optionally) injects `'/'` for the current run.
 - In sitemap discovery, post-process the merged list to ensure `'/'` is present before persisting.
 
 Success Criteria:
+
 - All specs always include the homepage; discovery runs never drop it.
 
 ## Coverage Improvements (High-Value Additions)
@@ -49,11 +53,13 @@ These augment axe-based checks with targeted, deterministic validations commonly
 ### A. Keyboard-Only Navigation
 
 Goals:
+
 - Verify visible focus indicator on interactive elements.
 - Detect keyboard traps and ensure skip link appears/works.
 - Ensure focus moves into, and is contained within, off-canvas menus/modals; returns correctly when dismissed.
 
 Implementation (new spec: `tests/a11y.keyboard.navigation.spec.js`):
+
 - Programmatically TAB through a limited set of focusables; assert focus visibility and page responsiveness.
 - Trigger common components (menu, modal, accordion, tabs) via keyboard (Enter/Space/Arrows) and validate ARIA state changes.
 - Surface WCAG 2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7 references alongside the report summary so stakeholders know which criteria were exercised.
@@ -61,53 +67,65 @@ Implementation (new spec: `tests/a11y.keyboard.navigation.spec.js`):
 ### B. Reflow and Zoom
 
 Goals:
+
 - At ~320 CSS px (or equivalent), no horizontal scrolling for primary content areas; content remains readable and functional (WCAG 1.4.10, 1.4.4).
 
 Implementation (extend responsive structure spec or new `tests/a11y.reflow.spec.js`):
+
 - Set viewport width to ≈320px; check `document.scrollingElement.scrollWidth <= viewportWidth + tolerance` and verify main content landmarks are accessible.
 - Report WCAG 1.4.4 / 1.4.10 coverage directly in the custom summary.
 
 ### C. Reduced Motion Support
 
 Goals:
+
 - Respect `prefers-reduced-motion: reduce`; animations should be suppressed without breaking flow (WCAG 2.3.3).
 
 Implementation (new spec or an a11y pass toggle):
+
 - `page.emulateMedia({ reducedMotion: 'reduce' })` then validate key interactions (menus, accordions) function without animated dependencies.
 - Highlight relevance to WCAG 2.2.2 and 2.3.3 in the attached summary.
 
 ### D. Dynamic UI Patterns
 
 Goals:
+
 - Verify ARIA states/roles and keyboard support for menus, accordions, tabs, modals.
 
 Implementation (extend keyboard spec):
+
 - For each pattern found, assert correct roles (`menu`, `tablist`, `dialog`), focus transitions, and aria-expanded/selected updates.
 
 ### E. Forms Deep Checks
 
 Goals:
+
 - Semantic label association, required semantics, inline error announcement (ARIA live), error summary links back to fields.
 
 Implementation (new spec: `tests/a11y.forms.validation.spec.js`):
+
 - Validates accessible names for configured form fields, then submits the form blank to confirm aria-invalid, inline error copy, and global alerts surface appropriately.
 - Annotate report output with WCAG 1.3.1, 3.3.1–3.3.3, and 4.1.2 references.
 
 ### F. Accessibility Tree & Structure
 
 Goals:
+
 - Validate basic structure: one `h1`, landmark presence, reasonable heading progression.
 
 Implementation (new spec: `tests/a11y.structure.landmarks.spec.js`):
+
 - Inspects landmarks + heading outline per page, gating on missing `main`/H1 and flagging heading-level skips as advisories.
 - Add WCAG 1.3.1, 2.4.1, 2.4.6, 2.4.10 references to the summary for quick traceability.
 
 ### G. Iframes & Embeds
 
 Goals:
+
 - Enumerate iframes; run axe in same-origin frames; annotate cross-origin frames and validate accessible alternatives (titles/labels).
 
 Implementation:
+
 - Collect iframes; attempt frame.content(); when cross-origin, record a manual-check item in the report with the frame URL and context.
 - Surface WCAG 1.3.1 and 4.1.2 coverage badges in the summary so reviewers understand the compliance linkage.
 
@@ -120,6 +138,7 @@ Implementation:
   - Full rule scans across all pages for responsive a11y (or rotate through pages), all browsers if desired.
 
 Actions:
+
 - [x] Add config key `a11yResponsiveSampleSize` (number or `'all'`) to control responsive a11y sampling.
 - [x] Add runner overrides (environment variables like `A11Y_SAMPLE`, `A11Y_KEYBOARD_STEPS`) so teams can tune coverage without code changes.
 
@@ -149,29 +168,32 @@ Actions:
 ## Milestones & Ownership
 
 Phase 1 (1–2 days)
+
 - [x] Remove `.withTags(...)` from both a11y specs; add “best-practice advisory” bucket.
 - [x] Enforce homepage coverage: add `'/'` to all site configs; add runner safeguard and discovery post-processing.
 - [x] Make responsive a11y sample size configurable.
-- [x] Update documentation to clarify intent and profiles.
+- [x] Update documentation to clarify intent.
 
 Phase 2 (3–5 days)
+
 - [x] Add keyboard-only spec with common component coverage and focus assertions.
 - [x] Add reduced-motion checks and reflow checks.
 - [x] Add iframe inventory and same-origin frame scanning.
 
 Phase 3 (as needed)
+
 - Deepen form validation checks and a11y-tree assertions.
-- Add nightly profile toggles and reporting badges for new checks.
+- Add reporting badges for new checks as needed.
 
 ## Success Criteria
 
 - Reports show the per-browser/viewport headline text and three a11y buckets with counts; homepage is tested in all suites.
 - Keyboard, reduced-motion, and reflow checks present per page with clear pass/fail signals.
-- Nightly runs demonstrate broader coverage without flake spikes; daytime runs stay fast and reliable.
+- Broader runs demonstrate increased coverage without flake spikes; daytime runs stay fast and reliable.
 
 ## Validation Plan
 
-- Run `node run-tests.js --site=agilitas-live` (daytime profile). Confirm:
+- Run `node run-tests.js --site=agilitas-live`. Confirm:
   - Homepage tested; a11y summaries include gating + advisory buckets; no `.withTags` restriction.
 - Run a nightly job with full responsive a11y coverage and the default tag set. Compare counts vs WCAG-only (set `A11Y_TAGS_MODE=wcag`) for insight.
 - Review iframe inventory notes and manually verify cross-origin embeds as needed.

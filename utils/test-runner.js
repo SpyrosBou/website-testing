@@ -86,7 +86,6 @@ function prepareRunManifestPayload({
   options,
   projectArgsList,
   projectSpecifier,
-  resolvedA11ySample,
   testTargets,
   requestedSpecs,
 }) {
@@ -100,11 +99,8 @@ function prepareRunManifestPayload({
   }
   const manifest = {
     timestamp: new Date().toISOString(),
-    profile: null,
     limits: {
       pageLimit: appliedPageLimit != null ? appliedPageLimit : null,
-      accessibilitySample:
-        resolvedA11ySample !== undefined && resolvedA11ySample !== null ? resolvedA11ySample : null,
     },
     site: {
       name: siteName,
@@ -156,7 +152,6 @@ class TestRunner {
     options,
     projectArgsList,
     projectSpecifier,
-    resolvedA11ySample,
     testTargets,
     requestedSpecs,
   }) {
@@ -167,7 +162,6 @@ class TestRunner {
       options,
       projectArgsList,
       projectSpecifier,
-      resolvedA11ySample,
       testTargets,
       requestedSpecs,
     });
@@ -516,20 +510,6 @@ class TestRunner {
       console.log('ℹ️  Running across all configured Playwright projects');
     }
 
-    const overrideSample = options.envOverrides?.A11Y_SAMPLE
-      ? String(options.envOverrides.A11Y_SAMPLE).toLowerCase()
-      : null;
-    const existingSample = overrideSample || process.env.A11Y_SAMPLE;
-    let resolvedA11ySample = null;
-    if (existingSample) {
-      resolvedA11ySample = String(existingSample).toLowerCase();
-    } else if (siteConfig.a11yResponsiveSampleSize) {
-      resolvedA11ySample = String(siteConfig.a11yResponsiveSampleSize).toLowerCase();
-    }
-    if (!resolvedA11ySample && appliedPageLimit != null) {
-      resolvedA11ySample = String(appliedPageLimit);
-    }
-
     const manifestInfo = TestRunner.prepareRunManifest({
       siteName,
       siteConfig,
@@ -537,7 +517,6 @@ class TestRunner {
       options,
       projectArgsList,
       projectSpecifier,
-      resolvedA11ySample,
       testTargets,
       requestedSpecs: specTargets,
     });
@@ -570,10 +549,6 @@ class TestRunner {
       SITE_NAME: siteName,
     };
 
-    if (options.a11yKeyboardSteps && !spawnEnv.A11Y_KEYBOARD_STEPS) {
-      spawnEnv.A11Y_KEYBOARD_STEPS = String(options.a11yKeyboardSteps);
-    }
-
     if (siteConfig.baseUrl) {
       spawnEnv.SITE_BASE_URL = siteConfig.baseUrl;
       if (!spawnEnv.BASE_URL) {
@@ -595,10 +570,6 @@ class TestRunner {
       spawnEnv.A11Y_TAGS_MODE = 'all';
     }
 
-    if (resolvedA11ySample) {
-      spawnEnv.A11Y_SAMPLE = resolvedA11ySample;
-    }
-
     if (!spawnEnv.A11Y_RUN_TOKEN) {
       spawnEnv.A11Y_RUN_TOKEN = `${Date.now()}`;
     }
@@ -612,15 +583,6 @@ class TestRunner {
       for (const projectName of projectArgsList) {
         playwrightArgs.push(`--project=${projectName}`);
       }
-    }
-
-    if (spawnEnv.A11Y_SAMPLE) {
-      const sampleSummary =
-        spawnEnv.A11Y_SAMPLE === 'all' ? 'all configured pages' : `${spawnEnv.A11Y_SAMPLE} page(s)`;
-      console.log(`ℹ️  Responsive a11y sample: ${sampleSummary}`);
-    }
-    if (spawnEnv.A11Y_KEYBOARD_STEPS) {
-      console.log(`ℹ️  Keyboard audit steps: ${spawnEnv.A11Y_KEYBOARD_STEPS}`);
     }
 
     console.log(`Starting tests...`);
