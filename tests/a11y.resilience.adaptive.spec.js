@@ -6,25 +6,12 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const {
-  attachSchemaSummary,
-  escapeHtml,
-  renderPerPageAccordion,
-  renderSummaryMetrics,
-} = require('../utils/reporting-utils');
+const { attachSchemaSummary } = require('../utils/reporting-utils');
 const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 const {
   DEFAULT_ACCESSIBILITY_SAMPLE,
   selectAccessibilityTestPages,
 } = require('../utils/a11y-shared');
-
-const renderWcagBadgesHtml = (references) =>
-  references
-    .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
-    .join(' ');
-
-const renderWcagListMarkdown = (references) =>
-  references.map((ref) => `- ${ref.id} ${ref.name}`);
 
 const REDUCED_MOTION_WCAG_REFERENCES = [
   { id: '2.2.2', name: 'Pause, Stop, Hide' },
@@ -144,434 +131,6 @@ const reflowEvaluationScript = () => {
   };
 };
 
-const renderReducedMotionCardHtml = (report) => {
-  const significantList = report.significant
-    .map((anim) =>
-      `<li>${escapeHtml(
-        `${anim.name || anim.type || 'animation'} on ${anim.selector || 'element'} (duration ${
-          anim.duration ?? 'unknown'
-        }ms, iterations ${anim.iterations})`
-      )}</li>`
-    )
-    .join('');
-  const advisoryList = report.advisories.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
-  const gatingList = report.gating.map((item) => `<li class="check-fail">${escapeHtml(item)}</li>`).join('');
-
-  return `
-    <section class="summary-report summary-a11y page-card">
-      <div class="page-card__header">
-        <h3>${escapeHtml(report.page)}</h3>
-        <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
-          ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
-        </span>
-      </div>
-      <p class="details">Animations observed: ${report.animations.length}; significant animations: ${report.significant.length}</p>
-      ${report.gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
-      ${report.advisories.length ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
-      ${report.significant.length ? `<details><summary>Significant animations</summary><ul class="details">${significantList}</ul></details>` : ''}
-    </section>
-  `;
-};
-
-const formatReducedMotionSummaryHtml = (reports) => {
-  if (!reports.length) return '';
-
-  const tableRows = reports
-    .map((report) => {
-      return `
-        <tr class="${report.gating.length ? 'impact-critical' : ''}">
-          <td><code>${escapeHtml(report.page)}</code></td>
-          <td>${report.animations.length}</td>
-          <td>${report.significant.length}</td>
-          <td>${report.matchesReduce ? 'Yes' : 'No'}</td>
-          <td>${report.gating.length}</td>
-          <td>${report.advisories.length}</td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  const table = `
-    <table>
-      <thead>
-        <tr>
-          <th>Page</th>
-          <th>Running animations</th>
-          <th>Significant animations</th>
-          <th>Prefers-reduced-motion respected</th>
-          <th>Gating issues</th>
-          <th>Advisories</th>
-        </tr>
-      </thead>
-      <tbody>${tableRows}</tbody>
-    </table>
-  `;
-
-  const metricsHtml = renderSummaryMetrics([
-    { label: 'Pages audited', value: reports.length },
-    {
-      label: 'Pages respecting preference',
-      value: reports.filter((report) => report.matchesReduce).length,
-    },
-    {
-      label: 'Pages with gating issues',
-      value: reports.filter((report) => report.gating.length > 0).length,
-    },
-    {
-      label: 'Pages with advisories',
-      value: reports.filter((report) => report.advisories.length > 0).length,
-    },
-    {
-      label: 'Significant animations',
-      value: reports.reduce((sum, report) => sum + report.significant.length, 0),
-    },
-  ]);
-
-  const perPageAccordion = renderPerPageAccordion(reports, {
-    heading: 'Per-page reduced-motion findings',
-    summaryClass: 'summary-page--reduced-motion',
-    renderCard: (report) => renderReducedMotionCardHtml(report),
-    formatSummaryLabel: (report) => report.page,
-  });
-
-  return `
-    <section class="summary-report summary-a11y">
-      <h2>Reduced motion preference summary</h2>
-      <p class="details">Audited ${reports.length} page(s) with prefers-reduced-motion set to "reduce".</p>
-      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(REDUCED_MOTION_WCAG_REFERENCES)}</p>
-      ${metricsHtml}
-      ${table}
-    </section>
-    ${perPageAccordion}
-  `;
-};
-
-const renderReducedMotionCardMarkdown = (report) => {
-  const lines = [`## ${report.page}`];
-  if (report.gating.length) {
-    lines.push('', '### Gating issues', ...report.gating.map((issue) => `- ❗ ${issue}`));
-  }
-  if (report.significant.length) {
-    lines.push('', '### Significant animations');
-    report.significant.forEach((anim) =>
-      lines.push(
-        `- ${anim.name || anim.type || 'animation'} on ${anim.selector || 'element'} (${anim.duration ?? 'unknown'}ms, iterations ${anim.iterations})`
-      )
-    );
-  }
-  if (report.advisories.length) {
-    lines.push('', '### Advisories', ...report.advisories.map((issue) => `- ℹ️ ${issue}`));
-  }
-  return lines.join('\n');
-};
-
-const formatReducedMotionSummaryMarkdown = (reports) => {
-  if (!reports.length) return '';
-
-  const lines = [
-    '# Reduced motion preference summary',
-    '',
-    '| Page | Animations running | Significant animations | Prefers-reduced respected | Gating issues | Advisories |',
-    '| --- | --- | --- | --- | --- | --- |',
-    ...reports.map((report) =>
-      `| \`${report.page}\` | ${report.animations.length} | ${report.significant.length} | ${
-        report.matchesReduce ? 'yes' : 'no'
-      } | ${report.gating.length} | ${report.advisories.length} |`
-    ),
-  ];
-
-  lines.push('', '### WCAG coverage');
-  lines.push(...renderWcagListMarkdown(REDUCED_MOTION_WCAG_REFERENCES));
-  lines.push('');
-
-  reports.forEach((report) => {
-    if (!report.gating.length && !report.advisories.length && !report.significant.length) return;
-    lines.push('', renderReducedMotionCardMarkdown(report));
-  });
-
-  return lines.join('\n');
-};
-
-const renderReflowCardHtml = (report) => {
-  const offenders = report.offenders
-    .map((offender) =>
-      `<li>${escapeHtml(
-        `${offender.tag}${offender.id ? `#${offender.id}` : ''}${
-          offender.className ? `.${offender.className}` : ''
-        } extends viewport (L ${offender.rectLeft}px / R ${offender.rectRight}px) — ${offender.text || 'no inline text'}`
-      )}</li>`
-    )
-    .join('');
-
-  const gatingList = report.gating.map((issue) => `<li class="check-fail">${escapeHtml(issue)}</li>`).join('');
-  const advisoryList = report.advisories.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('');
-
-  return `
-    <section class="summary-report summary-a11y page-card">
-      <div class="page-card__header">
-        <h3>${escapeHtml(report.page)}</h3>
-        <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
-          ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
-        </span>
-      </div>
-      <p class="details">Horizontal overflow: ${report.horizontalOverflow}px (viewport ${report.viewportWidth}px)</p>
-      ${report.gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
-      ${report.advisories.length ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
-      ${report.offenders.length ? `<details><summary>Potential overflow sources</summary><ul class="details">${offenders}</ul></details>` : ''}
-    </section>
-  `;
-};
-
-const formatReflowSummaryHtml = (reports) => {
-  if (!reports.length) return '';
-
-  const rows = reports
-    .map((report) => `
-      <tr class="${report.gating.length ? 'impact-critical' : ''}">
-        <td><code>${escapeHtml(report.page)}</code></td>
-        <td>${report.viewportWidth}px</td>
-        <td>${report.scrollWidth}px</td>
-        <td>${report.horizontalOverflow}px</td>
-        <td>${report.gating.length}</td>
-        <td>${report.advisories.length}</td>
-      </tr>
-    `)
-    .join('');
-
-  const table = `
-    <table>
-      <thead>
-        <tr>
-          <th>Page</th>
-          <th>Viewport width</th>
-          <th>Document width</th>
-          <th>Horizontal overflow</th>
-          <th>Gating issues</th>
-          <th>Advisories</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
-
-  const metricsHtml = renderSummaryMetrics([
-    { label: 'Pages audited', value: reports.length },
-    {
-      label: 'Pages with overflow',
-      value: reports.filter((report) => report.gating.length > 0).length,
-    },
-    {
-      label: 'Pages with advisories',
-      value: reports.filter((report) => report.advisories.length > 0).length,
-    },
-    {
-      label: 'Maximum overflow (px)',
-      value: reports.reduce((max, report) => Math.max(max, report.horizontalOverflow || 0), 0),
-    },
-  ]);
-
-  const perPageAccordion = renderPerPageAccordion(reports, {
-    heading: 'Per-page reflow findings',
-    summaryClass: 'summary-page--reflow',
-    renderCard: (report) => renderReflowCardHtml(report),
-    formatSummaryLabel: (report) => report.page,
-  });
-
-  return `
-    <section class="summary-report summary-a11y">
-      <h2>Reflow/320px layout summary</h2>
-      <p class="details">Viewport set to 320px width. Highlighting pages with horizontal overflow greater than ${MAX_OVERFLOW_TOLERANCE_PX}px.</p>
-      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(REFLOW_WCAG_REFERENCES)}</p>
-      ${metricsHtml}
-      ${table}
-    </section>
-    ${perPageAccordion}
-  `;
-};
-
-const renderReflowCardMarkdown = (report) => {
-  const lines = [`## ${report.page}`];
-  if (report.gating.length) {
-    lines.push('', '### Gating issues', ...report.gating.map((issue) => `- ❗ ${issue}`));
-  }
-  if (report.offenders.length) {
-    lines.push('', '### Potential overflow sources');
-    report.offenders.forEach((offender) =>
-      lines.push(
-        `- ${offender.tag}${offender.id ? `#${offender.id}` : ''}${
-          offender.className ? `.${offender.className}` : ''
-        } extends viewport (L ${offender.rectLeft}px / R ${offender.rectRight}px)`
-      )
-    );
-  }
-  if (report.advisories.length) {
-    lines.push('', '### Advisories', ...report.advisories.map((issue) => `- ℹ️ ${issue}`));
-  }
-  return lines.join('\n');
-};
-
-const formatReflowSummaryMarkdown = (reports) => {
-  if (!reports.length) return '';
-
-  const lines = [
-    '# Reflow/320px layout summary',
-    '',
-    '| Page | Document width | Overflow | Gating issues | Advisories |',
-    '| --- | --- | --- | --- | --- |',
-    ...reports.map((report) =>
-      `| \`${report.page}\` | ${report.scrollWidth}px | ${report.horizontalOverflow}px | ${report.gating.length} | ${report.advisories.length} |`
-    ),
-  ];
-
-  lines.push('', '### WCAG coverage');
-  lines.push(...renderWcagListMarkdown(REFLOW_WCAG_REFERENCES));
-  lines.push('');
-
-  reports.forEach((report) => {
-    if (!report.gating.length && !report.advisories.length && !report.offenders.length) return;
-    lines.push('', renderReflowCardMarkdown(report));
-  });
-
-  return lines.join('\n');
-};
-
-const renderIframeCardHtml = (report) => {
-  const frameList = report.frames
-    .map((frame) => {
-      const label = frame.title || frame.ariaLabel || frame.name;
-      const status = frame.accessible
-        ? `Accessible label: ${escapeHtml(label || 'missing')}`
-        : 'No accessible label';
-      const origin = frame.crossOrigin ? 'cross-origin' : 'same-origin';
-      const location = frame.resolvedUrl || frame.src || `#${frame.index}`;
-      return `<li>${escapeHtml(`${origin} iframe → ${location} (${status})`)}</li>`;
-    })
-    .join('');
-
-  const gatingList = report.gating.map((issue) => `<li class="check-fail">${escapeHtml(issue)}</li>`).join('');
-  const advisoryList = report.advisories.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('');
-
-  return `
-    <section class="summary-report summary-a11y page-card">
-      <div class="page-card__header">
-        <h3>${escapeHtml(report.page)}</h3>
-        <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
-          ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
-        </span>
-      </div>
-      <p class="details">Detected ${report.frames.length} iframe(s).</p>
-      ${report.gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
-      ${report.advisories.length ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
-      ${report.frames.length ? `<details><summary>Iframe inventory</summary><ul class="details">${frameList}</ul></details>` : ''}
-    </section>
-  `;
-};
-
-const formatIframeSummaryHtml = (reports) => {
-  if (!reports.length) return '';
-
-  const rows = reports
-    .map((report) => `
-      <tr class="${report.gating.length ? 'impact-critical' : ''}">
-        <td><code>${escapeHtml(report.page)}</code></td>
-        <td>${report.frames.length}</td>
-        <td>${report.gating.length}</td>
-        <td>${report.advisories.length}</td>
-      </tr>
-    `)
-    .join('');
-
-  const table = `
-    <table>
-      <thead>
-        <tr>
-          <th>Page</th>
-          <th>Iframe count</th>
-          <th>Gating issues</th>
-          <th>Advisories</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
-
-  const metricsHtml = renderSummaryMetrics([
-    { label: 'Pages audited', value: reports.length },
-    {
-      label: 'Iframes detected',
-      value: reports.reduce((sum, report) => sum + report.frames.length, 0),
-    },
-    {
-      label: 'Pages with gating issues',
-      value: reports.filter((report) => report.gating.length > 0).length,
-    },
-    {
-      label: 'Pages with advisories',
-      value: reports.filter((report) => report.advisories.length > 0).length,
-    },
-  ]);
-
-  const perPageAccordion = renderPerPageAccordion(reports, {
-    heading: 'Per-page iframe findings',
-    summaryClass: 'summary-page--iframe',
-    renderCard: (report) => renderIframeCardHtml(report),
-    formatSummaryLabel: (report) => report.page,
-  });
-
-  return `
-    <section class="summary-report summary-a11y">
-      <h2>Iframe accessibility summary</h2>
-      <p class="details">Evaluated accessible metadata for embedded frames.</p>
-      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(IFRAME_WCAG_REFERENCES)}</p>
-      ${metricsHtml}
-      ${table}
-    </section>
-    ${perPageAccordion}
-  `;
-};
-
-const renderIframeCardMarkdown = (report) => {
-  const lines = [`## ${report.page}`, `- Iframes detected: ${report.frames.length}`];
-  if (report.gating.length) {
-    lines.push('', '### Gating issues', ...report.gating.map((issue) => `- ❗ ${issue}`));
-  }
-  if (report.frames.length) {
-    lines.push('', '### Iframe inventory');
-    report.frames.forEach((frame) => {
-      const label = frame.title || frame.ariaLabel || frame.name || 'no accessible label';
-      const location = frame.resolvedUrl || frame.src || `#${frame.index}`;
-      lines.push(`- ${frame.crossOrigin ? 'Cross' : 'Same'} origin → ${location} (${label})`);
-    });
-  }
-  if (report.advisories.length) {
-    lines.push('', '### Advisories', ...report.advisories.map((issue) => `- ℹ️ ${issue}`));
-  }
-  return lines.join('\n');
-};
-
-const formatIframeSummaryMarkdown = (reports) => {
-  if (!reports.length) return '';
-
-  const lines = [
-    '# Iframe accessibility summary',
-    '',
-    '| Page | Iframes | Gating issues | Advisories |',
-    '| --- | --- | --- | --- |',
-    ...reports.map((report) => `| \`${report.page}\` | ${report.frames.length} | ${report.gating.length} | ${report.advisories.length} |`),
-  ];
-
-  lines.push('', '### WCAG coverage');
-  lines.push(...renderWcagListMarkdown(IFRAME_WCAG_REFERENCES));
-  lines.push('');
-
-  reports.forEach((report) => {
-    if (!report.gating.length && !report.advisories.length && !report.frames.length) return;
-    lines.push('', renderIframeCardMarkdown(report));
-  });
-
-  return lines.join('\n');
-};
-
 const isSameOrigin = (frameUrl, baseUrl) => {
   try {
     if (!frameUrl || frameUrl === 'about:blank') return true;
@@ -680,8 +239,6 @@ test.describe('Accessibility: Resilience checks', () => {
 
     const gatingTotal = reports.reduce((total, report) => total + report.gating.length, 0);
 
-    const summaryHtml = formatReducedMotionSummaryHtml(reports);
-    const summaryMarkdown = formatReducedMotionSummaryMarkdown(reports);
     const projectName = siteConfig.name || process.env.SITE_NAME || 'default';
 
     const runPayload = createRunSummaryPayload({
@@ -702,8 +259,17 @@ test.describe('Accessibility: Resilience checks', () => {
         scope: 'project',
       },
     });
-    if (summaryHtml) runPayload.htmlBody = summaryHtml;
-    if (summaryMarkdown) runPayload.markdownBody = summaryMarkdown;
+    runPayload.details = {
+      pages: reports.map((report) => ({
+        page: report.page,
+        matchesPreference: report.matchesReduce,
+        animations: report.animations,
+        significantAnimations: report.significant,
+        gating: report.gating,
+        advisories: report.advisories,
+      })),
+      wcagReferences: REDUCED_MOTION_WCAG_REFERENCES,
+    };
     await attachSchemaSummary(testInfo, runPayload);
 
     for (const report of reports) {
@@ -718,8 +284,6 @@ test.describe('Accessibility: Resilience checks', () => {
           significantAnimations: report.significant,
           gatingIssues: report.gating,
           advisories: report.advisories,
-          cardHtml: renderReducedMotionCardHtml(report),
-          cardMarkdown: renderReducedMotionCardMarkdown(report),
         },
         metadata: {
           spec: 'a11y.resilience.adaptive',
@@ -811,8 +375,6 @@ test.describe('Accessibility: Resilience checks', () => {
 
     const gatingTotal = reports.reduce((total, report) => total + report.gating.length, 0);
 
-    const reflowSummaryHtml = formatReflowSummaryHtml(reports);
-    const reflowSummaryMarkdown = formatReflowSummaryMarkdown(reports);
     const projectName = siteConfig.name || process.env.SITE_NAME || 'default';
 
     const reflowRunPayload = createRunSummaryPayload({
@@ -832,8 +394,19 @@ test.describe('Accessibility: Resilience checks', () => {
         scope: 'project',
       },
     });
-    if (reflowSummaryHtml) reflowRunPayload.htmlBody = reflowSummaryHtml;
-    if (reflowSummaryMarkdown) reflowRunPayload.markdownBody = reflowSummaryMarkdown;
+    reflowRunPayload.details = {
+      pages: reports.map((report) => ({
+        page: report.page,
+        viewportWidth: report.viewportWidth,
+        documentWidth: report.scrollWidth,
+        horizontalOverflowPx: report.horizontalOverflow,
+        gating: report.gating,
+        advisories: report.advisories,
+        overflowSources: report.offenders,
+      })),
+      wcagReferences: REFLOW_WCAG_REFERENCES,
+      maxOverflowTolerancePx: MAX_OVERFLOW_TOLERANCE_PX,
+    };
     await attachSchemaSummary(testInfo, reflowRunPayload);
 
     for (const report of reports) {
@@ -849,8 +422,6 @@ test.describe('Accessibility: Resilience checks', () => {
           gatingIssues: report.gating,
           advisories: report.advisories,
           overflowSources: report.offenders,
-          cardHtml: renderReflowCardHtml(report),
-          cardMarkdown: renderReflowCardMarkdown(report),
         },
         metadata: {
           spec: 'a11y.resilience.adaptive',
@@ -959,8 +530,6 @@ test.describe('Accessibility: Resilience checks', () => {
 
     const gatingTotal = reports.reduce((total, report) => total + report.gating.length, 0);
 
-    const iframeSummaryHtml = formatIframeSummaryHtml(reports);
-    const iframeSummaryMarkdown = formatIframeSummaryMarkdown(reports);
     const projectName = siteConfig.name || process.env.SITE_NAME || 'default';
 
     const iframeRunPayload = createRunSummaryPayload({
@@ -980,8 +549,16 @@ test.describe('Accessibility: Resilience checks', () => {
         scope: 'project',
       },
     });
-    if (iframeSummaryHtml) iframeRunPayload.htmlBody = iframeSummaryHtml;
-    if (iframeSummaryMarkdown) iframeRunPayload.markdownBody = iframeSummaryMarkdown;
+    iframeRunPayload.details = {
+      pages: reports.map((report) => ({
+        page: report.page,
+        iframeCount: report.frames.length,
+        gating: report.gating,
+        advisories: report.advisories,
+        frames: report.frames,
+      })),
+      wcagReferences: IFRAME_WCAG_REFERENCES,
+    };
     await attachSchemaSummary(testInfo, iframeRunPayload);
 
     for (const report of reports) {
@@ -991,12 +568,10 @@ test.describe('Accessibility: Resilience checks', () => {
         page: report.page,
         viewport: 'iframe-audit',
         summary: {
-          frameCount: report.frames.length,
+          iframeCount: report.frames.length,
           gatingIssues: report.gating,
           advisories: report.advisories,
           frames: report.frames,
-          cardHtml: renderIframeCardHtml(report),
-          cardMarkdown: renderIframeCardMarkdown(report),
         },
         metadata: {
           spec: 'a11y.resilience.adaptive',

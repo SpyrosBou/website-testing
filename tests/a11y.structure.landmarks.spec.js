@@ -6,12 +6,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const {
-  attachSchemaSummary,
-  escapeHtml,
-  renderPerPageAccordion,
-  renderSummaryMetrics,
-} = require('../utils/reporting-utils');
+const { attachSchemaSummary } = require('../utils/reporting-utils');
 const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 const {
   selectAccessibilityTestPages,
@@ -30,167 +25,6 @@ const slugify = (value) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'page';
-
-const renderWcagBadgesHtml = (references) =>
-  references
-    .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
-    .join(' ');
-
-const renderWcagListMarkdown = (references) =>
-  references.map((ref) => `- ${ref.id} ${ref.name}`);
-
-const analyseStructureHtml = (reports) => {
-  if (!reports.length) return '';
-
-  const rows = reports
-    .map(
-      (report) => `
-        <tr class="${report.gating.length ? 'impact-critical' : ''}">
-          <td><code>${escapeHtml(report.page)}</code></td>
-          <td>${report.h1Count}</td>
-          <td>${report.hasMain ? 'Yes' : 'No'}</td>
-          <td>${report.headingSkips.length}</td>
-          <td>${report.gating.length}</td>
-          <td>${report.advisories.length}</td>
-        </tr>
-      `
-    )
-    .join('');
-
-  const metricsHtml = renderSummaryMetrics([
-    { label: 'Pages audited', value: reports.length },
-    {
-      label: 'Pages missing main landmark',
-      value: reports.filter((report) => !report.hasMain).length,
-    },
-    {
-      label: 'Pages with heading level skips',
-      value: reports.filter((report) => report.headingSkips.length > 0).length,
-    },
-    {
-      label: 'Pages with gating issues',
-      value: reports.filter((report) => report.gating.length > 0).length,
-    },
-    {
-      label: 'Pages with advisories',
-      value: reports.filter((report) => report.advisories.length > 0).length,
-    },
-  ]);
-
-  const perPageAccordion = renderPerPageAccordion(reports, {
-    heading: 'Per-page structure findings',
-    summaryClass: 'summary-page--structure',
-    renderCard: (report) => renderStructureCardHtml(report),
-    formatSummaryLabel: (report) => report.page,
-  });
-
-  return `
-    <section class="summary-report summary-a11y">
-      <h2>Accessibility structure audit summary</h2>
-      <p class="details">Validated landmarks and heading structure across ${reports.length} page(s).</p>
-      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(STRUCTURE_WCAG_REFERENCES)}</p>
-      ${metricsHtml}
-      <table>
-        <thead>
-          <tr><th>Page</th><th>H1 count</th><th>Main landmark</th><th>Heading skips</th><th>Gating issues</th><th>Advisories</th></tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </section>
-    ${perPageAccordion}
-  `;
-};
-
-const analyseStructureMarkdown = (reports) => {
-  if (!reports.length) return '';
-
-  const lines = [
-    '# Accessibility structure audit summary',
-    '',
-    '| Page | H1 count | Main landmark | Heading skips | Gating issues | Advisories |',
-    '| --- | --- | --- | --- | --- | --- |',
-    ...reports.map((report) =>
-      `| \`${report.page}\` | ${report.h1Count} | ${report.hasMain ? 'Yes' : 'No'} | ${report.headingSkips.length} | ${
-        report.gating.length
-      } | ${report.advisories.length} |`
-    ),
-  ];
-
-  lines.push('', '### WCAG coverage');
-  lines.push(...renderWcagListMarkdown(STRUCTURE_WCAG_REFERENCES));
-  lines.push('');
-
-  reports.forEach((report) => {
-    if (!report.gating.length && !report.advisories.length) return;
-    lines.push('', `## \`${report.page}\``);
-    if (report.gating.length) {
-      lines.push('', '### Gating issues');
-      report.gating.forEach((item) => lines.push(`- ❗ ${item}`));
-    }
-    if (report.advisories.length) {
-      lines.push('', '### Advisories');
-      report.advisories.forEach((item) => lines.push(`- ℹ️ ${item}`));
-    }
-  });
-
-  return lines.join('\n');
-};
-
-const renderStructureCardHtml = (report) => {
-  const gatingList = report.gating
-    .map((item) => `<li class="check-fail">${escapeHtml(item)}</li>`)
-    .join('');
-  const advisoryList = report.advisories.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
-  const headingSummary = report.headingLevels
-    .map((entry) => `<li><code>${escapeHtml(entry.text)}</code> (H${entry.level})</li>`)
-    .join('');
-
-  const landmarks = `
-    <ul class="details">
-      <li>Main landmark: ${report.hasMain ? 'present' : 'missing'}</li>
-      <li>Navigation landmarks: ${report.navigationCount}</li>
-      <li>Header landmarks: ${report.headerCount}</li>
-      <li>Footer landmarks: ${report.footerCount}</li>
-    </ul>
-  `;
-
-  const headingSkips = report.headingSkips.length
-    ? `<details><summary>Heading level skips</summary><ul class="details">${report.headingSkips
-        .map((skip) => `<li>${escapeHtml(skip)}</li>`)
-        .join('')}</ul></details>`
-    : '';
-
-  return `
-    <section class="summary-report summary-a11y page-card">
-      <div class="page-card__header">
-        <h3>${escapeHtml(report.page)}</h3>
-        <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
-          ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
-        </span>
-      </div>
-      <p class="details">H1 count: ${report.h1Count}</p>
-      ${landmarks}
-      ${report.gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
-      ${report.advisories.length ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
-      ${headingSkips}
-      <details><summary>Heading outline (${report.headingLevels.length} headings)</summary><ul class="details">${headingSummary}</ul></details>
-    </section>
-  `;
-};
-
-const renderStructureCardMarkdown = (report) => {
-  const lines = [`## \`${report.page}\``, `- H1 count: ${report.h1Count}`, `- Main landmark: ${report.hasMain ? 'present' : 'missing'}`];
-  if (report.gating.length) {
-    lines.push('', '### Gating issues', ...report.gating.map((item) => `- ❗ ${item}`));
-  }
-  if (report.advisories.length) {
-    lines.push('', '### Advisories', ...report.advisories.map((item) => `- ℹ️ ${item}`));
-  }
-  if (report.headingSkips.length) {
-    lines.push('', '### Heading level skips', ...report.headingSkips.map((skip) => `- ${skip}`));
-  }
-  return lines.join('\n');
-};
 
 const evaluateStructure = async (page) => {
   return page.evaluate(() => {
@@ -325,8 +159,6 @@ test.describe('Accessibility: Structural landmarks', () => {
 
     const gatingTotal = reports.reduce((sum, report) => sum + report.gating.length, 0);
 
-    const structureSummaryHtml = analyseStructureHtml(reports);
-    const structureSummaryMarkdown = analyseStructureMarkdown(reports);
     const projectName = siteConfig.name || process.env.SITE_NAME || 'default';
 
     const runPayload = createRunSummaryPayload({
@@ -347,8 +179,21 @@ test.describe('Accessibility: Structural landmarks', () => {
         scope: 'project',
       },
     });
-    if (structureSummaryHtml) runPayload.htmlBody = structureSummaryHtml;
-    if (structureSummaryMarkdown) runPayload.markdownBody = structureSummaryMarkdown;
+    runPayload.details = {
+      pages: reports.map((report) => ({
+        page: report.page,
+        h1Count: report.h1Count,
+        hasMainLandmark: report.hasMain,
+        navigationLandmarks: report.navigationCount,
+        headerLandmarks: report.headerCount,
+        footerLandmarks: report.footerCount,
+        headingSkips: report.headingSkips,
+        gating: report.gating,
+        advisories: report.advisories,
+        headingOutline: report.headingLevels,
+      })),
+      wcagReferences: STRUCTURE_WCAG_REFERENCES,
+    };
     await attachSchemaSummary(testInfo, runPayload);
 
     for (const report of reports) {
@@ -366,8 +211,7 @@ test.describe('Accessibility: Structural landmarks', () => {
           headingSkips: report.headingSkips,
           gatingIssues: report.gating,
           advisories: report.advisories,
-          cardHtml: renderStructureCardHtml(report),
-          cardMarkdown: renderStructureCardMarkdown(report),
+          headingOutline: report.headingLevels,
         },
         metadata: {
           spec: 'a11y.structure.landmarks',

@@ -9,12 +9,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const {
-  attachSchemaSummary,
-  escapeHtml,
-  renderPerPageAccordion,
-  renderSummaryMetrics,
-} = require('../utils/reporting-utils');
+const { attachSchemaSummary } = require('../utils/reporting-utils');
 const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 const {
   DEFAULT_ACCESSIBILITY_SAMPLE,
@@ -28,14 +23,6 @@ const KEYBOARD_WCAG_REFERENCES = [
   { id: '2.4.3', name: 'Focus Order' },
   { id: '2.4.7', name: 'Focus Visible' },
 ];
-
-const renderWcagBadgesHtml = (references) =>
-  references
-    .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
-    .join(' ');
-
-const renderWcagListMarkdown = (references) =>
-  references.map((ref) => `- ${ref.id} ${ref.name}`);
 
 const DEFAULT_MAX_TAB_ITERATIONS = 20;
 const FOCUS_DIFF_THRESHOLD = 0.02;
@@ -248,167 +235,6 @@ const detectFocusIndicator = async (page, elementHandle) => {
   }
 };
 
-const formatKeyboardSummaryHtml = (reports) => {
-  if (!reports.length) return '';
-
-  const headerTable = `
-    <table>
-      <thead>
-        <tr>
-          <th>Page</th>
-          <th>Focusable elements sampled</th>
-          <th>Unique focus stops</th>
-          <th>Skip link</th>
-          <th>Gating issues</th>
-          <th>Advisories</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${reports
-          .map((report) => {
-            const skipLinkStatus = report.skipLink
-              ? `Present (${escapeHtml(report.skipLink.text || report.skipLink.href || '')})`
-              : 'Missing';
-            return `
-              <tr class="${report.gating.length ? 'impact-critical' : ''}">
-                <td><code>${escapeHtml(report.page)}</code></td>
-                <td>${report.focusableCount}</td>
-                <td>${report.visitedCount}</td>
-                <td>${skipLinkStatus}</td>
-                <td>${report.gating.length}</td>
-                <td>${report.advisories.length}</td>
-              </tr>
-            `;
-          })
-          .join('')}
-      </tbody>
-    </table>
-  `;
-
-  const metricsHtml = renderSummaryMetrics([
-    { label: 'Pages audited', value: reports.length },
-    {
-      label: 'Pages with gating issues',
-      value: reports.filter((report) => report.gating.length > 0).length,
-    },
-    {
-      label: 'Pages with advisories',
-      value: reports.filter((report) => report.advisories.length > 0).length,
-    },
-    {
-      label: 'Skip links detected',
-      value: reports.filter((report) => Boolean(report.skipLink)).length,
-    },
-    {
-      label: 'Total focus stops sampled',
-      value: reports.reduce((sum, report) => sum + report.visitedCount, 0),
-    },
-  ]);
-
-  const perPageAccordion = renderPerPageAccordion(reports, {
-    heading: 'Per-page breakdown',
-    summaryClass: 'summary-page--keyboard',
-    renderCard: (report) => renderKeyboardCardHtml(report),
-    formatSummaryLabel: (report) => report.page,
-  });
-
-  return `
-    <section class="summary-report summary-a11y">
-      <h2>Keyboard-only navigation summary</h2>
-      <p class="details">Assessed ${reports.length} page(s) for focus traversal, skip navigation, and visible focus indicators.</p>
-      <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(KEYBOARD_WCAG_REFERENCES)}</p>
-      ${metricsHtml}
-      ${headerTable}
-    </section>
-    ${perPageAccordion}
-  `;
-};
-
-const formatKeyboardSummaryMarkdown = (reports) => {
-  if (!reports.length) return '';
-
-  const lines = [
-    '# Keyboard-only navigation summary',
-    '',
-    '| Page | Focusable sampled | Unique focus stops | Skip link | Gating issues | Advisories |',
-    '| --- | --- | --- | --- | --- | --- |',
-    ...reports.map((report) => {
-      const skipLinkStatus = report.skipLink
-        ? `present (${report.skipLink.text || report.skipLink.href || ''})`
-        : 'missing';
-      return `| \`${report.page}\` | ${report.focusableCount} | ${report.visitedCount} | ${skipLinkStatus} | ${report.gating.length} | ${report.advisories.length} |`;
-    }),
-  ];
-
-  lines.push('', '### WCAG coverage');
-  lines.push(...renderWcagListMarkdown(KEYBOARD_WCAG_REFERENCES));
-  lines.push('');
-
-  reports.forEach((report) => {
-    if (!report.gating.length && !report.advisories.length) return;
-    lines.push('', `## ${report.page}`);
-    if (report.gating.length) {
-      lines.push('', '### Gating issues');
-      report.gating.forEach((issue) => lines.push(`- ❗ ${issue}`));
-    }
-    if (report.advisories.length) {
-      lines.push('', '### Advisories');
-      report.advisories.forEach((issue) => lines.push(`- ℹ️ ${issue}`));
-    }
-  });
-
-  return lines.join('\n');
-};
-
-const renderKeyboardCardHtml = (report) => {
-  const gatingList = report.gating
-    .map((issue) => `<li class="check-fail">${escapeHtml(issue)}</li>`)
-    .join('');
-  const advisoryList = report.advisories.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('');
-  const focusList = report.sequence
-    .map(
-      (entry) =>
-        `<li><strong>Step ${entry.index}</strong>: ${escapeHtml(entry.summary)} — ${entry.hasIndicator ? '✅ focus visible' : '⚠️ no focus indicator'}</li>`
-    )
-    .join('');
-
-  return `
-    <section class="summary-report summary-a11y page-card">
-      <div class="page-card__header">
-        <h3>${escapeHtml(report.page)}</h3>
-        <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
-          ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
-        </span>
-      </div>
-      <p class="details">Focusable elements detected: ${report.focusableCount}</p>
-      <p class="details">Visited via keyboard: ${report.visitedCount}</p>
-      ${report.skipLink ? `<p class="details">Skip link detected: <code>${escapeHtml(report.skipLink.text || report.skipLink.href || 'skip link')}</code></p>` : '<p class="details">Skip link not detected.</p>'}
-      ${gatingList ? `<ul class="details">${gatingList}</ul>` : ''}
-      ${advisoryList ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
-      ${focusList ? `<details><summary>Focus sequence (${report.sequence.length} stops)</summary><ul class="details">${focusList}</ul></details>` : ''}
-    </section>
-  `;
-};
-
-const renderKeyboardCardMarkdown = (report) => {
-  const lines = [`## ${report.page}`, `- Focusable elements: ${report.focusableCount}`, `- Focused via TAB: ${report.visitedCount}`, `- Skip link: ${report.skipLink ? 'detected' : 'not detected'}`];
-  if (report.gating.length) {
-    lines.push('', '### Gating issues', ...report.gating.map((issue) => `- ❗ ${issue}`));
-  }
-  if (report.advisories.length) {
-    lines.push('', '### Advisories', ...report.advisories.map((issue) => `- ℹ️ ${issue}`));
-  }
-  if (report.sequence.length) {
-    lines.push('', '### Focus sequence');
-    report.sequence.forEach((entry) =>
-      lines.push(
-        `- Step ${entry.index}: ${entry.summary}${entry.hasIndicator ? ' — ✅ focus visible' : ' — ⚠️ no focus indicator'}`
-      )
-    );
-  }
-  return lines.join('\n');
-};
-
 const slugify = (value) =>
   String(value || '')
     .toLowerCase()
@@ -557,9 +383,6 @@ test.describe('Accessibility: Keyboard navigation', () => {
     }
 
     const gatingTotal = reports.reduce((total, report) => total + report.gating.length, 0);
-
-    const summaryHtml = formatKeyboardSummaryHtml(reports);
-    const summaryMarkdown = formatKeyboardSummaryMarkdown(reports);
     const projectName = siteConfig.name || process.env.SITE_NAME || 'default';
 
     const runPayload = createRunSummaryPayload({
@@ -579,8 +402,18 @@ test.describe('Accessibility: Keyboard navigation', () => {
         scope: 'project',
       },
     });
-    if (summaryHtml) runPayload.htmlBody = summaryHtml;
-    if (summaryMarkdown) runPayload.markdownBody = summaryMarkdown;
+    runPayload.details = {
+      pages: reports.map((report) => ({
+        page: report.page,
+        focusableCount: report.focusableCount,
+        visitedCount: report.visitedCount,
+        skipLink: report.skipLink,
+        gating: report.gating,
+        advisories: report.advisories,
+        focusSequence: report.sequence,
+      })),
+      wcagReferences: KEYBOARD_WCAG_REFERENCES,
+    };
     await attachSchemaSummary(testInfo, runPayload);
 
     for (const report of reports) {
@@ -596,8 +429,6 @@ test.describe('Accessibility: Keyboard navigation', () => {
           visitedCount: report.visitedCount,
           skipLink: report.skipLink,
           focusSequence: report.sequence,
-          cardHtml: renderKeyboardCardHtml(report),
-          cardMarkdown: renderKeyboardCardMarkdown(report),
         },
         metadata: {
           spec: 'a11y.keyboard.navigation',

@@ -1,4 +1,8 @@
-const { SUMMARY_STYLES } = require('./reporting-utils');
+const {
+  SUMMARY_STYLES,
+  renderPerPageAccordion,
+  renderSummaryMetrics,
+} = require('./reporting-utils');
 const { KIND_RUN_SUMMARY, KIND_PAGE_SUMMARY } = require('./report-schema');
 
 const escapeHtml = (value) =>
@@ -23,6 +27,11 @@ const slugify = (value) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'section';
+
+const formatPageLabel = (page) => {
+  if (!page || page === '/') return 'Homepage';
+  return String(page);
+};
 
 const isPlainObject = (value) =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -197,8 +206,12 @@ const renderSchemaPageEntries = (entries) => {
   const accordions = Array.from(grouped.entries())
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([page, pageEntries]) => {
-      const sortedEntries = pageEntries.sort((a, b) => (a.payload.viewport || '').localeCompare(b.payload.viewport || ''));
-      const hasCustomCards = sortedEntries.some((entry) => Boolean(entry.payload?.summary?.cardHtml));
+      const sortedEntries = pageEntries.sort((a, b) =>
+        (a.payload.viewport || '').localeCompare(b.payload.viewport || '')
+      );
+      const hasCustomCards = sortedEntries.some((entry) =>
+        Boolean(entry.payload?.summary?.cardHtml)
+      );
 
       const content = hasCustomCards
         ? sortedEntries
@@ -247,7 +260,6 @@ const renderSchemaPageEntries = (entries) => {
   return accordions.join('');
 };
 
-
 const collectSchemaProjects = (group) => {
   const map = new Map();
   const ensure = (projectName) => {
@@ -260,7 +272,8 @@ const collectSchemaProjects = (group) => {
 
   for (const entry of group.runEntries || []) {
     const meta = entry.payload?.metadata || {};
-    const projectName = meta.projectName || entry.projectName || (meta.scope === 'run' ? 'run' : 'default');
+    const projectName =
+      meta.projectName || entry.projectName || (meta.scope === 'run' ? 'run' : 'default');
     ensure(projectName).runEntries.push(entry);
   }
 
@@ -329,7 +342,7 @@ const formatAccessibilityNotesHtml = (summary) => {
       `;
 };
 
-const renderAccessibilityGroupHtml = (group) => {
+const renderAccessibilityGroupHtmlLegacy = (group) => {
   const buckets = collectSchemaProjects(group);
   if (buckets.length === 0) return '';
 
@@ -342,12 +355,13 @@ const renderAccessibilityGroupHtml = (group) => {
         .map((entry) => entry.payload || {})
         .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
       const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
-      const suppressPageEntries = Boolean(runPayload?.metadata?.suppressPageEntries || group.suppressPageEntries);
+      const suppressPageEntries = Boolean(
+        runPayload?.metadata?.suppressPageEntries || group.suppressPageEntries
+      );
       const hasCustomRunHtml = Boolean(runPayload?.htmlBody);
       const shouldRenderPageCards = !hasCustomRunHtml && !suppressPageEntries;
-      const defaultOverviewHtml = !hasCustomRunHtml && runPayload?.overview
-        ? renderSchemaMetrics(runPayload.overview)
-        : '';
+      const defaultOverviewHtml =
+        !hasCustomRunHtml && runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
       const pageCards = pages
         .map((payload) => {
@@ -355,7 +369,7 @@ const renderAccessibilityGroupHtml = (group) => {
           if (summary.cardHtml) return summary.cardHtml;
 
           const status = summary.status || 'passed';
-          const statusLabel = status.replace(/[\-_/]+/g, ' ');
+          const statusLabel = status.replace(/[-_/]+/g, ' ');
           const notesHtml = formatAccessibilityNotesHtml(summary);
           return `
       <section class="summary-report summary-a11y">
@@ -390,9 +404,7 @@ const renderAccessibilityGroupHtml = (group) => {
     `;
       }
 
-      const headingLabel = multiProject
-        ? `${projectLabel} – WCAG findings`
-        : 'WCAG findings';
+      const headingLabel = multiProject ? `${projectLabel} – WCAG findings` : 'WCAG findings';
 
       const pagesHtml = shouldRenderPageCards ? pageCards : '';
 
@@ -415,10 +427,128 @@ const renderAccessibilityGroupHtml = (group) => {
       ${sections}
     </article>
   `;
-
 };
 
-const firstRunPayload = (bucket) => bucket.runEntries.find((entry) => Boolean(entry?.payload))?.payload || null;
+const renderAccessibilityGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const dataReady = buckets.every((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    return runPayload?.details && Array.isArray(runPayload.details.pages);
+  });
+
+  if (!dataReady) {
+    return renderAccessibilityGroupHtmlLegacy(group);
+  }
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const details = runPayload.details || {};
+    const overview = runPayload.overview || {};
+    const pagesData = details.pages || [];
+    const metrics = [
+      { label: 'Total pages', value: overview.totalPages ?? pagesData.length },
+      {
+        label: 'Pages with gating findings',
+        value:
+          overview.gatingPages ??
+          pagesData.filter((page) => (page.gatingViolations || 0) > 0).length,
+      },
+      {
+        label: 'Pages with advisory findings',
+        value:
+          overview.advisoryPages ??
+          pagesData.filter((page) => (page.advisoryFindings || 0) > 0).length,
+      },
+      {
+        label: 'Pages with best-practice advisories',
+        value:
+          overview.bestPracticePages ??
+          pagesData.filter((page) => (page.bestPracticeFindings || 0) > 0).length,
+      },
+      {
+        label: 'Total gating findings',
+        value:
+          overview.totalGatingFindings ??
+          pagesData.reduce((sum, page) => sum + (page.gatingViolations || 0), 0),
+      },
+      {
+        label: 'Total advisory findings',
+        value:
+          overview.totalAdvisoryFindings ??
+          pagesData.reduce((sum, page) => sum + (page.advisoryFindings || 0), 0),
+      },
+      {
+        label: 'Total best-practice findings',
+        value:
+          overview.totalBestPracticeFindings ??
+          pagesData.reduce((sum, page) => sum + (page.bestPracticeFindings || 0), 0),
+      },
+      {
+        label: 'Viewports tested',
+        value:
+          overview.viewportsTested ??
+          (details.viewports
+            ? details.viewports.length
+            : (runPayload.metadata?.viewports || []).length),
+      },
+    ];
+    const overviewHtml = renderSummaryMetrics(metrics);
+    const failThreshold =
+      details.failThreshold || overview.failThreshold || runPayload.metadata?.failOn;
+
+    const snapshots = runPayload.ruleSnapshots || [];
+    const gatingTable = renderRuleSnapshotsTable(
+      snapshots.filter((snapshot) => snapshot.category === 'gating')
+    );
+    const advisoryTable = renderRuleSnapshotsTable(
+      snapshots.filter((snapshot) => snapshot.category === 'advisory')
+    );
+    const bestPracticeTable = renderRuleSnapshotsTable(
+      snapshots.filter((snapshot) => snapshot.category === 'best-practice')
+    );
+
+    const perPageEntries = (bucket.pageEntries || []).map((entry) => {
+      const payload = entry.payload || {};
+      const summary = payload.summary || {};
+      return {
+        ...summary,
+        page: payload.page || summary.page,
+      };
+    });
+
+    const accordionHtml = renderPerPageAccordion(perPageEntries, {
+      heading: 'Per-page breakdown',
+      summaryClass: 'summary-page--wcag',
+      renderCard: (entrySummary) => renderWcagPageCard(entrySummary),
+      formatSummaryLabel: (entrySummary) => formatPageLabel(entrySummary?.page || 'Unknown page'),
+    });
+
+    return `
+      <section class="summary-report summary-a11y">
+        <h2>Accessibility run summary</h2>
+        ${overviewHtml}
+        ${failThreshold ? `<p class="details">Gating threshold: ${escapeHtml(String(failThreshold))}</p>` : ''}
+      </section>
+      ${gatingTable ? `<section class="summary-report summary-a11y"><h3>Blocking WCAG violations</h3>${gatingTable}</section>` : ''}
+      ${advisoryTable ? `<section class="summary-report summary-a11y"><h3>WCAG advisory findings</h3>${advisoryTable}</section>` : ''}
+      ${bestPracticeTable ? `<section class="summary-report summary-a11y"><h3>Best-practice advisories (no WCAG tag)</h3>${bestPracticeTable}</section>` : ''}
+      ${accordionHtml}
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'WCAG findings summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const firstRunPayload = (bucket) =>
+  bucket.runEntries.find((entry) => Boolean(entry?.payload))?.payload || null;
 
 const renderInternalLinksGroupHtml = (group) => {
   const buckets = collectSchemaProjects(group);
@@ -426,7 +556,9 @@ const renderInternalLinksGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -522,7 +654,9 @@ const renderInteractiveGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
     const resourceBudget = runPayload?.overview?.resourceErrorBudget;
@@ -538,7 +672,9 @@ const renderInteractiveGroupHtml = (group) => {
         const consoleItems = consoleSample.length
           ? consoleSample
               .slice(0, 5)
-              .map((item) => `<li class="check-fail">${escapeHtml(item.message || String(item))}</li>`)
+              .map(
+                (item) => `<li class="check-fail">${escapeHtml(item.message || String(item))}</li>`
+              )
               .join('')
           : '<li class="check-pass">No console errors</li>';
         const consoleList = `
@@ -550,9 +686,10 @@ const renderInteractiveGroupHtml = (group) => {
           ? resourceSample
               .slice(0, 5)
               .map((item) => {
-                const label = item.type === 'requestfailed'
-                  ? `${item.type} – ${item.failure || 'unknown'}`
-                  : `${item.type || 'resource'} ${item.status || ''} ${item.method || ''}`;
+                const label =
+                  item.type === 'requestfailed'
+                    ? `${item.type} – ${item.failure || 'unknown'}`
+                    : `${item.type || 'resource'} ${item.status || ''} ${item.method || ''}`;
                 return `<li class="check-fail">${escapeHtml(label.trim())} — <code>${escapeHtml(item.url || '')}</code></li>`;
               })
               .join('')
@@ -561,13 +698,18 @@ const renderInteractiveGroupHtml = (group) => {
           <ul class="checks">${resourceItems}</ul>
         `;
 
-        const warningItems = (summary.warnings || []).map((msg) => `<li class="check-fail">${escapeHtml(msg)}</li>`);
-        const infoItems = (summary.info || []).map((msg) => `<li class="check-pass">${escapeHtml(msg)}</li>`);
-        const notesHtml = warningItems.length || infoItems.length
-          ? `
+        const warningItems = (summary.warnings || []).map(
+          (msg) => `<li class="check-fail">${escapeHtml(msg)}</li>`
+        );
+        const infoItems = (summary.info || []).map(
+          (msg) => `<li class="check-pass">${escapeHtml(msg)}</li>`
+        );
+        const notesHtml =
+          warningItems.length || infoItems.length
+            ? `
             <ul class="checks">${warningItems.concat(infoItems).join('')}</ul>
           `
-          : '<span class="details">No additional notes</span>';
+            : '<span class="details">No additional notes</span>';
 
         return `
           <tr class="${className}">
@@ -590,9 +732,10 @@ const renderInteractiveGroupHtml = (group) => {
         `
       : '<p>No interactive pages were scanned.</p>';
 
-    const budgetNote = resourceBudget != null
-      ? `<p>Resource error budget: <strong>${resourceBudget}</strong></p>`
-      : '';
+    const budgetNote =
+      resourceBudget != null
+        ? `<p>Resource error budget: <strong>${resourceBudget}</strong></p>`
+        : '';
 
     return `
       <section class="summary-report summary-interactive">
@@ -619,7 +762,9 @@ const renderAvailabilityGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -633,7 +778,10 @@ const renderAvailabilityGroupHtml = (group) => {
         const elementChecks = Object.keys(elements).length
           ? `
               <ul class="checks">${Object.entries(elements)
-                .map(([key, value]) => `<li class="${value ? 'check-pass' : 'check-fail'}">${escapeHtml(key)}: ${value ? 'present' : 'missing'}</li>`)
+                .map(
+                  ([key, value]) =>
+                    `<li class="${value ? 'check-pass' : 'check-fail'}">${escapeHtml(key)}: ${value ? 'present' : 'missing'}</li>`
+                )
                 .join('')}</ul>
             `
           : '<span class="details">No element checks recorded</span>';
@@ -697,7 +845,9 @@ const renderHttpGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -708,7 +858,10 @@ const renderHttpGroupHtml = (group) => {
         const failedList = failedChecks.length
           ? `
               <ul class="checks">${failedChecks
-                .map((check) => `<li class="check-fail">${escapeHtml(check.label || 'Check failed')}${check.details ? ` — ${escapeHtml(check.details)}` : ''}</li>`)
+                .map(
+                  (check) =>
+                    `<li class="check-fail">${escapeHtml(check.label || 'Check failed')}${check.details ? ` — ${escapeHtml(check.details)}` : ''}</li>`
+                )
                 .join('')}</ul>
             `
           : '<span class="details">All checks passed</span>';
@@ -757,15 +910,19 @@ const renderPerformanceGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
     const rows = pages
       .map((payload) => {
         const summary = payload.summary || {};
-        const breaches = (summary.budgetBreaches || [])
-          .map((breach) => `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`);
+        const breaches = (summary.budgetBreaches || []).map(
+          (breach) =>
+            `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`
+        );
         const breachList = breaches.length
           ? `
               <ul class="checks">${breaches
@@ -819,7 +976,9 @@ const renderVisualGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -847,7 +1006,10 @@ const renderVisualGroupHtml = (group) => {
         const detailsHtml = diffDetails.length
           ? `
               <ul class="checks">${diffDetails
-                .map((line) => `<li class="${result === 'diff' ? 'check-fail' : 'details'}">${escapeHtml(line)}</li>`)
+                .map(
+                  (line) =>
+                    `<li class="${result === 'diff' ? 'check-fail' : 'details'}">${escapeHtml(line)}</li>`
+                )
                 .join('')}</ul>
             `
           : '<span class="details">Matched baseline</span>';
@@ -914,7 +1076,9 @@ const renderSchemaGroupFallbackHtml = (group) => {
     return left - right;
   });
   const runHtml = runEntries.map(renderSchemaRunEntry).join('');
-  const pageHtml = group.suppressPageEntries ? '' : renderSchemaPageEntries(group.pageEntries || []);
+  const pageHtml = group.suppressPageEntries
+    ? ''
+    : renderSchemaPageEntries(group.pageEntries || []);
   const body = [runHtml, pageHtml].filter(Boolean).join('');
   if (!body) return '';
   return `
@@ -925,67 +1089,6 @@ const renderSchemaGroupFallbackHtml = (group) => {
   `;
 };
 
-const SCHEMA_HTML_RENDERERS = {
-  'internal-links': renderInternalLinksGroupHtml,
-  interactive: renderInteractiveGroupHtml,
-  availability: renderAvailabilityGroupHtml,
-  http: renderHttpGroupHtml,
-  performance: renderPerformanceGroupHtml,
-  visual: renderVisualGroupHtml,
-  wcag: renderAccessibilityGroupHtml,
-};
-
-const renderSchemaGroup = (group) => {
-  const summaryType = summaryTypeFromGroup(group);
-  if (summaryType && SCHEMA_HTML_RENDERERS[summaryType]) {
-    return SCHEMA_HTML_RENDERERS[summaryType](group);
-  }
-  return renderSchemaGroupFallbackHtml(group);
-};
-
-const renderSchemaSummaries = (records = []) => {
-  if (!Array.isArray(records) || records.length === 0) {
-    return { html: '', promotedBaseNames: new Set() };
-  }
-
-  const groups = buildSchemaGroups(records)
-    .map((group) => {
-      const runEntries = (group.runEntries || []).filter(
-        (entry) => entry.payload?.kind === KIND_RUN_SUMMARY
-      );
-      if (runEntries.length === 0) return null;
-      return {
-        ...group,
-        runEntries,
-        pageEntries: [],
-      };
-    })
-    .filter(Boolean);
-
-  if (groups.length === 0) {
-    return { html: '', promotedBaseNames: new Set() };
-  }
-
-  const promotedBaseNames = new Set();
-  const content = groups
-    .map((group) => {
-      if ((group.runEntries || []).length > 0) {
-        promotedBaseNames.add(group.baseName);
-      }
-      return renderSchemaGroup(group);
-    })
-    .filter(Boolean)
-    .join('\n');
-
-  const html = `
-    <section class="summary-report" aria-label="Suite summaries">
-      ${content}
-    </section>
-  `;
-
-  return { html, promotedBaseNames };
-};
-
 const formatSchemaValueMarkdown = (value) => {
   if (value == null) return '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -993,11 +1096,11 @@ const formatSchemaValueMarkdown = (value) => {
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) {
     if (value.length === 0) return '—';
-    const simple = value.every((item) => item == null || ['string', 'number', 'boolean'].includes(typeof item));
+    const simple = value.every(
+      (item) => item == null || ['string', 'number', 'boolean'].includes(typeof item)
+    );
     if (simple) {
-      return value
-        .map((item) => (item == null ? '—' : formatSchemaValueMarkdown(item)))
-        .join(', ');
+      return value.map((item) => (item == null ? '—' : formatSchemaValueMarkdown(item))).join(', ');
     }
     return value.map((item) => formatSchemaValueMarkdown(item)).join('; ');
   }
@@ -1024,16 +1127,17 @@ const renderRuleSnapshotsMarkdown = (snapshots) => {
   const rows = snapshots.map((snapshot) => {
     const impact = snapshot.impact || snapshot.category || 'info';
     const rule = snapshot.rule || 'rule';
-    const pages = Array.isArray(snapshot.pages) && snapshot.pages.length > 0
-      ? snapshot.pages.join(', ')
-      : '—';
+    const pages =
+      Array.isArray(snapshot.pages) && snapshot.pages.length > 0 ? snapshot.pages.join(', ') : '—';
     const nodes = snapshot.nodes != null ? String(snapshot.nodes) : '—';
-    const viewports = Array.isArray(snapshot.viewports) && snapshot.viewports.length > 0
-      ? snapshot.viewports.join(', ')
-      : '—';
-    const wcagTags = Array.isArray(snapshot.wcagTags) && snapshot.wcagTags.length > 0
-      ? snapshot.wcagTags.join(', ')
-      : '—';
+    const viewports =
+      Array.isArray(snapshot.viewports) && snapshot.viewports.length > 0
+        ? snapshot.viewports.join(', ')
+        : '—';
+    const wcagTags =
+      Array.isArray(snapshot.wcagTags) && snapshot.wcagTags.length > 0
+        ? snapshot.wcagTags.join(', ')
+        : '—';
     return `| ${impact} | ${rule} | ${pages} | ${nodes} | ${viewports} | ${wcagTags} |`;
   });
   return [header, separator, ...rows].join('\n');
@@ -1045,7 +1149,9 @@ const renderInternalLinksGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Internal link audit summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1061,12 +1167,20 @@ const renderInternalLinksGroupMarkdown = (group) => {
     pages.forEach((payload) => {
       const summary = payload.summary || {};
       (summary.brokenSample || []).forEach((issue) => {
-        brokenRows.push(`| \`${payload.page || 'unknown'}\` | ${issue.url || ''} | ${issue.status != null ? issue.status : issue.error || 'error'} | ${issue.methodTried || 'HEAD'} |`);
+        brokenRows.push(
+          `| \`${payload.page || 'unknown'}\` | ${issue.url || ''} | ${issue.status != null ? issue.status : issue.error || 'error'} | ${issue.methodTried || 'HEAD'} |`
+        );
       });
     });
 
     const brokenSection = brokenRows.length
-      ? ['## Broken links', '', '| Source page | URL | Status / Error | Method |', '| --- | --- | --- | --- |', ...brokenRows].join('\n')
+      ? [
+          '## Broken links',
+          '',
+          '| Source page | URL | Status / Error | Method |',
+          '| --- | --- | --- | --- |',
+          ...brokenRows,
+        ].join('\n')
       : '## Broken links\n\nNone 🎉';
 
     const parts = [`## ${heading}`];
@@ -1085,7 +1199,9 @@ const renderInteractiveGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Interactive smoke summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1095,17 +1211,24 @@ const renderInteractiveGroupMarkdown = (group) => {
     const separator = '| --- | --- | --- | --- | --- |';
     const rows = pages.map((payload) => {
       const summary = payload.summary || {};
-      const consoleOutput = (summary.consoleSample || []).map((entry) => `⚠️ ${entry.message || entry}`).join('<br />');
-      const consoleCell = summary.consoleErrors ? consoleOutput || 'See captured sample' : '✅ None';
+      const consoleOutput = (summary.consoleSample || [])
+        .map((entry) => `⚠️ ${entry.message || entry}`)
+        .join('<br />');
+      const consoleCell = summary.consoleErrors
+        ? consoleOutput || 'See captured sample'
+        : '✅ None';
       const resourceOutput = (summary.resourceSample || [])
         .map((entry) => {
-          const base = entry.type === 'requestfailed'
-            ? `requestfailed ${entry.url} (${entry.failure || 'unknown'})`
-            : `${entry.type} ${entry.status || ''} ${entry.method || ''} ${entry.url}`;
+          const base =
+            entry.type === 'requestfailed'
+              ? `requestfailed ${entry.url} (${entry.failure || 'unknown'})`
+              : `${entry.type} ${entry.status || ''} ${entry.method || ''} ${entry.url}`;
           return `⚠️ ${base.trim()}`;
         })
         .join('<br />');
-      const resourceCell = summary.resourceErrors ? resourceOutput || 'See captured sample' : '✅ None';
+      const resourceCell = summary.resourceErrors
+        ? resourceOutput || 'See captured sample'
+        : '✅ None';
       const noteItems = [];
       (summary.warnings || []).forEach((message) => noteItems.push(`⚠️ ${message}`));
       (summary.info || []).forEach((message) => noteItems.push(`ℹ️ ${message}`));
@@ -1130,7 +1253,9 @@ const renderAvailabilityGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Availability & uptime summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1139,7 +1264,8 @@ const renderAvailabilityGroupMarkdown = (group) => {
     const separator = '| --- | --- | --- | --- |';
     const rows = pages.map((payload) => {
       const summary = payload.summary || {};
-      const warnings = (summary.warnings || []).map((message) => `⚠️ ${message}`).join('<br />') || 'None';
+      const warnings =
+        (summary.warnings || []).map((message) => `⚠️ ${message}`).join('<br />') || 'None';
       const info = (summary.info || []).map((message) => `ℹ️ ${message}`).join('<br />') || 'None';
       const statusLabel = summary.status == null ? 'n/a' : summary.status;
       return `| \`${payload.page || 'unknown'}\` | ${statusLabel} | ${warnings} | ${info} |`;
@@ -1160,7 +1286,9 @@ const renderHttpGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'HTTP response validation summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1169,9 +1297,13 @@ const renderHttpGroupMarkdown = (group) => {
     const separator = '| --- | --- | --- | --- |';
     const rows = pages.map((payload) => {
       const summary = payload.summary || {};
-      const failedChecks = (summary.failedChecks || [])
-        .map((check) => `⚠️ ${check.label || 'Check failed'}${check.details ? ` — ${check.details}` : ''}`)
-        .join('<br />') || 'None';
+      const failedChecks =
+        (summary.failedChecks || [])
+          .map(
+            (check) =>
+              `⚠️ ${check.label || 'Check failed'}${check.details ? ` — ${check.details}` : ''}`
+          )
+          .join('<br />') || 'None';
       const statusLabel = summary.status == null ? 'n/a' : summary.status;
       const redirect = summary.redirectLocation || '—';
       return `| \`${payload.page || 'unknown'}\` | ${statusLabel} | ${redirect} | ${failedChecks} |`;
@@ -1192,7 +1324,9 @@ const renderPerformanceGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Performance monitoring summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1201,9 +1335,13 @@ const renderPerformanceGroupMarkdown = (group) => {
     const separator = '| --- | --- | --- | --- | --- | --- |';
     const rows = pages.map((payload) => {
       const summary = payload.summary || {};
-      const breaches = (summary.budgetBreaches || [])
-        .map((breach) => `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`)
-        .join('<br />') || 'None';
+      const breaches =
+        (summary.budgetBreaches || [])
+          .map(
+            (breach) =>
+              `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`
+          )
+          .join('<br />') || 'None';
       return `| \`${payload.page || 'unknown'}\` | ${summary.loadTimeMs != null ? Math.round(summary.loadTimeMs) : '—'} | ${summary.domContentLoadedMs != null ? Math.round(summary.domContentLoadedMs) : '—'} | ${summary.loadCompleteMs != null ? Math.round(summary.loadCompleteMs) : '—'} | ${summary.firstContentfulPaintMs != null ? Math.round(summary.firstContentfulPaintMs) : '—'} | ${breaches} |`;
     });
 
@@ -1222,7 +1360,9 @@ const renderVisualGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Visual regression summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1233,8 +1373,10 @@ const renderVisualGroupMarkdown = (group) => {
       const summary = payload.summary || {};
       const result = (summary.result || '').toLowerCase();
       const diffDetails = [];
-      if (summary.pixelDiff != null) diffDetails.push(`Pixel diff: ${summary.pixelDiff.toLocaleString()}`);
-      if (summary.pixelRatio != null) diffDetails.push(`Diff ratio: ${(summary.pixelRatio * 100).toFixed(2)}%`);
+      if (summary.pixelDiff != null)
+        diffDetails.push(`Pixel diff: ${summary.pixelDiff.toLocaleString()}`);
+      if (summary.pixelRatio != null)
+        diffDetails.push(`Diff ratio: ${(summary.pixelRatio * 100).toFixed(2)}%`);
       if (summary.expectedSize && summary.actualSize) {
         diffDetails.push(
           `Expected ${summary.expectedSize.width}×${summary.expectedSize.height}px, got ${summary.actualSize.width}×${summary.actualSize.height}px`
@@ -1278,9 +1420,10 @@ const renderSchemaPageEntriesMarkdownFallback = (entries) => {
     const payload = entry.payload || {};
     const page = payload.page || 'Unknown page';
     const viewport = payload.viewport || entry.projectName || 'default';
-    const summary = payload.summary && Object.keys(payload.summary).length > 0
-      ? formatSchemaValueMarkdown(payload.summary)
-      : 'No summary data';
+    const summary =
+      payload.summary && Object.keys(payload.summary).length > 0
+        ? formatSchemaValueMarkdown(payload.summary)
+        : 'No summary data';
     return `- **${page} – ${viewport}**: ${summary}`;
   });
   return lines.join('\n');
@@ -1325,23 +1468,23 @@ const renderAccessibilityGroupMarkdown = (group) => {
         .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
       const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
       const heading = `${group.title || 'WCAG findings summary'} – ${projectLabel}`;
-      const overview = (
-        runPayload?.markdownBody || (runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '')
-      );
+      const overview =
+        runPayload?.markdownBody ||
+        (runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '');
 
       const pageSections = pages.map((payload) => {
         const summary = payload.summary || {};
         if (summary.cardMarkdown) return summary.cardMarkdown;
 
         const status = summary.status || 'passed';
-        const statusLabel = status.replace(/[\-_/]+/g, ' ');
+        const statusLabel = status.replace(/[-_/]+/g, ' ');
         const notes = formatAccessibilityNotesMarkdown(summary);
         return `### ${payload.page || 'unknown'}\n\n- Status: ${statusLabel}\n- Gating: ${summary.gatingViolations ?? 0}\n- Advisory: ${summary.advisoryFindings ?? 0}\n- Best practice: ${summary.bestPracticeFindings ?? 0}\n- HTTP: ${summary.httpStatus ?? '—'}\n- Notes: ${notes}`;
       });
 
       const parts = [`## ${heading}`];
       if (overview) parts.push(overview);
-      parts.push(...pageSections)
+      parts.push(...pageSections);
       return parts.join('\n\n');
     })
     .filter(Boolean);
@@ -1444,31 +1587,32 @@ const renderStatusFilters = (statusCounts) => {
 };
 
 const renderSummaryCards = (run) => {
+  const counts = run.statusCounts || {};
   const cards = [
     {
       label: 'Total Tests',
-      value: run.totalTests,
+      value: run.totalTests ?? counts.total ?? 0,
       tone: 'total',
     },
     {
       label: 'Passed',
-      value: run.statusCounts.passed || 0,
+      value: counts.passed || 0,
       tone: 'passed',
     },
     {
       label: 'Failed',
-      value: run.statusCounts.failed || 0,
-      tone: run.statusCounts.failed > 0 ? 'failed' : 'muted',
+      value: counts.failed || 0,
+      tone: (counts.failed || 0) > 0 ? 'failed' : 'muted',
     },
     {
       label: 'Skipped',
-      value: run.statusCounts.skipped || 0,
+      value: counts.skipped || 0,
       tone: 'skipped',
     },
     {
       label: 'Flaky',
-      value: run.statusCounts.flaky || 0,
-      tone: run.statusCounts.flaky > 0 ? 'flaky' : 'muted',
+      value: counts.flaky || 0,
+      tone: (counts.flaky || 0) > 0 ? 'flaky' : 'muted',
     },
   ];
 
@@ -1527,6 +1671,989 @@ const renderRunSummaries = (summaries) => {
       ${items.join('\n')}
     </section>
   `;
+};
+
+const renderFormsPageCard = (summary) => {
+  if (!summary) return '';
+  const gating = summary.gatingIssues || [];
+  const advisories = summary.advisories || [];
+  const fields = summary.fields || [];
+  const selector = summary.selectorUsed || summary.selector || 'n/a';
+  const formName = summary.formName || 'Form';
+  const gatingList = gating
+    .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
+    .join('');
+  const advisoryList = advisories.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
+  const fieldRows = fields
+    .map((field) => {
+      const name = field.name || 'Field';
+      const accessible = field.accessibleName || 'no accessible name';
+      const required = field.required ? 'Yes' : 'No';
+      const issues =
+        Array.isArray(field.issues) && field.issues.length
+          ? `<ul class="details">${field.issues.map((issue) => `<li>${escapeHtml(String(issue))}</li>`).join('')}</ul>`
+          : '<p class="details">No issues detected.</p>';
+      return `
+        <details>
+          <summary><code>${escapeHtml(name)}</code> — ${escapeHtml(accessible)}</summary>
+          <p class="details">Required: ${required}</p>
+          ${issues}
+        </details>
+      `;
+    })
+    .join('');
+
+  const statusClass = gating.length ? 'error' : 'success';
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(formName)} — ${escapeHtml(summary.page || 'n/a')}</h3>
+        <span class="status-pill ${statusClass}">
+          ${gating.length ? `${gating.length} gating issue(s)` : 'Pass'}
+        </span>
+      </div>
+      <p class="details">Form selector: <code>${escapeHtml(selector)}</code></p>
+      ${gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${advisories.length ? `<details><summary>Advisories (${advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
+      ${fieldRows}
+    </section>
+  `;
+};
+
+const renderKeyboardPageCard = (summary) => {
+  if (!summary) return '';
+  const gating = summary.gatingIssues || [];
+  const advisories = summary.advisories || [];
+  const focusSequence = summary.focusSequence || [];
+  const statusClass = gating.length ? 'error' : 'success';
+  const gatingList = gating
+    .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
+    .join('');
+  const advisoryList = advisories.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
+  const sequenceItems = focusSequence
+    .map((entry, index) => {
+      const summaryText = entry.summary || `Stop ${index + 1}`;
+      const indicatorLabel = entry.hasIndicator
+        ? 'Focus indicator detected'
+        : 'No focus indicator found';
+      return `
+        <li>
+          <strong>Step ${index + 1}</strong>: ${escapeHtml(summaryText)} — ${indicatorLabel}
+        </li>
+      `;
+    })
+    .join('');
+
+  const skipLink = summary.skipLink;
+  const skipStatus = skipLink
+    ? `present (${escapeHtml(skipLink.text || skipLink.href || 'skip link')})`
+    : 'not detected';
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(summary.page || 'unknown')}</h3>
+        <span class="status-pill ${statusClass}">
+          ${gating.length ? `${gating.length} gating issue(s)` : 'Pass'}
+        </span>
+      </div>
+      <p class="details">Focusable elements detected: ${summary.focusableCount ?? 'n/a'}</p>
+      <p class="details">Visited via keyboard: ${summary.visitedCount ?? 'n/a'}</p>
+      <p class="details">Skip link ${skipStatus}.</p>
+      ${gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${advisories.length ? `<details><summary>Advisories (${advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
+      ${
+        sequenceItems
+          ? `<details><summary>Focus sequence (${focusSequence.length} stops)</summary><ul class="details">${sequenceItems}</ul></details>`
+          : ''
+      }
+    </section>
+  `;
+};
+
+const renderKeyboardGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pagesData = runPayload?.details?.pages || [];
+    const overview = runPayload?.overview || {};
+    const metrics = [
+      { label: 'Pages audited', value: overview.totalPagesAudited ?? pagesData.length },
+      {
+        label: 'Pages with gating issues',
+        value:
+          overview.pagesWithGatingIssues ??
+          pagesData.filter((page) => (page.gating || []).length > 0).length,
+      },
+      {
+        label: 'Pages with advisories',
+        value:
+          overview.pagesWithAdvisories ??
+          pagesData.filter((page) => (page.advisories || []).length > 0).length,
+      },
+      {
+        label: 'Skip links detected',
+        value:
+          overview.skipLinksDetected ?? pagesData.filter((page) => Boolean(page.skipLink)).length,
+      },
+      {
+        label: 'Total focus stops sampled',
+        value: pagesData.reduce((sum, page) => sum + (page.visitedCount || 0), 0),
+      },
+    ];
+    const overviewHtml = renderSummaryMetrics(metrics);
+    const wcagRefs = runPayload?.details?.wcagReferences || [];
+    const wcagBadges = wcagRefs
+      .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+      .join(' ');
+
+    const tableRows = pagesData
+      .map((page) => {
+        const skipStatus = page.skipLink
+          ? `Present (${escapeHtml(page.skipLink.text || page.skipLink.href || 'skip link')})`
+          : 'Missing';
+        return `
+          <tr class="${(page.gating || []).length ? 'impact-critical' : ''}">
+            <td><code>${escapeHtml(page.page || 'unknown')}</code></td>
+            <td>${page.focusableCount ?? 'n/a'}</td>
+            <td>${page.visitedCount ?? 'n/a'}</td>
+            <td>${skipStatus}</td>
+            <td>${(page.gating || []).length}</td>
+            <td>${(page.advisories || []).length}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const perPageEntries = (bucket.pageEntries || []).map((entry) => {
+      const payload = entry.payload || {};
+      const summary = payload.summary || {};
+      return {
+        ...summary,
+        page: payload.page || summary.page,
+      };
+    });
+
+    const accordionHtml = renderPerPageAccordion(perPageEntries, {
+      heading: 'Per-page breakdown',
+      summaryClass: 'summary-page--keyboard',
+      renderCard: (entrySummary) => renderKeyboardPageCard(entrySummary),
+      formatSummaryLabel: (entrySummary) => entrySummary?.page || 'Unknown page',
+    });
+
+    return `
+      <section class="summary-report summary-a11y">
+        <h2>Keyboard-only navigation summary</h2>
+        <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
+        ${overviewHtml}
+        <table>
+          <thead>
+            <tr><th>Page</th><th>Focusable elements sampled</th><th>Unique focus stops</th><th>Skip link</th><th>Gating issues</th><th>Advisories</th></tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </section>
+      ${accordionHtml}
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Keyboard navigation summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderReducedMotionPageCard = (summary) => {
+  if (!summary) return '';
+  const gating = summary.gatingIssues || [];
+  const advisories = summary.advisories || [];
+  const significant = summary.significantAnimations || [];
+  const statusClass = gating.length ? 'error' : 'success';
+  const gatingList = gating
+    .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
+    .join('');
+  const advisoryList = advisories.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
+  const significantList = significant
+    .map((anim) => {
+      const label = `${anim.name || anim.type || 'animation'} on ${anim.selector || 'element'}`;
+      const duration = anim.duration != null ? `${anim.duration}ms` : 'unknown duration';
+      const iterations = anim.iterations != null ? anim.iterations : 'unknown iterations';
+      return `<li>${escapeHtml(label)} (${duration}, ${iterations})</li>`;
+    })
+    .join('');
+
+  const respectsPreference = summary.matchesPreference ? 'Respected' : 'Violated';
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(summary.page || 'unknown')}</h3>
+        <span class="status-pill ${statusClass}">
+          ${gating.length ? `${gating.length} gating issue(s)` : 'Pass'}
+        </span>
+      </div>
+      <p class="details">Prefers-reduced-motion: ${respectsPreference}</p>
+      <p class="details">Animations observed: ${summary.animations ? summary.animations.length : 0}; significant animations: ${significant.length}</p>
+      ${gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${advisories.length ? `<details><summary>Advisories (${advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
+      ${significant.length ? `<details><summary>Significant animations</summary><ul class="details">${significantList}</ul></details>` : ''}
+    </section>
+  `;
+};
+
+const renderReducedMotionGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pagesData = runPayload?.details?.pages || [];
+    const overview = runPayload?.overview || {};
+    const metrics = [
+      { label: 'Pages audited', value: overview.totalPagesAudited ?? pagesData.length },
+      {
+        label: 'Pages respecting preference',
+        value:
+          overview.pagesRespectingPreference ??
+          pagesData.filter((page) => page.matchesPreference).length,
+      },
+      {
+        label: 'Pages with gating issues',
+        value:
+          overview.pagesWithGatingIssues ??
+          pagesData.filter((page) => (page.gating || []).length > 0).length,
+      },
+      {
+        label: 'Pages with advisories',
+        value:
+          overview.pagesWithAdvisories ??
+          pagesData.filter((page) => (page.advisories || []).length > 0).length,
+      },
+      {
+        label: 'Significant animations',
+        value:
+          overview.totalSignificantAnimations ??
+          pagesData.reduce((sum, page) => sum + (page.significantAnimations || []).length, 0),
+      },
+    ];
+    const overviewHtml = renderSummaryMetrics(metrics);
+    const wcagRefs = runPayload?.details?.wcagReferences || [];
+    const wcagBadges = wcagRefs
+      .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+      .join(' ');
+
+    const tableRows = pagesData
+      .map(
+        (page) => `
+          <tr class="${(page.gating || []).length ? 'impact-critical' : ''}">
+            <td><code>${escapeHtml(page.page || 'unknown')}</code></td>
+            <td>${page.animations ? page.animations.length : 0}</td>
+            <td>${page.significantAnimations ? page.significantAnimations.length : 0}</td>
+            <td>${page.matchesPreference ? 'Yes' : 'No'}</td>
+            <td>${(page.gating || []).length}</td>
+            <td>${(page.advisories || []).length}</td>
+          </tr>
+        `
+      )
+      .join('');
+
+    const perPageEntries = (bucket.pageEntries || []).map((entry) => {
+      const payload = entry.payload || {};
+      const summary = payload.summary || {};
+      return {
+        ...summary,
+        page: payload.page || summary.page,
+      };
+    });
+
+    const accordionHtml = renderPerPageAccordion(perPageEntries, {
+      heading: 'Per-page reduced-motion findings',
+      summaryClass: 'summary-page--reduced-motion',
+      renderCard: (entrySummary) => renderReducedMotionPageCard(entrySummary),
+      formatSummaryLabel: (entrySummary) => entrySummary?.page || 'Unknown page',
+    });
+
+    return `
+      <section class="summary-report summary-a11y">
+        <h2>Reduced motion preference summary</h2>
+        <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
+        ${overviewHtml}
+        <table>
+          <thead>
+            <tr><th>Page</th><th>Running animations</th><th>Significant animations</th><th>Prefers-reduced respected</th><th>Gating issues</th><th>Advisories</th></tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </section>
+      ${accordionHtml}
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Reduced motion preference summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderReflowPageCard = (summary) => {
+  if (!summary) return '';
+  const gating = summary.gatingIssues || [];
+  const advisories = summary.advisories || [];
+  const overflowSources = summary.overflowSources || [];
+  const statusClass = gating.length ? 'error' : 'success';
+  const gatingList = gating
+    .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
+    .join('');
+  const advisoryList = advisories.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
+  const offenderList = overflowSources
+    .map((offender) => {
+      const label = `${offender.tag || 'element'}${offender.id ? `#${offender.id}` : ''}${
+        offender.className ? `.${offender.className}` : ''
+      }`;
+      const text = offender.text ? ` — ${offender.text}` : '';
+      return `<li>${escapeHtml(`${label} extends viewport (L ${offender.rectLeft}px / R ${offender.rectRight}px)${text}`)}</li>`;
+    })
+    .join('');
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(summary.page || 'unknown')}</h3>
+        <span class="status-pill ${statusClass}">
+          ${gating.length ? `${gating.length} gating issue(s)` : 'Pass'}
+        </span>
+      </div>
+      <p class="details">Viewport width: ${summary.viewportWidth ?? 'n/a'}px; document width: ${summary.documentWidth ?? 'n/a'}px</p>
+      <p class="details">Horizontal overflow: ${summary.horizontalOverflowPx ?? 0}px</p>
+      ${gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${advisories.length ? `<details><summary>Advisories (${advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
+      ${overflowSources.length ? `<details><summary>Potential overflow sources</summary><ul class="details">${offenderList}</ul></details>` : ''}
+    </section>
+  `;
+};
+
+const renderReflowGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pagesData = runPayload?.details?.pages || [];
+    const overview = runPayload?.overview || {};
+    const metrics = [
+      { label: 'Pages audited', value: overview.totalPagesAudited ?? pagesData.length },
+      {
+        label: 'Pages with overflow',
+        value:
+          overview.pagesWithOverflow ??
+          pagesData.filter((page) => (page.gating || []).length > 0).length,
+      },
+      {
+        label: 'Pages with advisories',
+        value:
+          overview.pagesWithAdvisories ??
+          pagesData.filter((page) => (page.advisories || []).length > 0).length,
+      },
+      {
+        label: 'Maximum overflow (px)',
+        value:
+          overview.maxOverflowPx ??
+          pagesData.reduce((max, page) => Math.max(max, page.horizontalOverflowPx || 0), 0),
+      },
+    ];
+    const overviewHtml = renderSummaryMetrics(metrics);
+    const wcagRefs = runPayload?.details?.wcagReferences || [];
+    const wcagBadges = wcagRefs
+      .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+      .join(' ');
+
+    const tableRows = pagesData
+      .map(
+        (page) => `
+          <tr class="${(page.gating || []).length ? 'impact-critical' : ''}">
+            <td><code>${escapeHtml(page.page || 'unknown')}</code></td>
+            <td>${page.viewportWidth ?? 'n/a'}px</td>
+            <td>${page.documentWidth ?? 'n/a'}px</td>
+            <td>${page.horizontalOverflowPx ?? 0}px</td>
+            <td>${(page.gating || []).length}</td>
+            <td>${(page.advisories || []).length}</td>
+          </tr>
+        `
+      )
+      .join('');
+
+    const perPageEntries = (bucket.pageEntries || []).map((entry) => {
+      const payload = entry.payload || {};
+      const summary = payload.summary || {};
+      return {
+        ...summary,
+        page: payload.page || summary.page,
+      };
+    });
+
+    const accordionHtml = renderPerPageAccordion(perPageEntries, {
+      heading: 'Per-page reflow findings',
+      summaryClass: 'summary-page--reflow',
+      renderCard: (entrySummary) => renderReflowPageCard(entrySummary),
+      formatSummaryLabel: (entrySummary) => entrySummary?.page || 'Unknown page',
+    });
+
+    return `
+      <section class="summary-report summary-a11y">
+        <h2>320px reflow summary</h2>
+        <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
+        ${overviewHtml}
+        <table>
+          <thead>
+            <tr><th>Page</th><th>Viewport width</th><th>Document width</th><th>Horizontal overflow</th><th>Gating issues</th><th>Advisories</th></tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </section>
+      ${accordionHtml}
+    `;
+  });
+
+  const headline = escapeHtml(group.title || '320px reflow summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderIframePageCard = (summary) => {
+  if (!summary) return '';
+  const gating = summary.gatingIssues || [];
+  const advisories = summary.advisories || [];
+  const frames = summary.frames || [];
+  const statusClass = gating.length ? 'error' : 'success';
+  const gatingList = gating
+    .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
+    .join('');
+  const advisoryList = advisories.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
+  const frameList = frames
+    .map((frame) => {
+      const label = frame.title || frame.ariaLabel || frame.name || 'no accessible label';
+      const originLabel = frame.crossOrigin ? 'cross-origin' : 'same-origin';
+      const location = frame.resolvedUrl || frame.src || `#${frame.index}`;
+      return `<li>${escapeHtml(`${originLabel} iframe → ${location} (Accessible label: ${label})`)}</li>`;
+    })
+    .join('');
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(summary.page || 'unknown')}</h3>
+        <span class="status-pill ${statusClass}">
+          ${gating.length ? `${gating.length} gating issue(s)` : 'Pass'}
+        </span>
+      </div>
+      <p class="details">Iframe count: ${summary.iframeCount ?? frames.length}</p>
+      ${gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${advisories.length ? `<details><summary>Advisories (${advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
+      ${frames.length ? `<details><summary>Iframe inventory</summary><ul class="details">${frameList}</ul></details>` : ''}
+    </section>
+  `;
+};
+
+const renderIframeGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pagesData = runPayload?.details?.pages || [];
+    const overview = runPayload?.overview || {};
+    const metrics = [
+      { label: 'Pages audited', value: overview.totalPagesAudited ?? pagesData.length },
+      {
+        label: 'Total iframes detected',
+        value:
+          overview.totalIframesDetected ??
+          pagesData.reduce((sum, page) => sum + (page.frames || []).length, 0),
+      },
+      {
+        label: 'Pages with gating issues',
+        value:
+          overview.pagesWithMissingLabels ??
+          pagesData.filter((page) => (page.gating || []).length > 0).length,
+      },
+      {
+        label: 'Pages with advisories',
+        value:
+          overview.pagesWithAdvisories ??
+          pagesData.filter((page) => (page.advisories || []).length > 0).length,
+      },
+    ];
+    const overviewHtml = renderSummaryMetrics(metrics);
+    const wcagRefs = runPayload?.details?.wcagReferences || [];
+    const wcagBadges = wcagRefs
+      .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+      .join(' ');
+
+    const tableRows = pagesData
+      .map(
+        (page) => `
+          <tr class="${(page.gating || []).length ? 'impact-critical' : ''}">
+            <td><code>${escapeHtml(page.page || 'unknown')}</code></td>
+            <td>${page.iframeCount ?? (page.frames || []).length}</td>
+            <td>${(page.gating || []).length}</td>
+            <td>${(page.advisories || []).length}</td>
+          </tr>
+        `
+      )
+      .join('');
+
+    const perPageEntries = (bucket.pageEntries || []).map((entry) => {
+      const payload = entry.payload || {};
+      const summary = payload.summary || {};
+      return {
+        ...summary,
+        page: payload.page || summary.page,
+      };
+    });
+
+    const accordionHtml = renderPerPageAccordion(perPageEntries, {
+      heading: 'Per-page iframe findings',
+      summaryClass: 'summary-page--iframe',
+      renderCard: (entrySummary) => renderIframePageCard(entrySummary),
+      formatSummaryLabel: (entrySummary) => entrySummary?.page || 'Unknown page',
+    });
+
+    return `
+      <section class="summary-report summary-a11y">
+        <h2>Iframe accessibility summary</h2>
+        <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
+        ${overviewHtml}
+        <table>
+          <thead>
+            <tr><th>Page</th><th>Iframe count</th><th>Gating issues</th><th>Advisories</th></tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </section>
+      ${accordionHtml}
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Iframe accessibility summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderStructurePageCard = (summary) => {
+  if (!summary) return '';
+  const gating = summary.gatingIssues || [];
+  const advisories = summary.advisories || [];
+  const headingSkips = summary.headingSkips || [];
+  const headingOutline = summary.headingOutline || [];
+  const statusClass = gating.length ? 'error' : 'success';
+  const gatingList = gating
+    .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
+    .join('');
+  const advisoryList = advisories.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
+  const headingSkipList = headingSkips
+    .map((item) => `<li>${escapeHtml(String(item))}</li>`)
+    .join('');
+  const headingOutlineList = headingOutline
+    .map(
+      (entry) =>
+        `<li><code>${escapeHtml(entry.text || 'Untitled heading')}</code> (H${entry.level ?? '?'})</li>`
+    )
+    .join('');
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(summary.page || 'unknown')}</h3>
+        <span class="status-pill ${statusClass}">
+          ${gating.length ? `${gating.length} gating issue(s)` : 'Pass'}
+        </span>
+      </div>
+      <p class="details">H1 count: ${summary.h1Count ?? 'n/a'}</p>
+      <ul class="details">
+        <li>Main landmark: ${summary.hasMainLandmark ? 'present' : 'missing'}</li>
+        <li>Navigation landmarks: ${summary.navigationLandmarks ?? 0}</li>
+        <li>Header landmarks: ${summary.headerLandmarks ?? 0}</li>
+        <li>Footer landmarks: ${summary.footerLandmarks ?? 0}</li>
+      </ul>
+      ${gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${advisories.length ? `<details><summary>Advisories (${advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
+      ${headingSkips.length ? `<details><summary>Heading level skips</summary><ul class="details">${headingSkipList}</ul></details>` : ''}
+      ${headingOutline.length ? `<details><summary>Heading outline (${headingOutline.length} headings)</summary><ul class="details">${headingOutlineList}</ul></details>` : ''}
+    </section>
+  `;
+};
+
+const renderStructureGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pagesData = runPayload?.details?.pages || [];
+    const overview = runPayload?.overview || {};
+    const metrics = [
+      { label: 'Pages audited', value: overview.totalPagesAudited ?? pagesData.length },
+      {
+        label: 'Pages missing main landmark',
+        value:
+          overview.pagesMissingMain ?? pagesData.filter((page) => !page.hasMainLandmark).length,
+      },
+      {
+        label: 'Pages with heading skips',
+        value:
+          overview.pagesWithHeadingSkips ??
+          pagesData.filter((page) => (page.headingSkips || []).length > 0).length,
+      },
+      {
+        label: 'Pages with gating issues',
+        value:
+          overview.pagesWithGatingIssues ??
+          pagesData.filter((page) => (page.gating || []).length > 0).length,
+      },
+      {
+        label: 'Pages with advisories',
+        value:
+          overview.pagesWithAdvisories ??
+          pagesData.filter((page) => (page.advisories || []).length > 0).length,
+      },
+    ];
+    const overviewHtml = renderSummaryMetrics(metrics);
+    const wcagRefs = runPayload?.details?.wcagReferences || [];
+    const wcagBadges = wcagRefs
+      .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+      .join(' ');
+
+    const tableRows = pagesData
+      .map(
+        (page) => `
+          <tr class="${(page.gating || []).length ? 'impact-critical' : ''}">
+            <td><code>${escapeHtml(page.page || 'unknown')}</code></td>
+            <td>${page.h1Count ?? 0}</td>
+            <td>${page.hasMainLandmark ? 'Yes' : 'No'}</td>
+            <td>${(page.headingSkips || []).length}</td>
+            <td>${(page.gating || []).length}</td>
+            <td>${(page.advisories || []).length}</td>
+          </tr>
+        `
+      )
+      .join('');
+
+    const perPageEntries = (bucket.pageEntries || []).map((entry) => {
+      const payload = entry.payload || {};
+      const summary = payload.summary || {};
+      return {
+        ...summary,
+        page: payload.page || summary.page,
+      };
+    });
+
+    const accordionHtml = renderPerPageAccordion(perPageEntries, {
+      heading: 'Per-page structure findings',
+      summaryClass: 'summary-page--structure',
+      renderCard: (entrySummary) => renderStructurePageCard(entrySummary),
+      formatSummaryLabel: (entrySummary) => entrySummary?.page || 'Unknown page',
+    });
+
+    return `
+      <section class="summary-report summary-a11y">
+        <h2>Landmark & heading structure summary</h2>
+        <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
+        ${overviewHtml}
+        <table>
+          <thead>
+            <tr><th>Page</th><th>H1 count</th><th>Main landmark</th><th>Heading skips</th><th>Gating issues</th><th>Advisories</th></tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </section>
+      ${accordionHtml}
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Landmark & heading structure summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+const renderFormsGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const formsData = (runPayload?.details?.forms || []).map((form) => ({
+      formName: form.formName || 'Form',
+      page: form.page || 'Unknown',
+      selectorUsed: form.selectorUsed || 'n/a',
+      gating: form.gating || [],
+      advisories: form.advisories || [],
+      fields: form.fields || [],
+    }));
+    const overviewMetrics = Array.isArray(formsData)
+      ? [
+          { label: 'Forms audited', value: formsData.length },
+          {
+            label: 'Forms with gating issues',
+            value: formsData.filter((form) => form.gating.length > 0).length,
+          },
+          {
+            label: 'Forms with advisories',
+            value: formsData.filter((form) => form.advisories.length > 0).length,
+          },
+          {
+            label: 'Fields reviewed',
+            value: formsData.reduce((sum, form) => sum + form.fields.length, 0),
+          },
+          {
+            label: 'Total gating findings',
+            value: formsData.reduce((sum, form) => sum + form.gating.length, 0),
+          },
+          {
+            label: 'Total advisory findings',
+            value: formsData.reduce((sum, form) => sum + form.advisories.length, 0),
+          },
+        ]
+      : [];
+
+    const overviewHtml = renderSummaryMetrics(overviewMetrics);
+    const wcagRefs = runPayload?.details?.wcagReferences || [];
+    const wcagBadges = wcagRefs
+      .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+      .join(' ');
+
+    const tableRows = formsData
+      .map(
+        (form) => `
+          <tr class="${form.gating.length ? 'impact-critical' : ''}">
+            <td>${escapeHtml(form.formName)}</td>
+            <td><code>${escapeHtml(form.page)}</code></td>
+            <td>${form.gating.length}</td>
+            <td>${form.advisories.length}</td>
+          </tr>
+        `
+      )
+      .join('');
+
+    const perPageEntries = (bucket.pageEntries || []).map((entry) => {
+      const payload = entry.payload || {};
+      const summary = payload.summary || {};
+      return {
+        ...summary,
+        page: payload.page || summary.page,
+      };
+    });
+
+    const accordionHtml = renderPerPageAccordion(perPageEntries, {
+      heading: 'Per-form breakdown',
+      summaryClass: 'summary-page--forms',
+      renderCard: (entrySummary) => renderFormsPageCard(entrySummary),
+      formatSummaryLabel: (entrySummary) => {
+        const formName = entrySummary?.formName || 'Form';
+        const page = entrySummary?.page || 'Unknown page';
+        return `${formName} — ${page}`;
+      },
+    });
+
+    return `
+      <section class="summary-report summary-a11y">
+        <h2>Forms accessibility summary</h2>
+        <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
+        ${overviewHtml}
+        <table>
+          <thead>
+            <tr><th>Form</th><th>Page</th><th>Gating issues</th><th>Advisories</th></tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </section>
+      ${accordionHtml}
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Forms accessibility summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderWcagIssueTable = (entries, heading) => {
+  if (!Array.isArray(entries) || entries.length === 0) return '';
+  const rows = entries
+    .map((entry) => {
+      const impact = entry.impact || entry.category || 'info';
+      const ruleId = entry.id || entry.rule || 'rule';
+      const wcagTags = Array.isArray(entry.tags)
+        ? entry.tags.filter((tag) => /^wcag/i.test(tag)).join(', ')
+        : Array.isArray(entry.wcagTags)
+          ? entry.wcagTags.join(', ')
+          : '—';
+      const nodes = Array.isArray(entry.nodes)
+        ? entry.nodes
+            .map((node) => {
+              if (Array.isArray(node.target) && node.target.length > 0) {
+                return `<code>${escapeHtml(String(node.target[0]))}</code>`;
+              }
+              return node.html ? `<code>${escapeHtml(node.html)}</code>` : null;
+            })
+            .filter(Boolean)
+            .slice(0, 5)
+            .join('<br />')
+        : '—';
+      const helpUrl = entry.helpUrl || entry.help || null;
+      return `
+        <tr class="impact-${impact.toLowerCase?.() || 'info'}">
+          <td>${escapeHtml(String(impact))}</td>
+          <td>${escapeHtml(String(ruleId))}</td>
+          <td>${wcagTags ? escapeHtml(wcagTags) : '—'}</td>
+          <td>${nodes || '—'}</td>
+          <td>${helpUrl ? `<a href="${escapeHtml(helpUrl)}" target="_blank" rel="noopener noreferrer">rule docs</a>` : '—'}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+    <section class="summary-report summary-a11y">
+      <h3>${escapeHtml(heading)}</h3>
+      <table>
+        <thead><tr><th>Impact</th><th>Rule</th><th>WCAG tags</th><th>Sample targets</th><th>Help</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>
+  `;
+};
+
+const renderWcagPageCard = (summary) => {
+  if (!summary) return '';
+  if (summary.cardHtml) return summary.cardHtml;
+
+  const gatingLabel = summary.gatingLabel || 'WCAG A/AA/AAA';
+  const statusClass = summary.gatingViolations > 0 ? 'error' : 'success';
+  const notes = Array.isArray(summary.notes) ? summary.notes : [];
+  const notesList = notes.length
+    ? `<details><summary>Notes (${notes.length})</summary><ul class="details">${notes
+        .map((note) => `<li>${escapeHtml(String(note))}</li>`)
+        .join('')}</ul></details>`
+    : '';
+  const violationsHtml = renderWcagIssueTable(
+    summary.violations || [],
+    `${summary.page || 'Page'} — ${gatingLabel}`
+  );
+  const advisoriesHtml = renderWcagIssueTable(
+    summary.advisoriesList || [],
+    `${summary.page || 'Page'} — Non-gating WCAG findings`
+  );
+  const bestPracticeHtml = renderWcagIssueTable(
+    summary.bestPracticesList || [],
+    `${summary.page || 'Page'} — Best-practice advisories (no WCAG tag)`
+  );
+
+  return `
+    <section class="summary-report summary-a11y page-card">
+      <div class="page-card__header">
+        <h3>${escapeHtml(summary.page || 'unknown')}</h3>
+        <span class="status-pill ${statusClass}">
+          ${summary.gatingViolations ?? 0} gating issue(s)
+        </span>
+      </div>
+      <p class="details">Gating threshold: ${escapeHtml(gatingLabel)}</p>
+      <p class="details">Advisory findings: ${summary.advisoryFindings ?? 0} • Best-practice advisories: ${summary.bestPracticeFindings ?? 0}</p>
+      ${notesList}
+      ${violationsHtml}
+      ${advisoriesHtml}
+      ${bestPracticeHtml}
+    </section>
+  `;
+};
+
+const SCHEMA_HTML_RENDERERS = {
+  forms: renderFormsGroupHtml,
+  keyboard: renderKeyboardGroupHtml,
+  'reduced-motion': renderReducedMotionGroupHtml,
+  reflow: renderReflowGroupHtml,
+  'iframe-metadata': renderIframeGroupHtml,
+  structure: renderStructureGroupHtml,
+  'internal-links': renderInternalLinksGroupHtml,
+  interactive: renderInteractiveGroupHtml,
+  availability: renderAvailabilityGroupHtml,
+  http: renderHttpGroupHtml,
+  performance: renderPerformanceGroupHtml,
+  visual: renderVisualGroupHtml,
+  wcag: renderAccessibilityGroupHtml,
+};
+
+const renderSchemaGroup = (group) => {
+  const summaryType = summaryTypeFromGroup(group);
+  if (summaryType && SCHEMA_HTML_RENDERERS[summaryType]) {
+    return SCHEMA_HTML_RENDERERS[summaryType](group);
+  }
+  return renderSchemaGroupFallbackHtml(group);
+};
+
+const renderSchemaSummaries = (records = []) => {
+  if (!Array.isArray(records) || records.length === 0) {
+    return { html: '', promotedBaseNames: new Set() };
+  }
+
+  const groups = buildSchemaGroups(records)
+    .map((group) => {
+      const runEntries = (group.runEntries || []).filter(
+        (entry) => entry.payload?.kind === KIND_RUN_SUMMARY
+      );
+      if (runEntries.length === 0) return null;
+      return {
+        ...group,
+        runEntries,
+        pageEntries: [],
+      };
+    })
+    .filter(Boolean);
+
+  if (groups.length === 0) {
+    return { html: '', promotedBaseNames: new Set() };
+  }
+
+  const promotedBaseNames = new Set();
+  const content = groups
+    .map((group) => {
+      if ((group.runEntries || []).length > 0) {
+        promotedBaseNames.add(group.baseName);
+      }
+      return renderSchemaGroup(group);
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  const html = `
+    <section class="summary-report" aria-label="Suite summaries">
+      ${content}
+    </section>
+  `;
+
+  return { html, promotedBaseNames };
 };
 
 const summariseStatuses = (tests) =>
@@ -2831,10 +3958,16 @@ function renderReportHtml(run) {
     </details>
   `;
   const schemaHtml = schemaRender.html || '';
+  const metadataHtml = renderMetadata(run);
+  const summaryCardsHtml = renderSummaryCards(run);
   const runSummariesHtml = renderRunSummaries(filteredRunSummaries);
-  const mainSections = [schemaHtml, runSummariesHtml, layoutHtml].filter((section) =>
-    Boolean(section && section.trim())
-  );
+  const mainSections = [
+    metadataHtml,
+    summaryCardsHtml,
+    schemaHtml,
+    runSummariesHtml,
+    layoutHtml,
+  ].filter((section) => Boolean(section && section.trim()));
   const mainContent = mainSections.join('\n');
 
   return `<!DOCTYPE html>
