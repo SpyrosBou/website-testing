@@ -100,13 +100,11 @@ function prepareRunManifestPayload({
   }
   const manifest = {
     timestamp: new Date().toISOString(),
-    profile: options.profile || null,
+    profile: null,
     limits: {
       pageLimit: appliedPageLimit != null ? appliedPageLimit : null,
       accessibilitySample:
-        resolvedA11ySample !== undefined && resolvedA11ySample !== null
-          ? resolvedA11ySample
-          : null,
+        resolvedA11ySample !== undefined && resolvedA11ySample !== null ? resolvedA11ySample : null,
     },
     site: {
       name: siteName,
@@ -404,9 +402,6 @@ class TestRunner {
         }
       }
 
-      if (options.profile === 'smoke') {
-        console.log('🚬 SMOKE profile: functionality-only, Chrome, homepage only');
-      }
       console.log(`Running tests for: ${siteConfig.name}`);
       console.log(`Base URL: ${siteConfig.baseUrl}`);
       console.log(`Pages to test: ${siteConfig.testPages.join(', ')}`);
@@ -434,13 +429,7 @@ class TestRunner {
 
     // Determine which tests to run (avoid relying on shell glob expansion)
     const specFilters = Array.isArray(options.specs) ? options.specs.filter(Boolean) : [];
-    const specTargets = Array.from(
-      new Set(
-        specFilters
-          .map(normaliseSpecPattern)
-          .filter(Boolean)
-      )
-    );
+    const specTargets = Array.from(new Set(specFilters.map(normaliseSpecPattern).filter(Boolean)));
 
     if (specTargets.length > 0) {
       console.log('ℹ️  Running explicit spec target(s):');
@@ -473,8 +462,7 @@ class TestRunner {
       for (const file of testEntries) {
         const baseName = path.basename(file);
         const isVisual = baseName.startsWith('visual.');
-        const isResponsiveStructure =
-          baseName.startsWith('responsive.') && !/a11y/i.test(baseName);
+        const isResponsiveStructure = baseName.startsWith('responsive.') && !/a11y/i.test(baseName);
         const isFunctionality = baseName.startsWith('functionality.');
         const isAccessibility = /accessibility|a11y/i.test(baseName);
 
@@ -582,12 +570,6 @@ class TestRunner {
       SITE_NAME: siteName,
     };
 
-    if (options.profile === 'smoke' && !spawnEnv.SMOKE) {
-      spawnEnv.SMOKE = '1';
-    }
-    if (options.profile === 'nightly' && !spawnEnv.NIGHTLY) {
-      spawnEnv.NIGHTLY = '1';
-    }
     if (options.a11yKeyboardSteps && !spawnEnv.A11Y_KEYBOARD_STEPS) {
       spawnEnv.A11Y_KEYBOARD_STEPS = String(options.a11yKeyboardSteps);
     }

@@ -218,10 +218,11 @@ npm run update-baselines -- --site=my-site
 # Refresh test pages from sitemap (no tests run)
 npm run discover_pages -- --site=my-site
 
-### Profiles
-- `--profile=smoke` → functionality-only, Chrome-only, homepage only (fast).
-- `--profile=full` → default behavior (all spec groups, all configured projects).
-- `--profile=nightly` → runs visual + responsive + functionality + accessibility suites, sets accessibility sampling to all pages (`A11Y_SAMPLE=all`), and bumps the keyboard audit depth (`A11Y_KEYBOARD_STEPS=40`). Adjust those env vars if you need different coverage for an ad-hoc run.
+### Environment toggles
+- `SMOKE=1` trims most suites down to the homepage (specs check this flag directly).
+- `A11Y_SAMPLE=all` forces accessibility suites to scan every configured page.
+- `A11Y_KEYBOARD_STEPS=<n>` overrides the maximum TAB traversal depth (default 20).
+- `NIGHTLY=1` remains available if your CI relies on it for specialised reporting; set accompanying env vars (`A11Y_SAMPLE`, `A11Y_KEYBOARD_STEPS`) explicitly as needed.
 
 ## Smoke Site Config
 - A minimal CI-friendly config is provided at `sites/nfsmediation-smoke.json` (points to `https://nfs.atelierdev.uk`, homepage only).

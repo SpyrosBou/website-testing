@@ -6,18 +6,7 @@ const path = require('path');
 const TestRunner = require('./utils/test-runner');
 
 const argv = minimist(process.argv.slice(2), {
-  string: [
-    'site',
-    'sites',
-    'project',
-    'browser',
-    'browsers',
-    'workers',
-    'profile',
-    'spec',
-    'pages',
-    'output',
-  ],
+  string: ['site', 'sites', 'project', 'browser', 'browsers', 'workers', 'spec', 'pages', 'output'],
   boolean: [
     'help',
     'list',
@@ -36,7 +25,6 @@ const argv = minimist(process.argv.slice(2), {
     l: 'list',
     s: 'site',
     S: 'sites',
-    P: 'profile',
     w: 'workers',
     b: 'browsers',
     t: 'spec',
@@ -102,7 +90,6 @@ function showUsage() {
     '  Step 4 – Projects:       --project=<list> (default Chrome, use "all" for every project)',
     '',
     'Advanced options:',
-    '  --profile, -P            smoke | full | nightly presets',
     '  --visual, -v             Run only visual regression specs',
     '  --responsive, -r         Run only responsive structure specs',
     '  --functionality, -F      Run only functionality specs',
@@ -255,7 +242,6 @@ async function main() {
     return;
   }
 
-  const profile = argv.profile;
   const options = {
     visual: coerceBoolean(argv.visual),
     responsive: coerceBoolean(argv.responsive),
@@ -265,7 +251,6 @@ async function main() {
     debug: coerceBoolean(argv.debug),
     discover: coerceBoolean(argv.discover),
     local: coerceBoolean(argv.local),
-    profile,
     project: argv.browsers || argv.browser || argv.project,
     limit: argv.pages,
     a11yKeyboardSteps: undefined,
@@ -274,35 +259,6 @@ async function main() {
     envOverrides: {},
     outputWriter: null,
   };
-
-  if (profile === 'smoke') {
-    options.visual = false;
-    options.responsive = false;
-    options.functionality = true;
-    options.accessibility = false;
-    options.allGroups = false;
-    options.project = options.project || 'Chrome';
-    options.envOverrides.SMOKE = '1';
-  }
-
-  if (profile === 'nightly') {
-    options.visual = true;
-    options.responsive = true;
-    options.functionality = true;
-    options.accessibility = true;
-    options.allGroups = true;
-    options.project = options.project || 'Chrome';
-    options.envOverrides.A11Y_SAMPLE = 'all';
-    if (!process.env.A11Y_KEYBOARD_STEPS) {
-      options.envOverrides.A11Y_KEYBOARD_STEPS = '40';
-      options.a11yKeyboardSteps = '40';
-    }
-    options.envOverrides.NIGHTLY = '1';
-  }
-
-  if (profile === 'full') {
-    options.allGroups = true;
-  }
 
   if (argv.output) {
     const resolvedOutput = path.resolve(process.cwd(), String(argv.output));
