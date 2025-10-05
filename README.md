@@ -205,14 +205,6 @@ npm run smoke:nfs
 # Refresh sitemap-backed page list before running tests
 node run-tests.js --site=my-site --discover
 
-# Run accessibility scans with WCAG-only tagging (impact gate unchanged)
-node run-tests.js --site=my-site --accessibility --a11y-tags=wcag
-node run-tests.js -s my-site -g -A wcag
-
-# Expand accessibility sampling to all configured pages (affects responsive + new resilience specs)
-node run-tests.js --site=my-site --accessibility --a11y-sample=all
-node run-tests.js -s my-site -g -Y all
-
 # Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
 A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
 
@@ -229,7 +221,7 @@ npm run discover_pages -- --site=my-site
 ### Profiles
 - `--profile=smoke` → functionality-only, Chrome-only, homepage only (fast).
 - `--profile=full` → default behavior (all spec groups, all configured projects).
-- `--profile=nightly` → runs visual + responsive + functionality + accessibility suites, forces `--a11y-sample=all`, and bumps the keyboard audit depth (`A11Y_KEYBOARD_STEPS=40`). Override those env vars if you need a different breadth for a given run.
+- `--profile=nightly` → runs visual + responsive + functionality + accessibility suites, sets accessibility sampling to all pages (`A11Y_SAMPLE=all`), and bumps the keyboard audit depth (`A11Y_KEYBOARD_STEPS=40`). Adjust those env vars if you need different coverage for an ad-hoc run.
 
 ## Smoke Site Config
 - A minimal CI-friendly config is provided at `sites/nfsmediation-smoke.json` (points to `https://nfs.atelierdev.uk`, homepage only).
@@ -402,8 +394,8 @@ Tests run on:
 - `a11yFailOn`: array of axe impact levels to gate on. Default: `["critical","serious"]`. Only violations at these severities fail the build; everything else is treated as a non-gating advisory.
 - `a11yIgnoreRules`: array of axe rule IDs to ignore when evaluating failures (e.g., `"color-contrast"`).
 - `a11yMode`: how accessibility specs behave. `"gate"` (default) aggregates violations across all pages/viewports and fails once at the end; `"audit"` logs the summary without failing so you can review issues without blocking the pipeline.
-- `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Override on the CLI with `--a11y-sample=<n|all>` when you need temporary breadth without editing configs.
-- `a11yKeyboardSampleSize` / `a11yMotionSampleSize` / `a11yReflowSampleSize` / `a11yIframeSampleSize`: optional overrides for the new keyboard, reduced-motion, reflow, and iframe audits. Each falls back to `a11yResponsiveSampleSize` (or the CLI `--a11y-sample` override) when omitted.
+- `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Use the site config (or the global `--limit` flag) when you need temporary breadth adjustments without code changes.
+- `a11yKeyboardSampleSize` / `a11yMotionSampleSize` / `a11yReflowSampleSize` / `a11yIframeSampleSize`: optional overrides for the keyboard, reduced-motion, reflow, and iframe audits. Each falls back to `a11yResponsiveSampleSize` when omitted.
 - `a11yStructureSampleSize`: optional override for the structural landmark audit (defaults to `a11yResponsiveSampleSize`).
 - `A11Y_KEYBOARD_STEPS` (env): override the maximum number of forward TAB steps the keyboard audit performs (default: `20`). The spec always performs a reverse TAB sanity check after the forward traversal.
 - `ignoreConsoleErrors`: array of substrings or regex patterns (string form) to suppress known console noise during interactive scans.
@@ -419,6 +411,6 @@ Include mobile/tablet Playwright projects (e.g., `--project="Chrome,Chrome Mobil
 
 Non-gating findings still appear in the report even though they do not fail CI. If you need stricter gating (e.g., include `moderate`), just extend `a11yFailOn` in your site config. Functionality/accessibility suites default to the Playwright project you pass (we typically run Chrome). Omit `--project` if you want Playwright to execute the same checks across every configured browser/device profile.
 
-Need a compliance-only view? Run with `--a11y-tags=wcag` to scope the axe pass to WCAG-tagged rules (gating still follows `a11yFailOn`).
+Need a compliance-only view? Set `A11Y_TAGS_MODE=wcag` in the environment before launching the runner to scope the axe pass to WCAG-tagged rules (gating still follows `a11yFailOn`).
 
 For additional context on why we continue to gate on severity instead of raw WCAG tags, see [`why_not_wcag_gating.md`](./why_not_wcag_gating.md).

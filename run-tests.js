@@ -16,8 +16,6 @@ const argv = minimist(process.argv.slice(2), {
     'profile',
     'spec',
     'limit',
-    'a11y-tags',
-    'a11y-sample',
     'output',
   ],
   boolean: [
@@ -52,8 +50,6 @@ const argv = minimist(process.argv.slice(2), {
     B: 'update-baselines',
     L: 'list-sites',
     n: 'limit',
-    A: 'a11y-tags',
-    Y: 'a11y-sample',
     'list-sites': ['ls'],
   },
 });
@@ -99,38 +95,31 @@ function showUsage() {
     'Usage:',
     '  node run-tests.js [options] --site <site> [extra sites...] [spec patterns...]',
     '',
-    'Common examples:',
-    '  node run-tests.js --site example-site',
-    '  node run-tests.js --site daygroup-local tests/a11y.audit.wcag.spec.js',
-    '  node run-tests.js --site daygroup-local --site daygroup-live --spec responsive.layout.structure.spec.js',
-    '  node run-tests.js --site agilitas-live --profile smoke',
-    '  node run-tests.js --site daygroup-live --workers 4 --browsers Chrome,Firefox',
+    'Core selections:',
+    '  Step 1 – Site(s):        --site <name> (repeat or comma-separate)',
+    '  Step 2 – Specs (optional): --spec <pattern> (repeat as needed)',
+    '  Step 3 – Page scope:     --limit <n> (caps pages across all suites)',
+    '  Step 4 – Projects:       --project=<list> (default Chrome, use "all" for every project)',
     '',
-    'Key options:',
-    '  --site, -s            One or more site config names (comma-separated or repeated)',
-    '  --spec, -t            Specific spec file(s) or glob(s) to run (repeat or pass multiple)',
-    '  --profile, -p         smoke | full | nightly presets (mirrors previous behaviour)',
-    '  --visual, -v          Run only visual regression specs',
-    '  --responsive, -r      Run only responsive structure specs',
-    '  --functionality, -F   Run only functionality specs',
-    '  --accessibility, -g   Run only accessibility specs',
-    '  --limit, -n           Limit number of pages under test (applies before grouping)',
-    '  --browsers, --project, -b  Comma-separated Playwright projects (default Chrome)',
-    "  --workers, -w         Worker count (number or 'auto', default auto)",
-    "  --discover, -d        Refresh sitemap-backed pages before running",
-    "  --local, -c           Attempt DDEV preflight for local '.ddev.site' hosts",
-    '  --output <path>      Persist manifest + run summary JSON to disk',
-    '  --list-sites, -L      Print site configs (also used for shell completion helpers)',
-    '  --update-baselines, -B Update visual baselines for the chosen site(s)',
-    '  --debug, -D           Enable Playwright debug mode',
-    '  --a11y-tags, -A       Override WCAG tagging scope (e.g. wcag)',
-    '  --a11y-sample, -Y     Limit responsive accessibility sample size',
-    '  --help, -h            Show this help message',
+    'Advanced options:',
+    '  --profile, -p            smoke | full | nightly presets',
+    '  --visual, -v             Run only visual regression specs',
+    '  --responsive, -r         Run only responsive structure specs',
+    '  --functionality, -F      Run only functionality specs',
+    '  --accessibility, -g      Run only accessibility specs',
+    '  --workers, -w            Worker count (number or "auto", default auto)',
+    '  --discover, -d           Refresh sitemap-backed pages before running',
+    '  --local, -c              Attempt DDEV preflight for local ".ddev.site" hosts',
+    '  --output <path>         Persist manifest + run summary JSON to disk',
+    '  --list-sites, -L         Print site configs for reference',
+    '  --update-baselines, -B  Update visual baselines for the chosen site(s)',
+    '  --debug, -D              Enable Playwright debug mode',
+    '  --help, -h               Show this help message',
     '',
     'Tips:',
-    '  - Site arguments accept wildcards when using shell completion. Run "node run-tests.js --list-sites" to see available configs.',
-    '  - Append additional spec globs after the options (e.g. "node run-tests.js --site foo tests/*.spec.js").',
-    '  - Use environment variables like REPORT_BROWSER to override the default browser launcher when opening reports.',
+    '  - Append spec globs after the options (e.g. "node run-tests.js --site foo tests/*.spec.js").',
+    '  - Combine page limit and project selection to mirror the GUI flow you plan to build.',
+    '  - Use env vars like REPORT_BROWSER to override the default browser opener when viewing reports.',
     '',
   ];
   console.log(lines.join('\n'));
@@ -188,7 +177,7 @@ const renderManifestPreview = (manifest, manifestPath) => {
   if (manifest.limits?.pageLimit != null) {
     console.log(`  Page limit:  ${manifest.limits.pageLimit}`);
   }
-  if (manifest.limits?.accessibilitySample && manifest.limits.accessibilitySample !== 'all') {
+  if (manifest.limits?.accessibilitySample !== null && manifest.limits?.accessibilitySample !== undefined) {
     console.log(`  A11y sample: ${manifest.limits.accessibilitySample}`);
   }
   if (manifest.profile) {
@@ -275,8 +264,6 @@ async function main() {
     profile,
     project: argv.browsers || argv.browser || argv.project,
     limit: argv.limit,
-    a11yTags: argv['a11y-tags'] || argv.a11yTags,
-    a11ySample: argv['a11y-sample'] || argv.a11ySample,
     a11yKeyboardSteps: undefined,
     specs,
     workers: argv.workers,
@@ -301,7 +288,7 @@ async function main() {
     options.accessibility = true;
     options.allGroups = true;
     options.project = options.project || 'Chrome';
-    options.a11ySample = options.a11ySample || 'all';
+    options.envOverrides.A11Y_SAMPLE = 'all';
     if (!process.env.A11Y_KEYBOARD_STEPS) {
       options.envOverrides.A11Y_KEYBOARD_STEPS = '40';
       options.a11yKeyboardSteps = '40';

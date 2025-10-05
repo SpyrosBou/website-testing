@@ -121,7 +121,7 @@ Implementation:
 
 Actions:
 - [x] Add config key `a11yResponsiveSampleSize` (number or `'all'`) to control responsive a11y sampling.
-- [x] Add runner CLI flags/env overrides (`--a11y-tags`, `--a11y-sample`, `A11Y_KEYBOARD_STEPS`) so teams can tune coverage without code changes.
+- [x] Add runner overrides (environment variables like `A11Y_SAMPLE`, `A11Y_KEYBOARD_STEPS`) so teams can tune coverage without code changes.
 
 ## Reporting Enhancements
 
@@ -173,7 +173,7 @@ Phase 3 (as needed)
 
 - Run `node run-tests.js --site=agilitas-live` (daytime profile). Confirm:
   - Homepage tested; a11y summaries include gating + advisory buckets; no `.withTags` restriction.
-- Run a nightly job with full responsive a11y coverage and `--a11y-tags=all`. Compare counts vs WCAG-only for insight.
+- Run a nightly job with full responsive a11y coverage and the default tag set. Compare counts vs WCAG-only (set `A11Y_TAGS_MODE=wcag`) for insight.
 - Review iframe inventory notes and manually verify cross-origin embeds as needed.
 
 ## Notes Specific to Agilitas

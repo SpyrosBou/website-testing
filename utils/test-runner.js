@@ -528,11 +528,12 @@ class TestRunner {
       console.log('ℹ️  Running across all configured Playwright projects');
     }
 
-    const existingSample = process.env.A11Y_SAMPLE;
+    const overrideSample = options.envOverrides?.A11Y_SAMPLE
+      ? String(options.envOverrides.A11Y_SAMPLE).toLowerCase()
+      : null;
+    const existingSample = overrideSample || process.env.A11Y_SAMPLE;
     let resolvedA11ySample = null;
-    if (options.a11ySample) {
-      resolvedA11ySample = String(options.a11ySample).toLowerCase();
-    } else if (existingSample) {
+    if (existingSample) {
       resolvedA11ySample = String(existingSample).toLowerCase();
     } else if (siteConfig.a11yResponsiveSampleSize) {
       resolvedA11ySample = String(siteConfig.a11yResponsiveSampleSize).toLowerCase();
@@ -608,9 +609,7 @@ class TestRunner {
       console.log(`ℹ️  Worker pool: ${spawnEnv.PWTEST_WORKERS}`);
     }
 
-    if (options.a11yTags) {
-      spawnEnv.A11Y_TAGS_MODE = String(options.a11yTags).toLowerCase();
-    } else if (!spawnEnv.A11Y_TAGS_MODE) {
+    if (!spawnEnv.A11Y_TAGS_MODE) {
       spawnEnv.A11Y_TAGS_MODE = 'all';
     }
 
@@ -633,9 +632,6 @@ class TestRunner {
       }
     }
 
-    if (spawnEnv.A11Y_TAGS_MODE && spawnEnv.A11Y_TAGS_MODE !== 'all') {
-      console.log(`ℹ️  Accessibility tags mode: ${spawnEnv.A11Y_TAGS_MODE}`);
-    }
     if (spawnEnv.A11Y_SAMPLE) {
       const sampleSummary =
         spawnEnv.A11Y_SAMPLE === 'all' ? 'all configured pages' : `${spawnEnv.A11Y_SAMPLE} page(s)`;
