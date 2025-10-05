@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { loadManifest } = require('./run-manifest');
 
 class SiteLoader {
   static loadSite(siteName) {
@@ -13,17 +14,30 @@ class SiteLoader {
       const siteData = fs.readFileSync(sitePath, 'utf8');
       const parsedConfig = JSON.parse(siteData);
 
-      const overridePagesRaw = process.env.SITE_TEST_PAGES;
-      if (overridePagesRaw) {
-        try {
-          const overridePages = JSON.parse(overridePagesRaw);
-          if (Array.isArray(overridePages)) {
-            parsedConfig.testPages = overridePages.filter((page) => typeof page === 'string');
-          } else {
-            console.warn('SITE_TEST_PAGES override ignored: value is not an array.');
+      const manifest = loadManifest();
+      if (manifest && manifest.site && manifest.site.name === siteName) {
+        if (Array.isArray(manifest.pages)) {
+          parsedConfig.testPages = manifest.pages.filter((page) => typeof page === 'string');
+        }
+        if (manifest.site && manifest.site.baseUrl) {
+          parsedConfig.baseUrl = manifest.site.baseUrl;
+        }
+        if (manifest.site && manifest.site.title) {
+          parsedConfig.name = manifest.site.title;
+        }
+      } else {
+        const overridePagesRaw = process.env.SITE_TEST_PAGES;
+        if (overridePagesRaw) {
+          try {
+            const overridePages = JSON.parse(overridePagesRaw);
+            if (Array.isArray(overridePages)) {
+              parsedConfig.testPages = overridePages.filter((page) => typeof page === 'string');
+            } else {
+              console.warn('SITE_TEST_PAGES override ignored: value is not an array.');
+            }
+          } catch (overrideError) {
+            console.warn(`SITE_TEST_PAGES override ignored: ${overrideError.message}`);
           }
-        } catch (overrideError) {
-          console.warn(`SITE_TEST_PAGES override ignored: ${overrideError.message}`);
         }
       }
 

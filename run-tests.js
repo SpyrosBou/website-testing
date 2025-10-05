@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const minimist = require('minimist');
+const path = require('path');
 const TestRunner = require('./utils/test-runner');
 
 const argv = minimist(process.argv.slice(2), {
@@ -161,15 +162,66 @@ async function handleListSites() {
   TestRunner.displaySites();
 }
 
+const renderManifestPreview = (manifest, manifestPath) => {
+  const pages = Array.isArray(manifest.pages) ? manifest.pages : [];
+  const specs = Array.isArray(manifest.specs) ? manifest.specs : [];
+  const projects = Array.isArray(manifest.projects) ? manifest.projects : [];
+
+  console.log('Run manifest preview:');
+  console.log(`  Site:        ${manifest.site?.title || manifest.site?.name}`);
+  console.log(`  Base URL:    ${manifest.site?.baseUrl || 'n/a'}`);
+  console.log(`  Pages:       ${pages.length}`);
+  if (pages.length > 0) {
+    console.log(`    • ${pages.join(', ')}`);
+  }
+  console.log(`  Specs:       ${specs.length}`);
+  if (specs.length > 0) {
+    console.log(`    • ${specs.join(', ')}`);
+  }
+  console.log(`  Projects:    ${projects.length > 0 ? projects.join(', ') : 'n/a'}`);
+  if (manifest.limits?.pageLimit != null) {
+    console.log(`  Page limit:  ${manifest.limits.pageLimit}`);
+  }
+  if (manifest.limits?.accessibilitySample && manifest.limits.accessibilitySample !== 'all') {
+    console.log(`  A11y sample: ${manifest.limits.accessibilitySample}`);
+  }
+  if (manifest.profile) {
+    console.log(`  Profile:     ${manifest.profile}`);
+  }
+  if (manifestPath) {
+    const relativePath = path.relative(process.cwd(), manifestPath);
+    console.log(`  Manifest:    ${relativePath}`);
+  }
+  console.log('');
+};
+
 async function runForSites(sites, baseOptions) {
   let exitCode = 0;
+  const optionsWithEvents = {
+    ...baseOptions,
+    onEvent: (event) => {
+      if (typeof baseOptions.onEvent === 'function') {
+        baseOptions.onEvent(event);
+      }
+      switch (event.type) {
+        case 'manifest:ready':
+          if (event.manifest) {
+            console.log('');
+            renderManifestPreview(event.manifest, event.manifestPath || null);
+          }
+          break;
+        default:
+          break;
+      }
+    },
+  };
   for (const siteName of sites) {
     console.log(`\n==============================`);
     console.log(`Running Playwright suite for site: ${siteName}`);
     console.log('==============================\n');
 
     try {
-      const result = await TestRunner.runTestsForSite(siteName, baseOptions);
+      const result = await TestRunner.runTestsForSite(siteName, optionsWithEvents);
       exitCode = result.code !== 0 ? result.code : exitCode;
     } catch (error) {
       console.error(`❌ Run failed for ${siteName}:`, error.message || error);
@@ -216,8 +268,10 @@ async function main() {
     limit: argv.limit,
     a11yTags: argv['a11y-tags'] || argv.a11yTags,
     a11ySample: argv['a11y-sample'] || argv.a11ySample,
+    a11yKeyboardSteps: undefined,
     specs,
     workers: argv.workers,
+    envOverrides: {},
   };
 
   if (profile === 'smoke') {
@@ -227,7 +281,7 @@ async function main() {
     options.accessibility = false;
     options.allGroups = false;
     options.project = options.project || 'Chrome';
-    process.env.SMOKE = '1';
+    options.envOverrides.SMOKE = '1';
   }
 
   if (profile === 'nightly') {
@@ -239,9 +293,10 @@ async function main() {
     options.project = options.project || 'Chrome';
     options.a11ySample = options.a11ySample || 'all';
     if (!process.env.A11Y_KEYBOARD_STEPS) {
-      process.env.A11Y_KEYBOARD_STEPS = '40';
+      options.envOverrides.A11Y_KEYBOARD_STEPS = '40';
+      options.a11yKeyboardSteps = '40';
     }
-    process.env.NIGHTLY = '1';
+    options.envOverrides.NIGHTLY = '1';
   }
 
   if (profile === 'full') {

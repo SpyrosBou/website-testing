@@ -6,6 +6,15 @@ const http = require('http');
 const https = require('https');
 const { discoverFromSitemap } = require('./sitemap-loader');
 
+const RUN_MANIFEST_THRESHOLD = 8192; // bytes
+
+const sanitiseForFilename = (input) =>
+  String(input || 'site')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 60) || 'site';
+
 const toPosixPath = (value) => value.split(path.sep).join('/');
 
 function normaliseSpecPattern(specInput) {
@@ -70,7 +79,100 @@ function ensureHomepagePresence(pages, siteName, contextLabel = 'runtime') {
   return unique;
 }
 
+function prepareRunManifestPayload({
+  siteName,
+  siteConfig,
+  appliedPageLimit,
+  options,
+  projectArgsList,
+  testTargets,
+  requestedSpecs,
+}) {
+  const resolvedProjects = projectArgsList.length > 0 ? projectArgsList : ['Chrome'];
+  const manifest = {
+    timestamp: new Date().toISOString(),
+    profile: options.profile || null,
+    limits: {
+      pageLimit: appliedPageLimit != null ? appliedPageLimit : null,
+      accessibilitySample: options.a11ySample || null,
+    },
+    site: {
+      name: siteName,
+      title: siteConfig.name,
+      baseUrl: siteConfig.baseUrl,
+    },
+    pages: Array.isArray(siteConfig.testPages) ? [...siteConfig.testPages] : [],
+    specs: Array.isArray(testTargets) ? [...testTargets] : [],
+    requestedSpecs: Array.isArray(requestedSpecs) ? [...requestedSpecs] : [],
+    projects: resolvedProjects,
+  };
+
+  return manifest;
+}
+
+function persistManifestIfNeeded(manifest, siteName) {
+  const serialised = JSON.stringify(manifest, null, 2);
+  if (Buffer.byteLength(serialised, 'utf8') <= RUN_MANIFEST_THRESHOLD) {
+    return {
+      env: {
+        SITE_RUN_MANIFEST_INLINE: JSON.stringify(manifest),
+      },
+      manifestPath: null,
+    };
+  }
+
+  const manifestsDir = path.join(process.cwd(), 'reports', 'run-manifests');
+  if (!fs.existsSync(manifestsDir)) {
+    fs.mkdirSync(manifestsDir, { recursive: true });
+  }
+
+  const manifestFileName = `run-manifest-${sanitiseForFilename(siteName)}-${Date.now()}-${process.pid}.json`;
+  const manifestPath = path.join(manifestsDir, manifestFileName);
+  fs.writeFileSync(manifestPath, `${serialised}\n`);
+
+  return {
+    env: {
+      SITE_RUN_MANIFEST: manifestPath,
+    },
+    manifestPath,
+  };
+}
+
 class TestRunner {
+  static prepareRunManifest({
+    siteName,
+    siteConfig,
+    appliedPageLimit,
+    options,
+    projectArgsList,
+    testTargets,
+    requestedSpecs,
+  }) {
+    const manifest = prepareRunManifestPayload({
+      siteName,
+      siteConfig,
+      appliedPageLimit,
+      options,
+      projectArgsList,
+      testTargets,
+      requestedSpecs,
+    });
+
+    const persistence = persistManifestIfNeeded(manifest, siteName);
+
+    const env = {
+      SITE_TEST_PAGES: JSON.stringify(manifest.pages),
+      ...(appliedPageLimit != null ? { SITE_TEST_PAGES_LIMIT: String(appliedPageLimit) } : {}),
+      ...persistence.env,
+    };
+
+    return {
+      manifest,
+      manifestPath: persistence.manifestPath,
+      env,
+    };
+  }
+
   static listSites() {
     const sites = SiteLoader.listAvailableSites();
 
@@ -413,17 +515,53 @@ class TestRunner {
       console.log('ℹ️  Running across all configured Playwright projects');
     }
 
-    const serialisedTestPages = JSON.stringify(
-      Array.isArray(siteConfig.testPages) ? siteConfig.testPages : []
-    );
+    const manifestInfo = TestRunner.prepareRunManifest({
+      siteName,
+      siteConfig,
+      appliedPageLimit,
+      options,
+      projectArgsList,
+      testTargets,
+      requestedSpecs: specTargets,
+    });
+
+    if (typeof options.onEvent === 'function') {
+      options.onEvent({
+        type: 'manifest:ready',
+        siteName,
+        manifest: manifestInfo.manifest,
+        manifestPath: manifestInfo.manifestPath,
+      });
+    }
+
+    if (manifestInfo.manifestPath) {
+      const relativePath = path.relative(process.cwd(), manifestInfo.manifestPath);
+      console.log(`ℹ️  Run manifest saved to ${relativePath}`);
+      if (typeof options.onEvent === 'function') {
+        options.onEvent({
+          type: 'manifest:persisted',
+          siteName,
+          manifestPath: manifestInfo.manifestPath,
+        });
+      }
+    }
 
     const spawnEnv = {
       ...process.env,
+      ...(options.envOverrides || {}),
       SITE_NAME: siteName,
-      SITE_TEST_PAGES: serialisedTestPages,
-      ...(appliedPageLimit != null ? { SITE_TEST_PAGES_LIMIT: String(appliedPageLimit) } : {}),
-      SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || '',
+      ...manifestInfo.env,
     };
+
+    if (options.profile === 'smoke' && !spawnEnv.SMOKE) {
+      spawnEnv.SMOKE = '1';
+    }
+    if (options.profile === 'nightly' && !spawnEnv.NIGHTLY) {
+      spawnEnv.NIGHTLY = '1';
+    }
+    if (options.a11yKeyboardSteps && !spawnEnv.A11Y_KEYBOARD_STEPS) {
+      spawnEnv.A11Y_KEYBOARD_STEPS = String(options.a11yKeyboardSteps);
+    }
 
     if (siteConfig.baseUrl) {
       spawnEnv.SITE_BASE_URL = siteConfig.baseUrl;
@@ -526,6 +664,15 @@ class TestRunner {
         console.log('📰 View report: npm run read-reports');
         console.log('📁 Reports directory: ./reports/');
         console.log('📸 Test artifacts: ./test-results/');
+
+        if (typeof options.onEvent === 'function') {
+          options.onEvent({
+            type: 'run:complete',
+            siteName,
+            code,
+            summary,
+          });
+        }
 
         resolve({ code, siteName });
       });
