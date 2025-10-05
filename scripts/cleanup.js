@@ -42,23 +42,6 @@ function deleteOlderThan(dir, days) {
   walk(dir);
 }
 
-function deleteByGlob(dir, patterns) {
-  if (!fs.existsSync(dir)) return;
-  const match = (name) =>
-    patterns.some((p) => new RegExp(p.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$').test(name));
-  const walk = (p) => {
-    const st = fs.statSync(p);
-    if (st.isDirectory()) {
-      for (const e of fs.readdirSync(p)) walk(path.join(p, e));
-    } else if (match(p)) {
-      try {
-        fs.unlinkSync(p);
-      } catch (_) {}
-    }
-  };
-  walk(dir);
-}
-
 function pruneOldReports(dir, keepCount = 10) {
   if (!fs.existsSync(dir)) return { removed: [], kept: [] };
   const entries = fs
@@ -111,6 +94,18 @@ switch (cmd) {
       if (kept.length > 0) {
         console.log(`Current reports retained: ${kept.join(', ')}`);
       }
+    }
+    break;
+  case 'clean-manifests':
+    {
+      const manifestsDir = path.join(process.cwd(), 'reports', 'run-manifests');
+      const days = Number.parseInt(process.argv[3] || '15', 10) || 15;
+      if (!fs.existsSync(manifestsDir)) {
+        console.log('No run manifests directory found.');
+        break;
+      }
+      deleteOlderThan(manifestsDir, days);
+      console.log(`Removed run manifests older than ${days} day(s).`);
     }
     break;
   default:

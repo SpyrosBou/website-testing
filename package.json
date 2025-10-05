@@ -10,7 +10,7 @@
     "setup": "npm install && npm run install-browsers && npx playwright install",
     "clean-test-results": "node scripts/cleanup.js clean-test-results",
     "clean-reports": "node scripts/cleanup.js clean-reports",
-    "smoke:nfs": "node run-tests.js --site=nfsmediation-local --profile=smoke",
+    "clean-manifests": "node scripts/cleanup.js clean-manifests",
     "update-baselines": "node run-tests.js --update-baselines --site=example-site",
     "discover_pages": "node scripts/discover-pages.js",
     "lint": "eslint run-tests.js utils/**/*.js scripts/**/*.js playwright.config.js",

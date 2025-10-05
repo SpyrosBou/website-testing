@@ -42,13 +42,10 @@ To try it locally: run `npm run setup` (this installs dependencies and caches Pl
 4. **Run smoke test (functionality only, Chrome, homepage)**
 
    ```bash
-   # Built-in smoke profile samples the first test page per responsive spec
-   node run-tests.js --site=nfsmediation-local --profile=smoke
+   node run-tests.js --site=nfsmediation-local --functionality --pages=1 --project=Chrome
 
-   # Convenience script for ddev setups (responsive across all pages)
-   npm run smoke:nfs -- --site=nfsmediation-local
-   # Or directly
-   node run-tests.js --site=nfsmediation-local --profile=smoke
+   # Convenience script for ddev setups
+   npm run smoke:nfs -- --functionality --pages=1 --project=Chrome
    ```
 
 5. **Open the latest report**
@@ -69,7 +66,7 @@ To try it locally: run `npm run setup` (this installs dependencies and caches Pl
 
 Every report folder contains `report.html` and a `data/` directory with the machine-readable JSON that powered it (for example: `reports/run-20251003-170959/data/run.json`). Opening the HTML shows three stacked sections:
 
-- **Headline + metadata** – summary cards (total/passed/failed/flaky) followed by run metadata (site, profile, browsers, start/end times) so you can confirm scope at a glance.
+- **Headline + metadata** – summary cards (total/passed/failed/flaky) followed by run metadata (site, browsers, start/end times) so you can confirm scope at a glance.
 - **Promoted summaries** – spec-provided overviews such as the accessibility run summary. These cards now aggregate findings "per browser across N viewport(s)" so Chrome desktop vs mobile distinctions are visible without duplicate blocks. Per-page detail lives behind an accordion for faster scanning.
 - **Debug testing accordion** – collapsed by default. Expanding reveals the navigation sidebar, status filters, and every individual Playwright project/test for deep dives into attachments, console output, and stack traces.
 
@@ -84,7 +81,7 @@ Use this streamlined flow on a Mac to verify everything works end-to-end:
 npm run setup
 
 # 2) Run a quick smoke (functionality only, Chrome, homepage)
-node run-tests.js --site=nfsmediation-live --profile=smoke
+node run-tests.js --site=nfsmediation-live --functionality --pages=1 --project=Chrome
 
 # 3) Open the report
 npm run read-reports
@@ -193,8 +190,8 @@ node run-tests.js --site=my-site tests/a11y.audit.wcag.spec.js
 node run-tests.js -s daygroup-local -s daygroup-live -t responsive.layout.structure.spec.js
 
 # Limit the number of pages (applies before suite selection)
-node run-tests.js --site=my-site --limit=5
-node run-tests.js -s my-site -n 5
+node run-tests.js --site=my-site --pages=5
+node run-tests.js -s my-site -p 5
 
 # Using npm script (pass args after --)
 npm run test:site -- --site=my-site
@@ -205,17 +202,6 @@ npm run smoke:nfs
 # Refresh sitemap-backed page list before running tests
 node run-tests.js --site=my-site --discover
 
-# Run accessibility scans with WCAG-only tagging (impact gate unchanged)
-node run-tests.js --site=my-site --accessibility --a11y-tags=wcag
-node run-tests.js -s my-site -g -A wcag
-
-# Expand accessibility sampling to all configured pages (affects responsive + new resilience specs)
-node run-tests.js --site=my-site --accessibility --a11y-sample=all
-node run-tests.js -s my-site -g -Y all
-
-# Increase keyboard traversal depth for the TAB walkthrough (default 20 steps)
-A11Y_KEYBOARD_STEPS=40 node run-tests.js --site=my-site --accessibility
-
 # Pin worker count or expand browser coverage
 node run-tests.js --site=my-site --workers 4 --browsers Chrome,Firefox
 node run-tests.js -s my-site -w 4 -b Chrome,Firefox
@@ -225,11 +211,6 @@ npm run update-baselines -- --site=my-site
 
 # Refresh test pages from sitemap (no tests run)
 npm run discover_pages -- --site=my-site
-
-### Profiles
-- `--profile=smoke` → functionality-only, Chrome-only, homepage only (fast).
-- `--profile=full` → default behavior (all spec groups, all configured projects).
-- `--profile=nightly` → runs visual + responsive + functionality + accessibility suites, forces `--a11y-sample=all`, and bumps the keyboard audit depth (`A11Y_KEYBOARD_STEPS=40`). Override those env vars if you need a different breadth for a given run.
 
 ## Smoke Site Config
 - A minimal CI-friendly config is provided at `sites/nfsmediation-smoke.json` (points to `https://nfs.atelierdev.uk`, homepage only).
@@ -351,6 +332,16 @@ npm run clean-reports
 
 **Note**: HTML reports live under `reports/run-*/report.html`. Playwright artifacts (videos/screenshots/traces) remain in `test-results/`.
 
+Run `npm run clean-manifests` to delete run manifest files older than 15 days (pass a custom day count as a second argument if needed).
+
+### Run Manifest & Environment Contracts
+
+- Every run serialises a manifest describing the resolved site, pages, specs, and projects. Small manifests are injected via `SITE_RUN_MANIFEST_INLINE`; large ones are persisted under `reports/run-manifests/` and referenced through `SITE_RUN_MANIFEST`.
+- `SITE_TEST_PAGES` (and optional `SITE_TEST_PAGES_LIMIT`) remain for legacy consumers but always mirror the manifest’s page list.
+- Specs and helpers can read the manifest through `utils/run-manifest.js` rather than parsing env vars manually. `SiteLoader` already respects the manifest, so loading a site config inside a spec yields the runner-filtered pages.
+- Adapters (CLI today, GUI tomorrow) can listen to runner events (`manifest:ready`, `manifest:persisted`, `run:complete`) to render previews or progress without scraping stdout.
+- Add `--output=path/to/run.json` when invoking the CLI to write the manifest + run summary to disk for external tooling or dashboards.
+
 ### Working with the custom reporter
 
 - Every spec that emits HTML via `attachSchemaSummary` **must** set `metadata.suppressPageEntries: true` on the run-level payload when it also supplies `htmlBody` (or embedded cards). This tells the reporter not to render the fallback per-page accordion a second time.
@@ -392,10 +383,9 @@ Tests run on:
 - `a11yFailOn`: array of axe impact levels to gate on. Default: `["critical","serious"]`. Only violations at these severities fail the build; everything else is treated as a non-gating advisory.
 - `a11yIgnoreRules`: array of axe rule IDs to ignore when evaluating failures (e.g., `"color-contrast"`).
 - `a11yMode`: how accessibility specs behave. `"gate"` (default) aggregates violations across all pages/viewports and fails once at the end; `"audit"` logs the summary without failing so you can review issues without blocking the pipeline.
-- `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Override on the CLI with `--a11y-sample=<n|all>` when you need temporary breadth without editing configs.
-- `a11yKeyboardSampleSize` / `a11yMotionSampleSize` / `a11yReflowSampleSize` / `a11yIframeSampleSize`: optional overrides for the new keyboard, reduced-motion, reflow, and iframe audits. Each falls back to `a11yResponsiveSampleSize` (or the CLI `--a11y-sample` override) when omitted.
+- `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Use the site config (or the global `--pages` flag) when you need temporary breadth adjustments without code changes.
+- `a11yKeyboardSampleSize` / `a11yMotionSampleSize` / `a11yReflowSampleSize` / `a11yIframeSampleSize`: optional overrides for the keyboard, reduced-motion, reflow, and iframe audits. Each falls back to `a11yResponsiveSampleSize` when omitted.
 - `a11yStructureSampleSize`: optional override for the structural landmark audit (defaults to `a11yResponsiveSampleSize`).
-- `A11Y_KEYBOARD_STEPS` (env): override the maximum number of forward TAB steps the keyboard audit performs (default: `20`). The spec always performs a reverse TAB sanity check after the forward traversal.
 - `ignoreConsoleErrors`: array of substrings or regex patterns (string form) to suppress known console noise during interactive scans.
 - `resourceErrorBudget`: maximum number of failed network requests (request failures or 4xx/5xx responses) tolerated before the interactive spec soft-fails. Default: `0`.
 
@@ -409,6 +399,6 @@ Include mobile/tablet Playwright projects (e.g., `--project="Chrome,Chrome Mobil
 
 Non-gating findings still appear in the report even though they do not fail CI. If you need stricter gating (e.g., include `moderate`), just extend `a11yFailOn` in your site config. Functionality/accessibility suites default to the Playwright project you pass (we typically run Chrome). Omit `--project` if you want Playwright to execute the same checks across every configured browser/device profile.
 
-Need a compliance-only view? Run with `--a11y-tags=wcag` to scope the axe pass to WCAG-tagged rules (gating still follows `a11yFailOn`).
+Need a compliance-only view? Set `A11Y_TAGS_MODE=wcag` in the environment before launching the runner to scope the axe pass to WCAG-tagged rules (gating still follows `a11yFailOn`).
 
 For additional context on why we continue to gate on severity instead of raw WCAG tags, see [`why_not_wcag_gating.md`](./why_not_wcag_gating.md).

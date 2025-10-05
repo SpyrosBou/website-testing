@@ -2808,9 +2808,6 @@ const renderMetadata = (run) => {
       });
     }
   }
-  if (run.profile) {
-    rows.push({ label: 'Profile', value: run.profile });
-  }
   if (Array.isArray(run.projects) && run.projects.length > 0) {
     rows.push({ label: 'Browsers', value: run.projects.join(', ') });
   }

@@ -6,13 +6,28 @@ const http = require('http');
 const https = require('https');
 const { discoverFromSitemap } = require('./sitemap-loader');
 
+const RUN_MANIFEST_THRESHOLD = 8192; // bytes
+
+const sanitiseForFilename = (input) =>
+  String(input || 'site')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 60) || 'site';
+
 const toPosixPath = (value) => value.split(path.sep).join('/');
 
 function normaliseSpecPattern(specInput) {
   const raw = String(specInput || '').trim();
   if (!raw) return null;
 
-  const hasGlob = /[\*\?\[\]\{\}]/.test(raw);
+  const hasGlob = (() => {
+    const globChars = new Set(['*', '?', '[', ']', '{', '}']);
+    for (const ch of raw) {
+      if (globChars.has(ch)) return true;
+    }
+    return false;
+  })();
 
   const resolveRelative = (candidate) => {
     const absolute = path.resolve(process.cwd(), candidate);
@@ -70,7 +85,107 @@ function ensureHomepagePresence(pages, siteName, contextLabel = 'runtime') {
   return unique;
 }
 
+function prepareRunManifestPayload({
+  siteName,
+  siteConfig,
+  appliedPageLimit,
+  projectArgsList,
+  projectSpecifier,
+  testTargets,
+  requestedSpecs,
+}) {
+  let resolvedProjects;
+  if (projectSpecifier && projectSpecifier.toLowerCase() === 'all') {
+    resolvedProjects = ['all'];
+  } else if (projectArgsList.length > 0) {
+    resolvedProjects = [...projectArgsList];
+  } else {
+    resolvedProjects = ['Chrome'];
+  }
+  const manifest = {
+    timestamp: new Date().toISOString(),
+    limits: {
+      pageLimit: appliedPageLimit != null ? appliedPageLimit : null,
+    },
+    site: {
+      name: siteName,
+      title: siteConfig.name,
+      baseUrl: siteConfig.baseUrl,
+    },
+    pages: Array.isArray(siteConfig.testPages) ? [...siteConfig.testPages] : [],
+    specs: Array.isArray(testTargets) ? [...testTargets] : [],
+    requestedSpecs: Array.isArray(requestedSpecs) ? [...requestedSpecs] : [],
+    projects: resolvedProjects,
+  };
+
+  return manifest;
+}
+
+function persistManifestIfNeeded(manifest, siteName) {
+  const serialised = JSON.stringify(manifest, null, 2);
+  if (Buffer.byteLength(serialised, 'utf8') <= RUN_MANIFEST_THRESHOLD) {
+    return {
+      env: {
+        SITE_RUN_MANIFEST_INLINE: JSON.stringify(manifest),
+      },
+      manifestPath: null,
+    };
+  }
+
+  const manifestsDir = path.join(process.cwd(), 'reports', 'run-manifests');
+  if (!fs.existsSync(manifestsDir)) {
+    fs.mkdirSync(manifestsDir, { recursive: true });
+  }
+
+  const manifestFileName = `run-manifest-${sanitiseForFilename(siteName)}-${Date.now()}-${process.pid}.json`;
+  const manifestPath = path.join(manifestsDir, manifestFileName);
+  fs.writeFileSync(manifestPath, `${serialised}\n`);
+
+  return {
+    env: {
+      SITE_RUN_MANIFEST: manifestPath,
+    },
+    manifestPath,
+  };
+}
+
 class TestRunner {
+  static prepareRunManifest({
+    siteName,
+    siteConfig,
+    appliedPageLimit,
+    options,
+    projectArgsList,
+    projectSpecifier,
+    testTargets,
+    requestedSpecs,
+  }) {
+    const manifest = prepareRunManifestPayload({
+      siteName,
+      siteConfig,
+      appliedPageLimit,
+      options,
+      projectArgsList,
+      projectSpecifier,
+      testTargets,
+      requestedSpecs,
+    });
+
+    const persistence = persistManifestIfNeeded(manifest, siteName);
+
+    const env = {
+      SITE_TEST_PAGES: JSON.stringify(manifest.pages),
+      ...(appliedPageLimit != null ? { SITE_TEST_PAGES_LIMIT: String(appliedPageLimit) } : {}),
+      ...persistence.env,
+    };
+
+    return {
+      manifest,
+      manifestPath: persistence.manifestPath,
+      env,
+    };
+  }
+
   static listSites() {
     const sites = SiteLoader.listAvailableSites();
 
@@ -141,6 +256,7 @@ class TestRunner {
   static async runTestsForSite(siteName, options = {}) {
     // Validate site exists
     let siteConfig;
+    let appliedPageLimit = null;
     try {
       siteConfig = SiteLoader.loadSite(siteName);
       SiteLoader.validateSiteConfig(siteConfig);
@@ -275,17 +391,16 @@ class TestRunner {
         'runtime'
       );
 
+      appliedPageLimit = null;
       if (options.limit != null) {
         const limitNumber = Number.parseInt(options.limit, 10);
         if (Number.isFinite(limitNumber) && limitNumber > 0) {
           siteConfig.testPages = siteConfig.testPages.slice(0, limitNumber);
-          console.log(`ℹ️  Page limit applied: first ${limitNumber} page(s) will be tested.`);
+          appliedPageLimit = limitNumber;
+          console.log(`ℹ️  Page cap applied: first ${limitNumber} page(s) will be tested.`);
         }
       }
 
-      if (options.profile === 'smoke') {
-        console.log('🚬 SMOKE profile: functionality-only, Chrome, homepage only');
-      }
       console.log(`Running tests for: ${siteConfig.name}`);
       console.log(`Base URL: ${siteConfig.baseUrl}`);
       console.log(`Pages to test: ${siteConfig.testPages.join(', ')}`);
@@ -313,13 +428,7 @@ class TestRunner {
 
     // Determine which tests to run (avoid relying on shell glob expansion)
     const specFilters = Array.isArray(options.specs) ? options.specs.filter(Boolean) : [];
-    const specTargets = Array.from(
-      new Set(
-        specFilters
-          .map(normaliseSpecPattern)
-          .filter(Boolean)
-      )
-    );
+    const specTargets = Array.from(new Set(specFilters.map(normaliseSpecPattern).filter(Boolean)));
 
     if (specTargets.length > 0) {
       console.log('ℹ️  Running explicit spec target(s):');
@@ -352,8 +461,7 @@ class TestRunner {
       for (const file of testEntries) {
         const baseName = path.basename(file);
         const isVisual = baseName.startsWith('visual.');
-        const isResponsiveStructure =
-          baseName.startsWith('responsive.') && !/a11y/i.test(baseName);
+        const isResponsiveStructure = baseName.startsWith('responsive.') && !/a11y/i.test(baseName);
         const isFunctionality = baseName.startsWith('functionality.');
         const isAccessibility = /accessibility|a11y/i.test(baseName);
 
@@ -382,9 +490,6 @@ class TestRunner {
       testTargets = selectedTests.size > 0 ? Array.from(selectedTests) : ['tests'];
     }
 
-    // Set environment variables for test execution
-    process.env.SITE_NAME = siteName;
-
     const projectInputRaw = Array.isArray(options.project)
       ? options.project
           .map((entry) => String(entry || '').trim())
@@ -410,10 +515,43 @@ class TestRunner {
       console.log('ℹ️  Running across all configured Playwright projects');
     }
 
+    const manifestInfo = TestRunner.prepareRunManifest({
+      siteName,
+      siteConfig,
+      appliedPageLimit,
+      options,
+      projectArgsList,
+      projectSpecifier,
+      testTargets,
+      requestedSpecs: specTargets,
+    });
+
+    if (typeof options.onEvent === 'function') {
+      options.onEvent({
+        type: 'manifest:ready',
+        siteName,
+        manifest: manifestInfo.manifest,
+        manifestPath: manifestInfo.manifestPath,
+      });
+    }
+
+    if (manifestInfo.manifestPath) {
+      const relativePath = path.relative(process.cwd(), manifestInfo.manifestPath);
+      console.log(`ℹ️  Run manifest saved to ${relativePath}`);
+      if (typeof options.onEvent === 'function') {
+        options.onEvent({
+          type: 'manifest:persisted',
+          siteName,
+          manifestPath: manifestInfo.manifestPath,
+        });
+      }
+    }
+
     const spawnEnv = {
       ...process.env,
+      ...(options.envOverrides || {}),
+      ...manifestInfo.env,
       SITE_NAME: siteName,
-      SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || '',
     };
 
     if (siteConfig.baseUrl) {
@@ -433,16 +571,8 @@ class TestRunner {
       console.log(`ℹ️  Worker pool: ${spawnEnv.PWTEST_WORKERS}`);
     }
 
-    if (options.a11yTags) {
-      spawnEnv.A11Y_TAGS_MODE = String(options.a11yTags).toLowerCase();
-    } else if (!spawnEnv.A11Y_TAGS_MODE) {
+    if (!spawnEnv.A11Y_TAGS_MODE) {
       spawnEnv.A11Y_TAGS_MODE = 'all';
-    }
-
-    if (options.a11ySample) {
-      spawnEnv.A11Y_SAMPLE = String(options.a11ySample).toLowerCase();
-    } else if (!spawnEnv.A11Y_SAMPLE && siteConfig.a11yResponsiveSampleSize) {
-      spawnEnv.A11Y_SAMPLE = String(siteConfig.a11yResponsiveSampleSize).toLowerCase();
     }
 
     if (!spawnEnv.A11Y_RUN_TOKEN) {
@@ -458,18 +588,6 @@ class TestRunner {
       for (const projectName of projectArgsList) {
         playwrightArgs.push(`--project=${projectName}`);
       }
-    }
-
-    if (spawnEnv.A11Y_TAGS_MODE && spawnEnv.A11Y_TAGS_MODE !== 'all') {
-      console.log(`ℹ️  Accessibility tags mode: ${spawnEnv.A11Y_TAGS_MODE}`);
-    }
-    if (spawnEnv.A11Y_SAMPLE) {
-      const sampleSummary =
-        spawnEnv.A11Y_SAMPLE === 'all' ? 'all configured pages' : `${spawnEnv.A11Y_SAMPLE} page(s)`;
-      console.log(`ℹ️  Responsive a11y sample: ${sampleSummary}`);
-    }
-    if (spawnEnv.A11Y_KEYBOARD_STEPS) {
-      console.log(`ℹ️  Keyboard audit steps: ${spawnEnv.A11Y_KEYBOARD_STEPS}`);
     }
 
     console.log(`Starting tests...`);
@@ -513,6 +631,15 @@ class TestRunner {
         console.log('📰 View report: npm run read-reports');
         console.log('📁 Reports directory: ./reports/');
         console.log('📸 Test artifacts: ./test-results/');
+
+        if (typeof options.onEvent === 'function') {
+          options.onEvent({
+            type: 'run:complete',
+            siteName,
+            code,
+            summary,
+          });
+        }
 
         resolve({ code, siteName });
       });

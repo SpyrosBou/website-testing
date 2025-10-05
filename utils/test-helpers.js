@@ -19,7 +19,7 @@ function resolveBrowser(context) {
   }
   try {
     return context.browser();
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -48,8 +48,8 @@ const RetryConfig = {
  * @param {Error} error - The error to classify
  * @returns {string} Error type constant
  */
-function classifyError(error) {
-  const message = error.message.toLowerCase();
+function classifyError(_err) {
+  const message = String(_err?.message || '').toLowerCase();
 
   if (message.includes('net::') || message.includes('network') || message.includes('connection')) {
     return ErrorTypes.NETWORK;

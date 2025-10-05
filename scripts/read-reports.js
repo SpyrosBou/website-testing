@@ -8,9 +8,7 @@ const openBrowser = openModule.default || openModule;
 const args = minimist(process.argv.slice(2));
 const envBrowser = process.env.REPORT_BROWSER && String(process.env.REPORT_BROWSER).trim();
 const envBrowserArgs = process.env.REPORT_BROWSER_ARGS
-  ? String(process.env.REPORT_BROWSER_ARGS)
-      .split(/\s+/)
-      .filter(Boolean)
+  ? String(process.env.REPORT_BROWSER_ARGS).split(/\s+/).filter(Boolean)
   : [];
 const reportsDir = path.join(process.cwd(), 'reports');
 const REPORT_FILE_NAME = 'report.html';
