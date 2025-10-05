@@ -27,10 +27,7 @@ function summariseTestInfo(testInfo) {
 }
 
 function createBrowserDisconnectMonitor(options = {}) {
-  const {
-    debugFlagEnv = 'DEBUG_BROWSER_TEARDOWN',
-    logger = console,
-  } = options;
+  const { debugFlagEnv = 'DEBUG_BROWSER_TEARDOWN', logger = console } = options;
 
   const browserState = new WeakMap();
   const debugEnabled = normaliseEnvBoolean(process.env[debugFlagEnv]);

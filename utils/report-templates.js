@@ -197,8 +197,12 @@ const renderSchemaPageEntries = (entries) => {
   const accordions = Array.from(grouped.entries())
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([page, pageEntries]) => {
-      const sortedEntries = pageEntries.sort((a, b) => (a.payload.viewport || '').localeCompare(b.payload.viewport || ''));
-      const hasCustomCards = sortedEntries.some((entry) => Boolean(entry.payload?.summary?.cardHtml));
+      const sortedEntries = pageEntries.sort((a, b) => {
+        return (a.payload.viewport || '').localeCompare(b.payload.viewport || '');
+      });
+      const hasCustomCards = sortedEntries.some((entry) => {
+        return Boolean(entry.payload?.summary?.cardHtml);
+      });
 
       const content = hasCustomCards
         ? sortedEntries
@@ -247,7 +251,6 @@ const renderSchemaPageEntries = (entries) => {
   return accordions.join('');
 };
 
-
 const collectSchemaProjects = (group) => {
   const map = new Map();
   const ensure = (projectName) => {
@@ -260,7 +263,8 @@ const collectSchemaProjects = (group) => {
 
   for (const entry of group.runEntries || []) {
     const meta = entry.payload?.metadata || {};
-    const projectName = meta.projectName || entry.projectName || (meta.scope === 'run' ? 'run' : 'default');
+    const projectName =
+      meta.projectName || entry.projectName || (meta.scope === 'run' ? 'run' : 'default');
     ensure(projectName).runEntries.push(entry);
   }
 
@@ -342,12 +346,13 @@ const renderAccessibilityGroupHtml = (group) => {
         .map((entry) => entry.payload || {})
         .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
       const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
-      const suppressPageEntries = Boolean(runPayload?.metadata?.suppressPageEntries || group.suppressPageEntries);
+      const suppressPageEntries = Boolean(
+        runPayload?.metadata?.suppressPageEntries || group.suppressPageEntries
+      );
       const hasCustomRunHtml = Boolean(runPayload?.htmlBody);
       const shouldRenderPageCards = !hasCustomRunHtml && !suppressPageEntries;
-      const defaultOverviewHtml = !hasCustomRunHtml && runPayload?.overview
-        ? renderSchemaMetrics(runPayload.overview)
-        : '';
+      const defaultOverviewHtml =
+        !hasCustomRunHtml && runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
       const pageCards = pages
         .map((payload) => {
@@ -355,7 +360,7 @@ const renderAccessibilityGroupHtml = (group) => {
           if (summary.cardHtml) return summary.cardHtml;
 
           const status = summary.status || 'passed';
-          const statusLabel = status.replace(/[\-_/]+/g, ' ');
+          const statusLabel = status.replace(/[-_/]+/g, ' ');
           const notesHtml = formatAccessibilityNotesHtml(summary);
           return `
       <section class="summary-report summary-a11y">
@@ -390,9 +395,7 @@ const renderAccessibilityGroupHtml = (group) => {
     `;
       }
 
-      const headingLabel = multiProject
-        ? `${projectLabel} – WCAG findings`
-        : 'WCAG findings';
+      const headingLabel = multiProject ? `${projectLabel} – WCAG findings` : 'WCAG findings';
 
       const pagesHtml = shouldRenderPageCards ? pageCards : '';
 
@@ -415,10 +418,10 @@ const renderAccessibilityGroupHtml = (group) => {
       ${sections}
     </article>
   `;
-
 };
 
-const firstRunPayload = (bucket) => bucket.runEntries.find((entry) => Boolean(entry?.payload))?.payload || null;
+const firstRunPayload = (bucket) =>
+  bucket.runEntries.find((entry) => Boolean(entry?.payload))?.payload || null;
 
 const renderInternalLinksGroupHtml = (group) => {
   const buckets = collectSchemaProjects(group);
@@ -426,7 +429,9 @@ const renderInternalLinksGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -522,7 +527,9 @@ const renderInteractiveGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
     const resourceBudget = runPayload?.overview?.resourceErrorBudget;
@@ -538,7 +545,9 @@ const renderInteractiveGroupHtml = (group) => {
         const consoleItems = consoleSample.length
           ? consoleSample
               .slice(0, 5)
-              .map((item) => `<li class="check-fail">${escapeHtml(item.message || String(item))}</li>`)
+              .map(
+                (item) => `<li class="check-fail">${escapeHtml(item.message || String(item))}</li>`
+              )
               .join('')
           : '<li class="check-pass">No console errors</li>';
         const consoleList = `
@@ -550,9 +559,10 @@ const renderInteractiveGroupHtml = (group) => {
           ? resourceSample
               .slice(0, 5)
               .map((item) => {
-                const label = item.type === 'requestfailed'
-                  ? `${item.type} – ${item.failure || 'unknown'}`
-                  : `${item.type || 'resource'} ${item.status || ''} ${item.method || ''}`;
+                const label =
+                  item.type === 'requestfailed'
+                    ? `${item.type} – ${item.failure || 'unknown'}`
+                    : `${item.type || 'resource'} ${item.status || ''} ${item.method || ''}`;
                 return `<li class="check-fail">${escapeHtml(label.trim())} — <code>${escapeHtml(item.url || '')}</code></li>`;
               })
               .join('')
@@ -561,13 +571,18 @@ const renderInteractiveGroupHtml = (group) => {
           <ul class="checks">${resourceItems}</ul>
         `;
 
-        const warningItems = (summary.warnings || []).map((msg) => `<li class="check-fail">${escapeHtml(msg)}</li>`);
-        const infoItems = (summary.info || []).map((msg) => `<li class="check-pass">${escapeHtml(msg)}</li>`);
-        const notesHtml = warningItems.length || infoItems.length
-          ? `
+        const warningItems = (summary.warnings || []).map(
+          (msg) => `<li class="check-fail">${escapeHtml(msg)}</li>`
+        );
+        const infoItems = (summary.info || []).map(
+          (msg) => `<li class="check-pass">${escapeHtml(msg)}</li>`
+        );
+        const notesHtml =
+          warningItems.length || infoItems.length
+            ? `
             <ul class="checks">${warningItems.concat(infoItems).join('')}</ul>
           `
-          : '<span class="details">No additional notes</span>';
+            : '<span class="details">No additional notes</span>';
 
         return `
           <tr class="${className}">
@@ -590,9 +605,10 @@ const renderInteractiveGroupHtml = (group) => {
         `
       : '<p>No interactive pages were scanned.</p>';
 
-    const budgetNote = resourceBudget != null
-      ? `<p>Resource error budget: <strong>${resourceBudget}</strong></p>`
-      : '';
+    const budgetNote =
+      resourceBudget != null
+        ? `<p>Resource error budget: <strong>${resourceBudget}</strong></p>`
+        : '';
 
     return `
       <section class="summary-report summary-interactive">
@@ -619,7 +635,9 @@ const renderAvailabilityGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -633,7 +651,10 @@ const renderAvailabilityGroupHtml = (group) => {
         const elementChecks = Object.keys(elements).length
           ? `
               <ul class="checks">${Object.entries(elements)
-                .map(([key, value]) => `<li class="${value ? 'check-pass' : 'check-fail'}">${escapeHtml(key)}: ${value ? 'present' : 'missing'}</li>`)
+                .map(
+                  ([key, value]) =>
+                    `<li class="${value ? 'check-pass' : 'check-fail'}">${escapeHtml(key)}: ${value ? 'present' : 'missing'}</li>`
+                )
                 .join('')}</ul>
             `
           : '<span class="details">No element checks recorded</span>';
@@ -697,7 +718,9 @@ const renderHttpGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -708,7 +731,10 @@ const renderHttpGroupHtml = (group) => {
         const failedList = failedChecks.length
           ? `
               <ul class="checks">${failedChecks
-                .map((check) => `<li class="check-fail">${escapeHtml(check.label || 'Check failed')}${check.details ? ` — ${escapeHtml(check.details)}` : ''}</li>`)
+                .map(
+                  (check) =>
+                    `<li class="check-fail">${escapeHtml(check.label || 'Check failed')}${check.details ? ` — ${escapeHtml(check.details)}` : ''}</li>`
+                )
                 .join('')}</ul>
             `
           : '<span class="details">All checks passed</span>';
@@ -757,15 +783,19 @@ const renderPerformanceGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
     const rows = pages
       .map((payload) => {
         const summary = payload.summary || {};
-        const breaches = (summary.budgetBreaches || [])
-          .map((breach) => `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`);
+        const breaches = (summary.budgetBreaches || []).map(
+          (breach) =>
+            `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`
+        );
         const breachList = breaches.length
           ? `
               <ul class="checks">${breaches
@@ -819,7 +849,9 @@ const renderVisualGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -847,7 +879,10 @@ const renderVisualGroupHtml = (group) => {
         const detailsHtml = diffDetails.length
           ? `
               <ul class="checks">${diffDetails
-                .map((line) => `<li class="${result === 'diff' ? 'check-fail' : 'details'}">${escapeHtml(line)}</li>`)
+                .map(
+                  (line) =>
+                    `<li class="${result === 'diff' ? 'check-fail' : 'details'}">${escapeHtml(line)}</li>`
+                )
                 .join('')}</ul>
             `
           : '<span class="details">Matched baseline</span>';
@@ -914,7 +949,9 @@ const renderSchemaGroupFallbackHtml = (group) => {
     return left - right;
   });
   const runHtml = runEntries.map(renderSchemaRunEntry).join('');
-  const pageHtml = group.suppressPageEntries ? '' : renderSchemaPageEntries(group.pageEntries || []);
+  const pageHtml = group.suppressPageEntries
+    ? ''
+    : renderSchemaPageEntries(group.pageEntries || []);
   const body = [runHtml, pageHtml].filter(Boolean).join('');
   if (!body) return '';
   return `
@@ -983,11 +1020,11 @@ const formatSchemaValueMarkdown = (value) => {
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) {
     if (value.length === 0) return '—';
-    const simple = value.every((item) => item == null || ['string', 'number', 'boolean'].includes(typeof item));
+    const simple = value.every(
+      (item) => item == null || ['string', 'number', 'boolean'].includes(typeof item)
+    );
     if (simple) {
-      return value
-        .map((item) => (item == null ? '—' : formatSchemaValueMarkdown(item)))
-        .join(', ');
+      return value.map((item) => (item == null ? '—' : formatSchemaValueMarkdown(item))).join(', ');
     }
     return value.map((item) => formatSchemaValueMarkdown(item)).join('; ');
   }
@@ -1014,16 +1051,17 @@ const renderRuleSnapshotsMarkdown = (snapshots) => {
   const rows = snapshots.map((snapshot) => {
     const impact = snapshot.impact || snapshot.category || 'info';
     const rule = snapshot.rule || 'rule';
-    const pages = Array.isArray(snapshot.pages) && snapshot.pages.length > 0
-      ? snapshot.pages.join(', ')
-      : '—';
+    const pages =
+      Array.isArray(snapshot.pages) && snapshot.pages.length > 0 ? snapshot.pages.join(', ') : '—';
     const nodes = snapshot.nodes != null ? String(snapshot.nodes) : '—';
-    const viewports = Array.isArray(snapshot.viewports) && snapshot.viewports.length > 0
-      ? snapshot.viewports.join(', ')
-      : '—';
-    const wcagTags = Array.isArray(snapshot.wcagTags) && snapshot.wcagTags.length > 0
-      ? snapshot.wcagTags.join(', ')
-      : '—';
+    const viewports =
+      Array.isArray(snapshot.viewports) && snapshot.viewports.length > 0
+        ? snapshot.viewports.join(', ')
+        : '—';
+    const wcagTags =
+      Array.isArray(snapshot.wcagTags) && snapshot.wcagTags.length > 0
+        ? snapshot.wcagTags.join(', ')
+        : '—';
     return `| ${impact} | ${rule} | ${pages} | ${nodes} | ${viewports} | ${wcagTags} |`;
   });
   return [header, separator, ...rows].join('\n');
@@ -1035,7 +1073,9 @@ const renderInternalLinksGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Internal link audit summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1051,12 +1091,20 @@ const renderInternalLinksGroupMarkdown = (group) => {
     pages.forEach((payload) => {
       const summary = payload.summary || {};
       (summary.brokenSample || []).forEach((issue) => {
-        brokenRows.push(`| \`${payload.page || 'unknown'}\` | ${issue.url || ''} | ${issue.status != null ? issue.status : issue.error || 'error'} | ${issue.methodTried || 'HEAD'} |`);
+        brokenRows.push(
+          `| \`${payload.page || 'unknown'}\` | ${issue.url || ''} | ${issue.status != null ? issue.status : issue.error || 'error'} | ${issue.methodTried || 'HEAD'} |`
+        );
       });
     });
 
     const brokenSection = brokenRows.length
-      ? ['## Broken links', '', '| Source page | URL | Status / Error | Method |', '| --- | --- | --- | --- |', ...brokenRows].join('\n')
+      ? [
+          '## Broken links',
+          '',
+          '| Source page | URL | Status / Error | Method |',
+          '| --- | --- | --- | --- |',
+          ...brokenRows,
+        ].join('\n')
       : '## Broken links\n\nNone 🎉';
 
     const parts = [`## ${heading}`];
@@ -1075,7 +1123,9 @@ const renderInteractiveGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Interactive smoke summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1085,17 +1135,24 @@ const renderInteractiveGroupMarkdown = (group) => {
     const separator = '| --- | --- | --- | --- | --- |';
     const rows = pages.map((payload) => {
       const summary = payload.summary || {};
-      const consoleOutput = (summary.consoleSample || []).map((entry) => `⚠️ ${entry.message || entry}`).join('<br />');
-      const consoleCell = summary.consoleErrors ? consoleOutput || 'See captured sample' : '✅ None';
+      const consoleOutput = (summary.consoleSample || [])
+        .map((entry) => `⚠️ ${entry.message || entry}`)
+        .join('<br />');
+      const consoleCell = summary.consoleErrors
+        ? consoleOutput || 'See captured sample'
+        : '✅ None';
       const resourceOutput = (summary.resourceSample || [])
         .map((entry) => {
-          const base = entry.type === 'requestfailed'
-            ? `requestfailed ${entry.url} (${entry.failure || 'unknown'})`
-            : `${entry.type} ${entry.status || ''} ${entry.method || ''} ${entry.url}`;
+          const base =
+            entry.type === 'requestfailed'
+              ? `requestfailed ${entry.url} (${entry.failure || 'unknown'})`
+              : `${entry.type} ${entry.status || ''} ${entry.method || ''} ${entry.url}`;
           return `⚠️ ${base.trim()}`;
         })
         .join('<br />');
-      const resourceCell = summary.resourceErrors ? resourceOutput || 'See captured sample' : '✅ None';
+      const resourceCell = summary.resourceErrors
+        ? resourceOutput || 'See captured sample'
+        : '✅ None';
       const noteItems = [];
       (summary.warnings || []).forEach((message) => noteItems.push(`⚠️ ${message}`));
       (summary.info || []).forEach((message) => noteItems.push(`ℹ️ ${message}`));
@@ -1120,7 +1177,9 @@ const renderAvailabilityGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Availability & uptime summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1129,7 +1188,8 @@ const renderAvailabilityGroupMarkdown = (group) => {
     const separator = '| --- | --- | --- | --- |';
     const rows = pages.map((payload) => {
       const summary = payload.summary || {};
-      const warnings = (summary.warnings || []).map((message) => `⚠️ ${message}`).join('<br />') || 'None';
+      const warnings =
+        (summary.warnings || []).map((message) => `⚠️ ${message}`).join('<br />') || 'None';
       const info = (summary.info || []).map((message) => `ℹ️ ${message}`).join('<br />') || 'None';
       const statusLabel = summary.status == null ? 'n/a' : summary.status;
       return `| \`${payload.page || 'unknown'}\` | ${statusLabel} | ${warnings} | ${info} |`;
@@ -1150,7 +1210,9 @@ const renderHttpGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'HTTP response validation summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1159,9 +1221,13 @@ const renderHttpGroupMarkdown = (group) => {
     const separator = '| --- | --- | --- | --- |';
     const rows = pages.map((payload) => {
       const summary = payload.summary || {};
-      const failedChecks = (summary.failedChecks || [])
-        .map((check) => `⚠️ ${check.label || 'Check failed'}${check.details ? ` — ${check.details}` : ''}`)
-        .join('<br />') || 'None';
+      const failedChecks =
+        (summary.failedChecks || [])
+          .map(
+            (check) =>
+              `⚠️ ${check.label || 'Check failed'}${check.details ? ` — ${check.details}` : ''}`
+          )
+          .join('<br />') || 'None';
       const statusLabel = summary.status == null ? 'n/a' : summary.status;
       const redirect = summary.redirectLocation || '—';
       return `| \`${payload.page || 'unknown'}\` | ${statusLabel} | ${redirect} | ${failedChecks} |`;
@@ -1182,7 +1248,9 @@ const renderPerformanceGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Performance monitoring summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1191,9 +1259,13 @@ const renderPerformanceGroupMarkdown = (group) => {
     const separator = '| --- | --- | --- | --- | --- | --- |';
     const rows = pages.map((payload) => {
       const summary = payload.summary || {};
-      const breaches = (summary.budgetBreaches || [])
-        .map((breach) => `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`)
-        .join('<br />') || 'None';
+      const breaches =
+        (summary.budgetBreaches || [])
+          .map(
+            (breach) =>
+              `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`
+          )
+          .join('<br />') || 'None';
       return `| \`${payload.page || 'unknown'}\` | ${summary.loadTimeMs != null ? Math.round(summary.loadTimeMs) : '—'} | ${summary.domContentLoadedMs != null ? Math.round(summary.domContentLoadedMs) : '—'} | ${summary.loadCompleteMs != null ? Math.round(summary.loadCompleteMs) : '—'} | ${summary.firstContentfulPaintMs != null ? Math.round(summary.firstContentfulPaintMs) : '—'} | ${breaches} |`;
     });
 
@@ -1212,7 +1284,9 @@ const renderVisualGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries.map((entry) => entry.payload || {}).filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+    const pages = bucket.pageEntries
+      .map((entry) => entry.payload || {})
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Visual regression summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1223,8 +1297,10 @@ const renderVisualGroupMarkdown = (group) => {
       const summary = payload.summary || {};
       const result = (summary.result || '').toLowerCase();
       const diffDetails = [];
-      if (summary.pixelDiff != null) diffDetails.push(`Pixel diff: ${summary.pixelDiff.toLocaleString()}`);
-      if (summary.pixelRatio != null) diffDetails.push(`Diff ratio: ${(summary.pixelRatio * 100).toFixed(2)}%`);
+      if (summary.pixelDiff != null)
+        diffDetails.push(`Pixel diff: ${summary.pixelDiff.toLocaleString()}`);
+      if (summary.pixelRatio != null)
+        diffDetails.push(`Diff ratio: ${(summary.pixelRatio * 100).toFixed(2)}%`);
       if (summary.expectedSize && summary.actualSize) {
         diffDetails.push(
           `Expected ${summary.expectedSize.width}×${summary.expectedSize.height}px, got ${summary.actualSize.width}×${summary.actualSize.height}px`
@@ -1268,9 +1344,10 @@ const renderSchemaPageEntriesMarkdownFallback = (entries) => {
     const payload = entry.payload || {};
     const page = payload.page || 'Unknown page';
     const viewport = payload.viewport || entry.projectName || 'default';
-    const summary = payload.summary && Object.keys(payload.summary).length > 0
-      ? formatSchemaValueMarkdown(payload.summary)
-      : 'No summary data';
+    const summary =
+      payload.summary && Object.keys(payload.summary).length > 0
+        ? formatSchemaValueMarkdown(payload.summary)
+        : 'No summary data';
     return `- **${page} – ${viewport}**: ${summary}`;
   });
   return lines.join('\n');
@@ -1315,23 +1392,23 @@ const renderAccessibilityGroupMarkdown = (group) => {
         .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
       const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
       const heading = `${group.title || 'WCAG findings summary'} – ${projectLabel}`;
-      const overview = (
-        runPayload?.markdownBody || (runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '')
-      );
+      const overview =
+        runPayload?.markdownBody ||
+        (runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '');
 
       const pageSections = pages.map((payload) => {
         const summary = payload.summary || {};
         if (summary.cardMarkdown) return summary.cardMarkdown;
 
         const status = summary.status || 'passed';
-        const statusLabel = status.replace(/[\-_/]+/g, ' ');
+        const statusLabel = status.replace(/[-_/]+/g, ' ');
         const notes = formatAccessibilityNotesMarkdown(summary);
         return `### ${payload.page || 'unknown'}\n\n- Status: ${statusLabel}\n- Gating: ${summary.gatingViolations ?? 0}\n- Advisory: ${summary.advisoryFindings ?? 0}\n- Best practice: ${summary.bestPracticeFindings ?? 0}\n- HTTP: ${summary.httpStatus ?? '—'}\n- Notes: ${notes}`;
       });
 
       const parts = [`## ${heading}`];
       if (overview) parts.push(overview);
-      parts.push(...pageSections)
+      parts.push(...pageSections);
       return parts.join('\n\n');
     })
     .filter(Boolean);
@@ -1670,9 +1747,6 @@ const renderMetadata = (run) => {
         value,
       });
     }
-  }
-  if (run.profile) {
-    rows.push({ label: 'Profile', value: run.profile });
   }
   if (Array.isArray(run.projects) && run.projects.length > 0) {
     rows.push({ label: 'Browsers', value: run.projects.join(', ') });

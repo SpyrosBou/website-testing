@@ -21,7 +21,13 @@ function normaliseSpecPattern(specInput) {
   const raw = String(specInput || '').trim();
   if (!raw) return null;
 
-  const hasGlob = /[\*\?\[\]\{\}]/.test(raw);
+  const hasGlob = (() => {
+    const globChars = new Set(['*', '?', '[', ']', '{', '}']);
+    for (const ch of raw) {
+      if (globChars.has(ch)) return true;
+    }
+    return false;
+  })();
 
   const resolveRelative = (candidate) => {
     const absolute = path.resolve(process.cwd(), candidate);
@@ -83,7 +89,6 @@ function prepareRunManifestPayload({
   siteName,
   siteConfig,
   appliedPageLimit,
-  options,
   projectArgsList,
   projectSpecifier,
   testTargets,

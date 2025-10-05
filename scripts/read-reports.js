@@ -8,9 +8,7 @@ const openBrowser = openModule.default || openModule;
 const args = minimist(process.argv.slice(2));
 const defaultBrowser = process.env.REPORT_BROWSER || 'google-chrome';
 const envBrowserArgs = process.env.REPORT_BROWSER_ARGS
-  ? String(process.env.REPORT_BROWSER_ARGS)
-      .split(/\s+/)
-      .filter(Boolean)
+  ? String(process.env.REPORT_BROWSER_ARGS).split(/\s+/).filter(Boolean)
   : [];
 const reportsDir = path.join(process.cwd(), 'reports');
 const REPORT_FILE_NAME = 'report.html';
@@ -65,7 +63,10 @@ async function openEntries(entries) {
     }
     console.log(`- ${entry.name}`);
     try {
-      const appOptions = browserArgs.length > 0 ? { name: browserName, arguments: browserArgs } : { name: browserName };
+      const appOptions =
+        browserArgs.length > 0
+          ? { name: browserName, arguments: browserArgs }
+          : { name: browserName };
       await openBrowser(reportPath, { wait: false, app: appOptions });
       if (browserArgs.length > 0 || browserName.toLowerCase().includes('firefox')) {
         await new Promise((resolve) => setTimeout(resolve, 350));

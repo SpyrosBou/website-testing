@@ -2,7 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { createHash } = require('node:crypto');
-const { renderReportHtml, formatBytes, renderSchemaSummariesMarkdown, renderRunSummariesMarkdown } = require('./report-templates');
+const {
+  renderReportHtml,
+  formatBytes,
+  renderSchemaSummariesMarkdown,
+  renderRunSummariesMarkdown,
+} = require('./report-templates');
 const { SCHEMA_ID: SUMMARY_SCHEMA_ID } = require('./report-schema');
 
 const DEFAULT_INLINE_LIMIT = 8 * 1024 * 1024; // 8 MB
