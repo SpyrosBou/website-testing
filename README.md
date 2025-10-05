@@ -43,9 +43,8 @@ To try it locally: run `npm run setup` (this installs dependencies and caches Pl
 
    ```bash
    node run-tests.js --site=nfsmediation-local --functionality --pages=1 --project=Chrome
-
-   # Convenience script for ddev setups
-   npm run smoke:nfs -- --functionality --pages=1 --project=Chrome
+   # If your WordPress dev site runs via ddev, use:
+   ddev exec node run-tests.js --site=nfsmediation-local --functionality --pages=1 --project=Chrome
    ```
 
 5. **Open the latest report**
@@ -196,8 +195,10 @@ node run-tests.js -s my-site -p 5
 # Using npm script (pass args after --)
 npm run test:site -- --site=my-site
 
-# Smoke test helper (nfs ddev)
-npm run smoke:nfs
+# Smoke test example (nfs mediation)
+node run-tests.js --site=nfsmediation-local --functionality --pages=1 --project=Chrome
+# ddev variant
+ddev exec node run-tests.js --site=nfsmediation-local --functionality --pages=1 --project=Chrome
 
 # Refresh sitemap-backed page list before running tests
 node run-tests.js --site=my-site --discover
