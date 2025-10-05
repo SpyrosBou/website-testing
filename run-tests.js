@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const minimist = require('minimist');
+const fs = require('fs');
 const path = require('path');
 const TestRunner = require('./utils/test-runner');
 
@@ -17,6 +18,7 @@ const argv = minimist(process.argv.slice(2), {
     'limit',
     'a11y-tags',
     'a11y-sample',
+    'output',
   ],
   boolean: [
     'help',
@@ -117,6 +119,7 @@ function showUsage() {
     "  --workers, -w         Worker count (number or 'auto', default auto)",
     "  --discover, -d        Refresh sitemap-backed pages before running",
     "  --local, -c           Attempt DDEV preflight for local '.ddev.site' hosts",
+    '  --output <path>      Persist manifest + run summary JSON to disk',
     '  --list-sites, -L      Print site configs (also used for shell completion helpers)',
     '  --update-baselines, -B Update visual baselines for the chosen site(s)',
     '  --debug, -D           Enable Playwright debug mode',
@@ -200,6 +203,9 @@ async function runForSites(sites, baseOptions) {
   const optionsWithEvents = {
     ...baseOptions,
     onEvent: (event) => {
+      if (baseOptions.outputWriter) {
+        baseOptions.outputWriter.capture(event);
+      }
       if (typeof baseOptions.onEvent === 'function') {
         baseOptions.onEvent(event);
       }
@@ -272,6 +278,7 @@ async function main() {
     specs,
     workers: argv.workers,
     envOverrides: {},
+    outputWriter: null,
   };
 
   if (profile === 'smoke') {
@@ -303,7 +310,68 @@ async function main() {
     options.allGroups = true;
   }
 
+  if (argv.output) {
+    const resolvedOutput = path.resolve(process.cwd(), String(argv.output));
+    options.outputWriter = {
+      path: resolvedOutput,
+      runs: [],
+      capture(event) {
+        if (!event || !event.siteName) return;
+        const ensureEntry = () => {
+          let entry = this.runs.find((item) => item.siteName === event.siteName);
+          if (!entry) {
+            entry = { siteName: event.siteName, manifest: null, manifestPath: null, summary: null };
+            this.runs.push(entry);
+          }
+          return entry;
+        };
+        const entry = ensureEntry();
+        switch (event.type) {
+          case 'manifest:ready':
+            entry.manifest = event.manifest || null;
+            entry.manifestPath = event.manifestPath || null;
+            break;
+          case 'manifest:persisted':
+            entry.manifestPath = event.manifestPath || null;
+            break;
+          case 'run:complete':
+            entry.summary = {
+              exitCode: event.code,
+              reportSummary: event.summary || null,
+              completedAt: new Date().toISOString(),
+            };
+            break;
+          default:
+            break;
+        }
+      },
+      write() {
+        const payload = {
+          generatedAt: new Date().toISOString(),
+          runs: this.runs.map((run) => ({
+            siteName: run.siteName,
+            manifest: run.manifest || null,
+            manifestPath: run.manifestPath
+              ? path.relative(process.cwd(), run.manifestPath)
+              : null,
+            summary: run.summary || null,
+          })),
+        };
+        fs.mkdirSync(path.dirname(this.path), { recursive: true });
+        fs.writeFileSync(this.path, `${JSON.stringify(payload, null, 2)}\n`);
+        console.log(`📝 Written run output to ${path.relative(process.cwd(), this.path)}`);
+      },
+    };
+  }
+
   const exitCode = await runForSites(sites, options);
+  if (options.outputWriter) {
+    try {
+      options.outputWriter.write();
+    } catch (error) {
+      console.error(`⚠️  Failed to write run output: ${error.message}`);
+    }
+  }
   process.exit(exitCode);
 }
 

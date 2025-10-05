@@ -23,6 +23,7 @@
 - Manifest generation is centralised in `TestRunner.prepareRunManifest`. Small payloads are exported inline via `SITE_RUN_MANIFEST_INLINE`; larger ones persist under `reports/run-manifests/` and are referenced through `SITE_RUN_MANIFEST`.
 - `SITE_TEST_PAGES` (and optional `SITE_TEST_PAGES_LIMIT`) remain for backward compatibility, but specs now primarily read from the manifest via `utils/run-manifest.js` or through `SiteLoader` overrides.
 - The CLI adapter listens to `onEvent` hooks (`manifest:ready`, `manifest:persisted`, `run:complete`) to print previews ahead of execution—mirroring the planned GUI stepper preview.
+- `--output=<path>` lets callers capture manifest + run summaries as JSON for dashboards or other tooling without scraping stdout.
 - `utils/run-manifest.js` provides shared helpers for loading/parsing manifests so specs and future tooling avoid duplicating env parsing.
 - Profile-specific env mutations are passed through structured overrides (`envOverrides`) rather than mutating `process.env`, keeping adapter state isolated.
 

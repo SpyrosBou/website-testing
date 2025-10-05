@@ -113,6 +113,18 @@ switch (cmd) {
       }
     }
     break;
+  case 'clean-manifests':
+    {
+      const manifestsDir = path.join(process.cwd(), 'reports', 'run-manifests');
+      const days = Number.parseInt(process.argv[3] || '15', 10) || 15;
+      if (!fs.existsSync(manifestsDir)) {
+        console.log('No run manifests directory found.');
+        break;
+      }
+      deleteOlderThan(manifestsDir, days);
+      console.log(`Removed run manifests older than ${days} day(s).`);
+    }
+    break;
   default:
     console.log('Unknown command');
     process.exit(1);

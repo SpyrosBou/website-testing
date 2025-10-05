@@ -351,12 +351,15 @@ npm run clean-reports
 
 **Note**: HTML reports live under `reports/run-*/report.html`. Playwright artifacts (videos/screenshots/traces) remain in `test-results/`.
 
+Run `npm run clean-manifests` to delete run manifest files older than 15 days (pass a custom day count as a second argument if needed).
+
 ### Run Manifest & Environment Contracts
 
 - Every run serialises a manifest describing the resolved site, pages, specs, and projects. Small manifests are injected via `SITE_RUN_MANIFEST_INLINE`; large ones are persisted under `reports/run-manifests/` and referenced through `SITE_RUN_MANIFEST`.
 - `SITE_TEST_PAGES` (and optional `SITE_TEST_PAGES_LIMIT`) remain for legacy consumers but always mirror the manifest’s page list.
 - Specs and helpers can read the manifest through `utils/run-manifest.js` rather than parsing env vars manually. `SiteLoader` already respects the manifest, so loading a site config inside a spec yields the runner-filtered pages.
 - Adapters (CLI today, GUI tomorrow) can listen to runner events (`manifest:ready`, `manifest:persisted`, `run:complete`) to render previews or progress without scraping stdout.
+- Add `--output=path/to/run.json` when invoking the CLI to write the manifest + run summary to disk for external tooling or dashboards.
 
 ### Working with the custom reporter
 
