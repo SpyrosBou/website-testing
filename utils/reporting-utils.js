@@ -84,9 +84,119 @@ const SUMMARY_STYLES = `
 </style>
 `;
 
+const PER_PAGE_TOGGLE_SCRIPT = `
+(function () {
+  const scriptEl = document.currentScript;
+  if (!scriptEl) return;
+  const listSection = scriptEl.previousElementSibling;
+  const controlsSection = listSection && listSection.previousElementSibling;
+  if (!listSection || !controlsSection) return;
+  const accordions = Array.from(listSection.querySelectorAll('details'));
+  if (accordions.length === 0) return;
+
+  const setOpenState = (open) => {
+    accordions.forEach((accordion) => {
+      accordion.open = open;
+    });
+  };
+
+  controlsSection.querySelectorAll('[data-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setOpenState(button.dataset.toggle === 'expand');
+    });
+  });
+})();
+`;
+
 const DESCRIPTION_BYTE_LIMIT = 18_000_000;
 
 const wrapHtml = (content) => `${SUMMARY_STYLES}${content}`;
+
+const renderPerPageAccordion = (items, options = {}) => {
+  const entries = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (entries.length === 0) return '';
+
+  const {
+    heading = 'Per-page breakdown',
+    showLabel = 'Show all',
+    hideLabel = 'Hide all',
+    summaryClass = '',
+    renderCard,
+    formatSummaryLabel,
+  } = options;
+
+  if (typeof renderCard !== 'function') return '';
+
+  const summaryClassName = ['summary-page', summaryClass].filter(Boolean).join(' ');
+  const labelFormatter = typeof formatSummaryLabel === 'function'
+    ? formatSummaryLabel
+    : (entry) => entry?.page || 'Page';
+
+  const detailsHtml = entries
+    .map((entry) => {
+      const cardHtml = renderCard(entry);
+      if (!cardHtml) return '';
+      const summaryLabel = escapeHtml(labelFormatter(entry));
+      return `
+        <details class="${summaryClassName}">
+          <summary>${summaryLabel}</summary>
+          <div class="summary-page__body">
+            ${cardHtml}
+          </div>
+        </details>
+      `;
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  if (!detailsHtml.trim()) return '';
+
+  return `
+    <section class="summary-report summary-a11y" data-per-page="controls">
+      <h3>${escapeHtml(heading)}</h3>
+      <div class="summary-toggle-controls">
+        <button type="button" class="summary-toggle-button" data-toggle="expand">${escapeHtml(showLabel)}</button>
+        <button type="button" class="summary-toggle-button" data-toggle="collapse">${escapeHtml(hideLabel)}</button>
+      </div>
+    </section>
+    <section class="summary-report summary-a11y" data-per-page="list">
+      ${detailsHtml}
+    </section>
+    <script>${PER_PAGE_TOGGLE_SCRIPT}</script>
+  `;
+};
+
+const renderSummaryMetrics = (entries) => {
+  const items = Array.isArray(entries)
+    ? entries
+        .map((entry) => {
+          if (!entry || typeof entry.label !== 'string') return '';
+          const label = entry.label.trim();
+          if (!label) return '';
+          const rawValue = entry.value;
+          let displayValue;
+          if (rawValue === null || rawValue === undefined) {
+            displayValue = '—';
+          } else if (typeof rawValue === 'number') {
+            displayValue = rawValue.toLocaleString();
+          } else {
+            displayValue = String(rawValue);
+          }
+          return `
+      <div class="schema-metrics__item">
+        <dt>${escapeHtml(label)}</dt>
+        <dd><span class="schema-value">${escapeHtml(displayValue)}</span></dd>
+      </div>
+    `;
+        })
+        .filter(Boolean)
+        .join('\n')
+    : '';
+
+  if (!items) return '';
+
+  return `<dl class="schema-metrics">${items}</dl>`;
+};
 
 const escapeHtml = (value) =>
   String(value || '')
@@ -185,5 +295,8 @@ module.exports = {
   attachSchemaSummary,
   escapeHtml,
   SUMMARY_STYLES,
+  PER_PAGE_TOGGLE_SCRIPT,
+  renderPerPageAccordion,
+  renderSummaryMetrics,
   wrapHtml,
 };

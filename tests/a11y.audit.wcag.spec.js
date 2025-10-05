@@ -7,7 +7,7 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSchemaSummary, escapeHtml, renderPerPageAccordion } = require('../utils/reporting-utils');
 const {
   extractWcagLevels,
   violationHasWcagCoverage,
@@ -457,6 +457,13 @@ const buildSuiteSummaryHtml = (
   );
   const viewportLabel = uniqueViewports.join(', ');
 
+  const perPageAccordion = renderPerPageAccordion(pageReports, {
+    heading: 'Per-page breakdown',
+    summaryClass: 'summary-page--wcag',
+    renderCard: (report) => formatPageCardHtml(report),
+    formatSummaryLabel: (report) => formatPageLabel(report.page),
+  });
+
   return `
     <section class="summary-report summary-a11y">
       <h2>Accessibility run summary</h2>
@@ -478,47 +485,7 @@ const buildSuiteSummaryHtml = (
     ${ruleSummaryHtml}
     ${advisoryRuleSummaryHtml}
     ${bestPracticeRuleSummaryHtml}
-    <section class="summary-report summary-a11y" data-per-page="controls">
-      <h3>Per-page breakdown</h3>
-      <div class="summary-toggle-controls">
-        <button type="button" class="summary-toggle-button" data-toggle="expand">Show all</button>
-        <button type="button" class="summary-toggle-button" data-toggle="collapse">Hide all</button>
-      </div>
-    </section>
-    <section class="summary-report summary-a11y" data-per-page="list">
-      ${pageReports
-        .map((report) => {
-          const cardHtml = formatPageCardHtml(report);
-          return `
-        <details class="summary-page summary-page--wcag">
-          <summary>${escapeHtml(formatPageLabel(report.page))}</summary>
-          <div class="summary-page__body">${cardHtml}</div>
-        </details>
-      `;
-        })
-        .join('\n')}
-    </section>
-    <script>
-      (function () {
-        const scriptEl = document.currentScript;
-        if (!scriptEl) return;
-        const listSection = scriptEl.previousElementSibling;
-        const controlsSection = listSection && listSection.previousElementSibling;
-        if (!listSection || !controlsSection) return;
-        const accordions = Array.from(listSection.querySelectorAll('details'));
-        if (accordions.length === 0) return;
-        const setOpenState = (open) => {
-          accordions.forEach((accordion) => {
-            accordion.open = open;
-          });
-        };
-        controlsSection.querySelectorAll('[data-toggle]').forEach((button) => {
-          button.addEventListener('click', () => {
-            setOpenState(button.dataset.toggle === 'expand');
-          });
-        });
-      })();
-    </script>
+    ${perPageAccordion}
   `;
 };
 

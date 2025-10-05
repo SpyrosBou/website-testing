@@ -6,7 +6,7 @@ const openModule = require('open');
 const openBrowser = openModule.default || openModule;
 
 const args = minimist(process.argv.slice(2));
-const defaultBrowser = process.env.REPORT_BROWSER || 'google-chrome';
+const envBrowser = process.env.REPORT_BROWSER && String(process.env.REPORT_BROWSER).trim();
 const envBrowserArgs = process.env.REPORT_BROWSER_ARGS
   ? String(process.env.REPORT_BROWSER_ARGS)
       .split(/\s+/)
@@ -44,6 +44,18 @@ function resolveCount() {
   return count;
 }
 
+function resolveBrowserConfig() {
+  if (envBrowser) {
+    return { name: envBrowser, args: envBrowserArgs };
+  }
+
+  if (process.platform === 'linux') {
+    return { name: 'google-chrome', args: ['--new-window'] };
+  }
+
+  return { name: null, args: [] };
+}
+
 async function openEntries(entries) {
   if (entries.length === 0) {
     console.log('No reports available to open.');
@@ -51,10 +63,14 @@ async function openEntries(entries) {
   }
 
   console.log(`Opening ${entries.length} report(s):`);
-  const browserName = defaultBrowser;
-  let browserArgs = envBrowserArgs.slice();
-  if (browserArgs.length === 0 && browserName.toLowerCase().includes('chrome')) {
-    browserArgs = ['--new-window'];
+  const { name: browserName, args: initialArgs } = resolveBrowserConfig();
+  const browserArgs = initialArgs.slice();
+  if (
+    browserName &&
+    browserArgs.length === 0 &&
+    browserName.toLowerCase().includes('chrome')
+  ) {
+    browserArgs.push('--new-window');
   }
 
   for (const entry of entries) {
@@ -65,13 +81,24 @@ async function openEntries(entries) {
     }
     console.log(`- ${entry.name}`);
     try {
-      const appOptions = browserArgs.length > 0 ? { name: browserName, arguments: browserArgs } : { name: browserName };
-      await openBrowser(reportPath, { wait: false, app: appOptions });
-      if (browserArgs.length > 0 || browserName.toLowerCase().includes('firefox')) {
+      if (browserName) {
+        const appOptions = browserArgs.length > 0 ? { name: browserName, arguments: browserArgs } : { name: browserName };
+        await openBrowser(reportPath, { wait: false, app: appOptions });
+      } else {
+        await openBrowser(reportPath, { wait: false });
+      }
+      if (
+        browserArgs.length > 0 ||
+        (browserName && browserName.toLowerCase().includes('firefox'))
+      ) {
         await new Promise((resolve) => setTimeout(resolve, 350));
       }
     } catch (error) {
-      console.error(`  Failed to open with ${browserName}: ${error.message}`);
+      if (browserName) {
+        console.error(`  Failed to open with ${browserName}: ${error.message}`);
+      } else {
+        console.error(`  Failed to open report: ${error.message}`);
+      }
     }
   }
 }

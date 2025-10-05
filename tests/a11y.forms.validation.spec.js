@@ -6,7 +6,12 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const {
+  attachSchemaSummary,
+  escapeHtml,
+  renderPerPageAccordion,
+  renderSummaryMetrics,
+} = require('../utils/reporting-utils');
 const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 
 const ERROR_SELECTORS = [
@@ -94,59 +99,51 @@ const summariseFormsHtml = (reports) => {
     )
     .join('');
 
-  const cards = reports
-    .map((report) => {
-      const gatingList = report.gating
-        .map((item) => `<li class="check-fail">${escapeHtml(item)}</li>`)
-        .join('');
-      const advisoryList = report.advisories.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
-      const fieldRows = report.fields
-        .map((field) => {
-          const status = field.issues.length
-            ? `<ul class="details">${field.issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('')}</ul>`
-            : '<p class="details">No issues detected.</p>';
-          return `
-            <details>
-              <summary><code>${escapeHtml(field.name)}</code> — ${escapeHtml(field.accessibleName || 'no accessible name')}</summary>
-              <p class="details">Required: ${field.required ? 'Yes' : 'No'} | Accessible name present: ${
-                field.accessibleName ? 'Yes' : 'No'
-              }</p>
-              ${status}
-            </details>
-          `;
-        })
-        .join('');
+  const metricsHtml = renderSummaryMetrics([
+    { label: 'Forms audited', value: reports.length },
+    {
+      label: 'Forms with gating issues',
+      value: reports.filter((report) => report.gating.length > 0).length,
+    },
+    {
+      label: 'Forms with advisories',
+      value: reports.filter((report) => report.advisories.length > 0).length,
+    },
+    {
+      label: 'Fields reviewed',
+      value: reports.reduce((sum, report) => sum + report.fields.length, 0),
+    },
+    {
+      label: 'Total gating findings',
+      value: reports.reduce((sum, report) => sum + report.gating.length, 0),
+    },
+    {
+      label: 'Total advisory findings',
+      value: reports.reduce((sum, report) => sum + report.advisories.length, 0),
+    },
+  ]);
 
-      return `
-        <section class="summary-report summary-a11y page-card">
-          <div class="page-card__header">
-            <h3>${escapeHtml(report.formName)} — ${escapeHtml(report.page)}</h3>
-            <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
-              ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
-            </span>
-          </div>
-          <p class="details">Form selector: <code>${escapeHtml(report.selectorUsed || 'n/a')}</code></p>
-          ${report.gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
-          ${report.advisories.length ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
-          ${fieldRows}
-        </section>
-      `;
-    })
-    .join('');
+  const perFormAccordion = renderPerPageAccordion(reports, {
+    heading: 'Per-form breakdown',
+    summaryClass: 'summary-page--forms',
+    renderCard: (report) => renderFormCardHtml(report),
+    formatSummaryLabel: (report) => `${report.formName} — ${report.page}`,
+  });
 
   return `
     <section class="summary-report summary-a11y">
       <h2>Accessibility forms audit summary</h2>
       <p class="details">Checked ${reports.length} form(s) for accessible labelling and validation feedback.</p>
       <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(FORMS_WCAG_REFERENCES)}</p>
+      ${metricsHtml}
       <table>
         <thead>
           <tr><th>Form</th><th>Page</th><th>Gating issues</th><th>Advisories</th></tr>
         </thead>
         <tbody>${tableRows}</tbody>
       </table>
-      ${cards}
     </section>
+    ${perFormAccordion}
   `;
 };
 

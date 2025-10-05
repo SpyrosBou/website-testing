@@ -6,7 +6,12 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const {
+  attachSchemaSummary,
+  escapeHtml,
+  renderPerPageAccordion,
+  renderSummaryMetrics,
+} = require('../utils/reporting-utils');
 const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 const {
   selectAccessibilityTestPages,
@@ -52,63 +57,47 @@ const analyseStructureHtml = (reports) => {
     )
     .join('');
 
-  const cards = reports
-    .map((report) => {
-      const gatingList = report.gating
-        .map((item) => `<li class="check-fail">${escapeHtml(item)}</li>`)
-        .join('');
-      const advisoryList = report.advisories.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
-      const headingSummary = report.headingLevels
-        .map((entry) => `<li><code>${escapeHtml(entry.text)}</code> (H${entry.level})</li>`)
-        .join('');
+  const metricsHtml = renderSummaryMetrics([
+    { label: 'Pages audited', value: reports.length },
+    {
+      label: 'Pages missing main landmark',
+      value: reports.filter((report) => !report.hasMain).length,
+    },
+    {
+      label: 'Pages with heading level skips',
+      value: reports.filter((report) => report.headingSkips.length > 0).length,
+    },
+    {
+      label: 'Pages with gating issues',
+      value: reports.filter((report) => report.gating.length > 0).length,
+    },
+    {
+      label: 'Pages with advisories',
+      value: reports.filter((report) => report.advisories.length > 0).length,
+    },
+  ]);
 
-      const landmarks = `
-        <ul class="details">
-          <li>Main landmark: ${report.hasMain ? 'present' : 'missing'}</li>
-          <li>Navigation landmarks: ${report.navigationCount}</li>
-          <li>Header landmarks: ${report.headerCount}</li>
-          <li>Footer landmarks: ${report.footerCount}</li>
-        </ul>
-      `;
-
-      const headingSkips = report.headingSkips.length
-        ? `<details><summary>Heading level skips</summary><ul class="details">${report.headingSkips
-            .map((skip) => `<li>${escapeHtml(skip)}</li>`)
-            .join('')}</ul></details>`
-        : '';
-
-      return `
-        <section class="summary-report summary-a11y page-card">
-          <div class="page-card__header">
-            <h3>${escapeHtml(report.page)}</h3>
-            <span class="status-pill ${report.gating.length ? 'error' : 'success'}">
-              ${report.gating.length ? `${report.gating.length} gating issue(s)` : 'Pass'}
-            </span>
-          </div>
-          <p class="details">H1 count: ${report.h1Count}</p>
-          ${landmarks}
-          ${report.gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
-          ${report.advisories.length ? `<details><summary>Advisories (${report.advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
-          ${headingSkips}
-          <details><summary>Heading outline (${report.headingLevels.length} headings)</summary><ul class="details">${headingSummary}</ul></details>
-        </section>
-      `;
-    })
-    .join('');
+  const perPageAccordion = renderPerPageAccordion(reports, {
+    heading: 'Per-page structure findings',
+    summaryClass: 'summary-page--structure',
+    renderCard: (report) => renderStructureCardHtml(report),
+    formatSummaryLabel: (report) => report.page,
+  });
 
   return `
     <section class="summary-report summary-a11y">
       <h2>Accessibility structure audit summary</h2>
       <p class="details">Validated landmarks and heading structure across ${reports.length} page(s).</p>
       <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(STRUCTURE_WCAG_REFERENCES)}</p>
+      ${metricsHtml}
       <table>
         <thead>
           <tr><th>Page</th><th>H1 count</th><th>Main landmark</th><th>Heading skips</th><th>Gating issues</th><th>Advisories</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      ${cards}
     </section>
+    ${perPageAccordion}
   `;
 };
 

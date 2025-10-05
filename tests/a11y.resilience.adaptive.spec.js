@@ -6,7 +6,12 @@ const {
   safeNavigate,
   waitForPageStability,
 } = require('../utils/test-helpers');
-const { attachSchemaSummary, escapeHtml } = require('../utils/reporting-utils');
+const {
+  attachSchemaSummary,
+  escapeHtml,
+  renderPerPageAccordion,
+  renderSummaryMetrics,
+} = require('../utils/reporting-utils');
 const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 const {
   DEFAULT_ACCESSIBILITY_SAMPLE,
@@ -202,16 +207,42 @@ const formatReducedMotionSummaryHtml = (reports) => {
     </table>
   `;
 
-  const cards = reports.map(renderReducedMotionCardHtml).join('');
+  const metricsHtml = renderSummaryMetrics([
+    { label: 'Pages audited', value: reports.length },
+    {
+      label: 'Pages respecting preference',
+      value: reports.filter((report) => report.matchesReduce).length,
+    },
+    {
+      label: 'Pages with gating issues',
+      value: reports.filter((report) => report.gating.length > 0).length,
+    },
+    {
+      label: 'Pages with advisories',
+      value: reports.filter((report) => report.advisories.length > 0).length,
+    },
+    {
+      label: 'Significant animations',
+      value: reports.reduce((sum, report) => sum + report.significant.length, 0),
+    },
+  ]);
+
+  const perPageAccordion = renderPerPageAccordion(reports, {
+    heading: 'Per-page reduced-motion findings',
+    summaryClass: 'summary-page--reduced-motion',
+    renderCard: (report) => renderReducedMotionCardHtml(report),
+    formatSummaryLabel: (report) => report.page,
+  });
 
   return `
     <section class="summary-report summary-a11y">
       <h2>Reduced motion preference summary</h2>
       <p class="details">Audited ${reports.length} page(s) with prefers-reduced-motion set to "reduce".</p>
       <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(REDUCED_MOTION_WCAG_REFERENCES)}</p>
+      ${metricsHtml}
       ${table}
-      ${cards}
     </section>
+    ${perPageAccordion}
   `;
 };
 
@@ -323,16 +354,38 @@ const formatReflowSummaryHtml = (reports) => {
     </table>
   `;
 
-  const cards = reports.map(renderReflowCardHtml).join('');
+  const metricsHtml = renderSummaryMetrics([
+    { label: 'Pages audited', value: reports.length },
+    {
+      label: 'Pages with overflow',
+      value: reports.filter((report) => report.gating.length > 0).length,
+    },
+    {
+      label: 'Pages with advisories',
+      value: reports.filter((report) => report.advisories.length > 0).length,
+    },
+    {
+      label: 'Maximum overflow (px)',
+      value: reports.reduce((max, report) => Math.max(max, report.horizontalOverflow || 0), 0),
+    },
+  ]);
+
+  const perPageAccordion = renderPerPageAccordion(reports, {
+    heading: 'Per-page reflow findings',
+    summaryClass: 'summary-page--reflow',
+    renderCard: (report) => renderReflowCardHtml(report),
+    formatSummaryLabel: (report) => report.page,
+  });
 
   return `
     <section class="summary-report summary-a11y">
       <h2>Reflow/320px layout summary</h2>
       <p class="details">Viewport set to 320px width. Highlighting pages with horizontal overflow greater than ${MAX_OVERFLOW_TOLERANCE_PX}px.</p>
       <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(REFLOW_WCAG_REFERENCES)}</p>
+      ${metricsHtml}
       ${table}
-      ${cards}
     </section>
+    ${perPageAccordion}
   `;
 };
 
@@ -442,16 +495,38 @@ const formatIframeSummaryHtml = (reports) => {
     </table>
   `;
 
-  const cards = reports.map(renderIframeCardHtml).join('');
+  const metricsHtml = renderSummaryMetrics([
+    { label: 'Pages audited', value: reports.length },
+    {
+      label: 'Iframes detected',
+      value: reports.reduce((sum, report) => sum + report.frames.length, 0),
+    },
+    {
+      label: 'Pages with gating issues',
+      value: reports.filter((report) => report.gating.length > 0).length,
+    },
+    {
+      label: 'Pages with advisories',
+      value: reports.filter((report) => report.advisories.length > 0).length,
+    },
+  ]);
+
+  const perPageAccordion = renderPerPageAccordion(reports, {
+    heading: 'Per-page iframe findings',
+    summaryClass: 'summary-page--iframe',
+    renderCard: (report) => renderIframeCardHtml(report),
+    formatSummaryLabel: (report) => report.page,
+  });
 
   return `
     <section class="summary-report summary-a11y">
       <h2>Iframe accessibility summary</h2>
       <p class="details">Evaluated accessible metadata for embedded frames.</p>
       <p class="details"><strong>WCAG coverage:</strong> ${renderWcagBadgesHtml(IFRAME_WCAG_REFERENCES)}</p>
+      ${metricsHtml}
       ${table}
-      ${cards}
     </section>
+    ${perPageAccordion}
   `;
 };
 
