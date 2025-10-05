@@ -85,16 +85,28 @@ function prepareRunManifestPayload({
   appliedPageLimit,
   options,
   projectArgsList,
+  projectSpecifier,
+  resolvedA11ySample,
   testTargets,
   requestedSpecs,
 }) {
-  const resolvedProjects = projectArgsList.length > 0 ? projectArgsList : ['Chrome'];
+  let resolvedProjects;
+  if (projectSpecifier && projectSpecifier.toLowerCase() === 'all') {
+    resolvedProjects = ['all'];
+  } else if (projectArgsList.length > 0) {
+    resolvedProjects = [...projectArgsList];
+  } else {
+    resolvedProjects = ['Chrome'];
+  }
   const manifest = {
     timestamp: new Date().toISOString(),
     profile: options.profile || null,
     limits: {
       pageLimit: appliedPageLimit != null ? appliedPageLimit : null,
-      accessibilitySample: options.a11ySample || null,
+      accessibilitySample:
+        resolvedA11ySample !== undefined && resolvedA11ySample !== null
+          ? resolvedA11ySample
+          : null,
     },
     site: {
       name: siteName,
@@ -145,6 +157,8 @@ class TestRunner {
     appliedPageLimit,
     options,
     projectArgsList,
+    projectSpecifier,
+    resolvedA11ySample,
     testTargets,
     requestedSpecs,
   }) {
@@ -154,6 +168,8 @@ class TestRunner {
       appliedPageLimit,
       options,
       projectArgsList,
+      projectSpecifier,
+      resolvedA11ySample,
       testTargets,
       requestedSpecs,
     });
@@ -487,9 +503,6 @@ class TestRunner {
       testTargets = selectedTests.size > 0 ? Array.from(selectedTests) : ['tests'];
     }
 
-    // Set environment variables for test execution
-    process.env.SITE_NAME = siteName;
-
     const projectInputRaw = Array.isArray(options.project)
       ? options.project
           .map((entry) => String(entry || '').trim())
@@ -515,12 +528,27 @@ class TestRunner {
       console.log('ℹ️  Running across all configured Playwright projects');
     }
 
+    const existingSample = process.env.A11Y_SAMPLE;
+    let resolvedA11ySample = null;
+    if (options.a11ySample) {
+      resolvedA11ySample = String(options.a11ySample).toLowerCase();
+    } else if (existingSample) {
+      resolvedA11ySample = String(existingSample).toLowerCase();
+    } else if (siteConfig.a11yResponsiveSampleSize) {
+      resolvedA11ySample = String(siteConfig.a11yResponsiveSampleSize).toLowerCase();
+    }
+    if (!resolvedA11ySample && appliedPageLimit != null) {
+      resolvedA11ySample = String(appliedPageLimit);
+    }
+
     const manifestInfo = TestRunner.prepareRunManifest({
       siteName,
       siteConfig,
       appliedPageLimit,
       options,
       projectArgsList,
+      projectSpecifier,
+      resolvedA11ySample,
       testTargets,
       requestedSpecs: specTargets,
     });
@@ -549,8 +577,8 @@ class TestRunner {
     const spawnEnv = {
       ...process.env,
       ...(options.envOverrides || {}),
-      SITE_NAME: siteName,
       ...manifestInfo.env,
+      SITE_NAME: siteName,
     };
 
     if (options.profile === 'smoke' && !spawnEnv.SMOKE) {
@@ -586,14 +614,8 @@ class TestRunner {
       spawnEnv.A11Y_TAGS_MODE = 'all';
     }
 
-    if (options.a11ySample) {
-      spawnEnv.A11Y_SAMPLE = String(options.a11ySample).toLowerCase();
-    } else if (!spawnEnv.A11Y_SAMPLE && siteConfig.a11yResponsiveSampleSize) {
-      spawnEnv.A11Y_SAMPLE = String(siteConfig.a11yResponsiveSampleSize).toLowerCase();
-    }
-
-    if (!spawnEnv.A11Y_SAMPLE && appliedPageLimit != null) {
-      spawnEnv.A11Y_SAMPLE = String(appliedPageLimit);
+    if (resolvedA11ySample) {
+      spawnEnv.A11Y_SAMPLE = resolvedA11ySample;
     }
 
     if (!spawnEnv.A11Y_RUN_TOKEN) {

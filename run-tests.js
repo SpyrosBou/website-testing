@@ -136,11 +136,6 @@ function showUsage() {
   console.log(lines.join('\n'));
 }
 
-function collectSiteNames() {
-  const { localSites, liveSites, otherSites } = TestRunner.listSites();
-  return [...localSites, ...liveSites, ...otherSites].map((entry) => entry.name);
-}
-
 function parseSites() {
   const explicitSites = [...toStringArray(argv.site), ...toStringArray(argv.sites)];
   const positional = argv._.map((item) => String(item).trim()).filter(Boolean);
@@ -165,6 +160,8 @@ async function handleListSites() {
   TestRunner.displaySites();
 }
 
+const MANIFEST_PREVIEW_LIMIT = 5;
+
 const renderManifestPreview = (manifest, manifestPath) => {
   const pages = Array.isArray(manifest.pages) ? manifest.pages : [];
   const specs = Array.isArray(manifest.specs) ? manifest.specs : [];
@@ -175,7 +172,13 @@ const renderManifestPreview = (manifest, manifestPath) => {
   console.log(`  Base URL:    ${manifest.site?.baseUrl || 'n/a'}`);
   console.log(`  Pages:       ${pages.length}`);
   if (pages.length > 0) {
-    console.log(`    • ${pages.join(', ')}`);
+    const previewPages = pages.slice(0, MANIFEST_PREVIEW_LIMIT);
+    const remaining = pages.length - previewPages.length;
+    let pageLine = `    • ${previewPages.join(', ')}`;
+    if (remaining > 0) {
+      pageLine += `, ... (+${remaining} more)`;
+    }
+    console.log(pageLine);
   }
   console.log(`  Specs:       ${specs.length}`);
   if (specs.length > 0) {
