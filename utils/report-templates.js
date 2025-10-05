@@ -2618,7 +2618,7 @@ const renderSchemaSummaries = (records = []) => {
     return { html: '', promotedBaseNames: new Set() };
   }
 
-  const groups = buildSchemaGroups(records)
+  let groups = buildSchemaGroups(records)
     .map((group) => {
       const runEntries = (group.runEntries || []).filter(
         (entry) => entry.payload?.kind === KIND_RUN_SUMMARY
@@ -2631,6 +2631,36 @@ const renderSchemaSummaries = (records = []) => {
       };
     })
     .filter(Boolean);
+
+  if (groups.length > 1) {
+    const isWcagGroup = (group) =>
+      group.runEntries?.some((entry) => entry.payload?.metadata?.summaryType === 'wcag');
+    const isRunScope = (group) =>
+      group.runEntries?.every((entry) => entry.payload?.metadata?.scope === 'run');
+    const isProjectScope = (group) =>
+      group.runEntries?.some((entry) => entry.payload?.metadata?.scope === 'project');
+
+    const wcagGroups = groups.filter(isWcagGroup);
+    if (wcagGroups.length > 1) {
+      const projectScoped = wcagGroups.filter(isProjectScope);
+      const runScoped = wcagGroups.filter(isRunScope);
+
+      if (projectScoped.length === 1 && runScoped.length > 0) {
+        const projectNames = new Set();
+        projectScoped.forEach((group) => {
+          group.runEntries.forEach((entry) => {
+            const meta = entry.payload?.metadata || {};
+            const name = meta.projectName || entry.projectName;
+            if (name) projectNames.add(name);
+          });
+        });
+
+        if (projectNames.size <= 1) {
+          groups = groups.filter((group) => !(isWcagGroup(group) && isRunScope(group)));
+        }
+      }
+    }
+  }
 
   if (groups.length === 0) {
     return { html: '', promotedBaseNames: new Set() };
