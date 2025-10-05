@@ -128,9 +128,10 @@ const renderPerPageAccordion = (items, options = {}) => {
   if (typeof renderCard !== 'function') return '';
 
   const summaryClassName = ['summary-page', summaryClass].filter(Boolean).join(' ');
-  const labelFormatter = typeof formatSummaryLabel === 'function'
-    ? formatSummaryLabel
-    : (entry) => entry?.page || 'Page';
+  const labelFormatter =
+    typeof formatSummaryLabel === 'function'
+      ? formatSummaryLabel
+      : (entry) => entry?.page || 'Page';
 
   const detailsHtml = entries
     .map((entry) => {

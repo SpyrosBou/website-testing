@@ -63,11 +63,7 @@ async function openEntries(entries) {
   console.log(`Opening ${entries.length} report(s):`);
   const { name: browserName, args: initialArgs } = resolveBrowserConfig();
   const browserArgs = initialArgs.slice();
-  if (
-    browserName &&
-    browserArgs.length === 0 &&
-    browserName.toLowerCase().includes('chrome')
-  ) {
+  if (browserName && browserArgs.length === 0 && browserName.toLowerCase().includes('chrome')) {
     browserArgs.push('--new-window');
   }
 
@@ -80,7 +76,10 @@ async function openEntries(entries) {
     console.log(`- ${entry.name}`);
     try {
       if (browserName) {
-        const appOptions = browserArgs.length > 0 ? { name: browserName, arguments: browserArgs } : { name: browserName };
+        const appOptions =
+          browserArgs.length > 0
+            ? { name: browserName, arguments: browserArgs }
+            : { name: browserName };
         await openBrowser(reportPath, { wait: false, app: appOptions });
       } else {
         await openBrowser(reportPath, { wait: false });
