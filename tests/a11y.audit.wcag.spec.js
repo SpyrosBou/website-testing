@@ -172,10 +172,12 @@ const formatRuleSummaryHtml = (violations, title = 'Rule summary') => {
     .join('');
 
   const heading = `${title} (${aggregate.size} unique rule${aggregate.size === 1 ? '' : 's'})`;
+  const isBestPractice = /best-practice/i.test(title || '');
+  const headingClass = isBestPractice ? 'summary-heading-best-practice' : '';
 
   return `
     <section class="summary-report summary-a11y">
-      <h3>${escapeHtml(heading)}</h3>
+      <h3${headingClass ? ` class="${headingClass}"` : ''}>${escapeHtml(heading)}</h3>
       <table>
         <thead>
           <tr><th>Impact</th><th>Rule</th><th>Viewport(s)</th><th>Pages</th><th>Nodes</th><th>WCAG level</th><th>Help</th></tr>
@@ -471,7 +473,7 @@ const buildSuiteSummaryHtml = (
           ? `<p class="details">Best-practice advisories (no WCAG tag) surfaced on ${bestPracticePages} page(s).</p>`
           : ''
       }
-      <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span><span class="badge badge-wcag">WCAG A/AA/AAA</span><span class="badge badge-best-practice">Best-practice advisory</span></p>
+      <p class="legend"><span class="badge badge-critical">Critical</span><span class="badge badge-serious">Serious</span><span class="badge badge-wcag">WCAG A/AA/AAA</span></p>
     </section>
     ${ruleSummaryHtml}
     ${advisoryRuleSummaryHtml}

@@ -9,6 +9,7 @@ const SUMMARY_STYLES = `
   .summary-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
   .summary-report h2 { margin-bottom: 0.25rem; font-size: 1.75rem; background: #000; color: #fff; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-block; }
   .summary-report h3 { margin: 0.75rem 0 0.35rem; font-size: 1.35rem; background: #000; color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
+  .summary-report .summary-heading-best-practice { background: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; }
   .summary-report section { margin: 0.75rem 0; }
   .summary-report table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
   .summary-report th,
@@ -35,7 +36,6 @@ const SUMMARY_STYLES = `
   .summary-report .badge.error { background: #ffe5e5; }
   .summary-report .badge-critical { background: #ffe5e5; }
   .summary-report .badge-serious { background: #fff4ce; }
-  .summary-report .badge-best-practice { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
   .summary-report .badge-neutral { background: #eef2f6; }
   .summary-report .badge-wcag { background: #e0e7ff; border-color: #c7d2fe; color: #1e3a8a; }
   .summary-report .status-summary { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
