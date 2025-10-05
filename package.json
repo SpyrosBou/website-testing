@@ -11,7 +11,6 @@
     "clean-test-results": "node scripts/cleanup.js clean-test-results",
     "clean-reports": "node scripts/cleanup.js clean-reports",
     "clean-manifests": "node scripts/cleanup.js clean-manifests",
-    "smoke:nfs": "node run-tests.js --site=nfsmediation-local --functionality --pages=1 --project=Chrome",
     "update-baselines": "node run-tests.js --update-baselines --site=example-site",
     "discover_pages": "node scripts/discover-pages.js",
     "lint": "eslint run-tests.js utils/**/*.js scripts/**/*.js playwright.config.js",
