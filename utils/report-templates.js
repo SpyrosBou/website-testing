@@ -948,9 +948,19 @@ const renderSchemaSummaries = (records = []) => {
     return { html: '', promotedBaseNames: new Set() };
   }
 
-  const groups = buildSchemaGroups(records).filter(
-    (group) => group.runEntries.length > 0 || group.pageEntries.length > 0
-  );
+  const groups = buildSchemaGroups(records)
+    .map((group) => {
+      const runEntries = (group.runEntries || []).filter(
+        (entry) => entry.payload?.kind === KIND_RUN_SUMMARY
+      );
+      if (runEntries.length === 0) return null;
+      return {
+        ...group,
+        runEntries,
+        pageEntries: [],
+      };
+    })
+    .filter(Boolean);
 
   if (groups.length === 0) {
     return { html: '', promotedBaseNames: new Set() };
@@ -2820,10 +2830,12 @@ function renderReportHtml(run) {
       </div>
     </details>
   `;
-  const metadataHtml = renderMetadata(run);
-  const summaryCards = renderSummaryCards(run);
   const schemaHtml = schemaRender.html || '';
   const runSummariesHtml = renderRunSummaries(filteredRunSummaries);
+  const mainSections = [schemaHtml, runSummariesHtml, layoutHtml].filter((section) =>
+    Boolean(section && section.trim())
+  );
+  const mainContent = mainSections.join('\n');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -2840,11 +2852,7 @@ function renderReportHtml(run) {
     <p>${escapeHtml(run.runId)} • ${escapeHtml(run.durationFriendly || '')}</p>
   </header>
   <main>
-    ${summaryCards}
-    ${metadataHtml}
-    ${schemaHtml}
-    ${runSummariesHtml}
-    ${layoutHtml}
+    ${mainContent}
   </main>
   <script>${filterScript}</script>
 </body>

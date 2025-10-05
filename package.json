@@ -7,7 +7,7 @@
     "test": "node run-tests.js",
     "test:site": "node run-tests.js",
     "install-browsers": "node scripts/install-browsers.js",
-    "setup": "npm install && npm run install-browsers",
+    "setup": "npm install && npm run install-browsers && npx playwright install",
     "clean-test-results": "node scripts/cleanup.js clean-test-results",
     "clean-reports": "node scripts/cleanup.js clean-reports",
     "smoke:nfs": "node run-tests.js --site=nfsmediation-local --profile=smoke",
