@@ -11,7 +11,23 @@ class SiteLoader {
 
     try {
       const siteData = fs.readFileSync(sitePath, 'utf8');
-      return JSON.parse(siteData);
+      const parsedConfig = JSON.parse(siteData);
+
+      const overridePagesRaw = process.env.SITE_TEST_PAGES;
+      if (overridePagesRaw) {
+        try {
+          const overridePages = JSON.parse(overridePagesRaw);
+          if (Array.isArray(overridePages)) {
+            parsedConfig.testPages = overridePages.filter((page) => typeof page === 'string');
+          } else {
+            console.warn('SITE_TEST_PAGES override ignored: value is not an array.');
+          }
+        } catch (overrideError) {
+          console.warn(`SITE_TEST_PAGES override ignored: ${overrideError.message}`);
+        }
+      }
+
+      return parsedConfig;
     } catch (error) {
       throw new Error(`Error loading site configuration ${siteName}: ${error.message}`);
     }

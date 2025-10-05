@@ -141,6 +141,7 @@ class TestRunner {
   static async runTestsForSite(siteName, options = {}) {
     // Validate site exists
     let siteConfig;
+    let appliedPageLimit = null;
     try {
       siteConfig = SiteLoader.loadSite(siteName);
       SiteLoader.validateSiteConfig(siteConfig);
@@ -275,10 +276,12 @@ class TestRunner {
         'runtime'
       );
 
+      appliedPageLimit = null;
       if (options.limit != null) {
         const limitNumber = Number.parseInt(options.limit, 10);
         if (Number.isFinite(limitNumber) && limitNumber > 0) {
           siteConfig.testPages = siteConfig.testPages.slice(0, limitNumber);
+          appliedPageLimit = limitNumber;
           console.log(`ℹ️  Page limit applied: first ${limitNumber} page(s) will be tested.`);
         }
       }
@@ -410,9 +413,15 @@ class TestRunner {
       console.log('ℹ️  Running across all configured Playwright projects');
     }
 
+    const serialisedTestPages = JSON.stringify(
+      Array.isArray(siteConfig.testPages) ? siteConfig.testPages : []
+    );
+
     const spawnEnv = {
       ...process.env,
       SITE_NAME: siteName,
+      SITE_TEST_PAGES: serialisedTestPages,
+      ...(appliedPageLimit != null ? { SITE_TEST_PAGES_LIMIT: String(appliedPageLimit) } : {}),
       SMOKE: options.profile === 'smoke' ? '1' : process.env.SMOKE || '',
     };
 
@@ -443,6 +452,10 @@ class TestRunner {
       spawnEnv.A11Y_SAMPLE = String(options.a11ySample).toLowerCase();
     } else if (!spawnEnv.A11Y_SAMPLE && siteConfig.a11yResponsiveSampleSize) {
       spawnEnv.A11Y_SAMPLE = String(siteConfig.a11yResponsiveSampleSize).toLowerCase();
+    }
+
+    if (!spawnEnv.A11Y_SAMPLE && appliedPageLimit != null) {
+      spawnEnv.A11Y_SAMPLE = String(appliedPageLimit);
     }
 
     if (!spawnEnv.A11Y_RUN_TOKEN) {
