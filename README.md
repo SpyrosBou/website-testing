@@ -193,8 +193,8 @@ node run-tests.js --site=my-site tests/a11y.audit.wcag.spec.js
 node run-tests.js -s daygroup-local -s daygroup-live -t responsive.layout.structure.spec.js
 
 # Limit the number of pages (applies before suite selection)
-node run-tests.js --site=my-site --limit=5
-node run-tests.js -s my-site -n 5
+node run-tests.js --site=my-site --pages=5
+node run-tests.js -s my-site -p 5
 
 # Using npm script (pass args after --)
 npm run test:site -- --site=my-site
@@ -394,7 +394,7 @@ Tests run on:
 - `a11yFailOn`: array of axe impact levels to gate on. Default: `["critical","serious"]`. Only violations at these severities fail the build; everything else is treated as a non-gating advisory.
 - `a11yIgnoreRules`: array of axe rule IDs to ignore when evaluating failures (e.g., `"color-contrast"`).
 - `a11yMode`: how accessibility specs behave. `"gate"` (default) aggregates violations across all pages/viewports and fails once at the end; `"audit"` logs the summary without failing so you can review issues without blocking the pipeline.
-- `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Use the site config (or the global `--limit` flag) when you need temporary breadth adjustments without code changes.
+- `a11yResponsiveSampleSize`: number of pages (per viewport) for the responsive a11y sweep. Accepts a positive integer or `'all'`. Default: `3`. Use the site config (or the global `--pages` flag) when you need temporary breadth adjustments without code changes.
 - `a11yKeyboardSampleSize` / `a11yMotionSampleSize` / `a11yReflowSampleSize` / `a11yIframeSampleSize`: optional overrides for the keyboard, reduced-motion, reflow, and iframe audits. Each falls back to `a11yResponsiveSampleSize` when omitted.
 - `a11yStructureSampleSize`: optional override for the structural landmark audit (defaults to `a11yResponsiveSampleSize`).
 - `A11Y_KEYBOARD_STEPS` (env): override the maximum number of forward TAB steps the keyboard audit performs (default: `20`). The spec always performs a reverse TAB sanity check after the forward traversal.

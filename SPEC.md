@@ -6,7 +6,7 @@
 - Keep configuration and execution deterministic regardless of entry-point (CLI, GUI, automation).
 
 ## User Experience Goals
-- **Stepwise selection:** Users pick specs, sites, page limits, and browser projects in discrete steps; advanced options (profiles, discovery, tags) remain optional overlays.
+- **Stepwise selection:** Users pick specs, sites, page caps, and browser projects in discrete steps; advanced options (profiles, discovery, tags) remain optional overlays.
 - **Manifest visibility:** Before launching, the tool can display a summary of the resolved manifest (pages, specs, browsers) so the user knows exactly what will run.
 - **Progress feedback:** Execution emits structured events (start, per-site updates, summaries) consumable by CLI logs today and GUI progress views later.
 - **Artifact discoverability:** Every run produces a run manifest and clear pointers to reports/test-results folders for post-run inspection.
@@ -30,7 +30,7 @@
 ## Implementation Roadmap
 1. **Config Helpers**
    - Introduce helpers that convert adapter input into a normalised `RunConfig` object.
-   - Encapsulate page selection (discovery, homepage insertion, limit application) in one place.
+   - Encapsulate page selection (discovery, homepage insertion, cap application) in one place.
 2. **Manifest Generation**
    - Produce a structured manifest (`site`, `pages`, `specs`, `projects`, `limits`, `profile`, timestamps).
    - Use env overrides for small manifests; fall back to persisted temp files for larger payloads.

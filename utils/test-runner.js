@@ -400,7 +400,7 @@ class TestRunner {
         if (Number.isFinite(limitNumber) && limitNumber > 0) {
           siteConfig.testPages = siteConfig.testPages.slice(0, limitNumber);
           appliedPageLimit = limitNumber;
-          console.log(`ℹ️  Page limit applied: first ${limitNumber} page(s) will be tested.`);
+          console.log(`ℹ️  Page cap applied: first ${limitNumber} page(s) will be tested.`);
         }
       }
 

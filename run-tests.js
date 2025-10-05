@@ -15,7 +15,7 @@ const argv = minimist(process.argv.slice(2), {
     'workers',
     'profile',
     'spec',
-    'limit',
+    'pages',
     'output',
   ],
   boolean: [
@@ -36,7 +36,7 @@ const argv = minimist(process.argv.slice(2), {
     l: 'list',
     s: 'site',
     S: 'sites',
-    p: 'profile',
+    P: 'profile',
     w: 'workers',
     b: 'browsers',
     t: 'spec',
@@ -49,7 +49,7 @@ const argv = minimist(process.argv.slice(2), {
     D: 'debug',
     B: 'update-baselines',
     L: 'list-sites',
-    n: 'limit',
+    p: 'pages',
     'list-sites': ['ls'],
   },
 });
@@ -98,11 +98,11 @@ function showUsage() {
     'Core selections:',
     '  Step 1 – Site(s):        --site <name> (repeat or comma-separate)',
     '  Step 2 – Specs (optional): --spec <pattern> (repeat as needed)',
-    '  Step 3 – Page scope:     --limit <n> (caps pages across all suites)',
+    '  Step 3 – Page scope:     --pages <n> (caps pages across all suites)',
     '  Step 4 – Projects:       --project=<list> (default Chrome, use "all" for every project)',
     '',
     'Advanced options:',
-    '  --profile, -p            smoke | full | nightly presets',
+    '  --profile, -P            smoke | full | nightly presets',
     '  --visual, -v             Run only visual regression specs',
     '  --responsive, -r         Run only responsive structure specs',
     '  --functionality, -F      Run only functionality specs',
@@ -118,7 +118,7 @@ function showUsage() {
     '',
     'Tips:',
     '  - Append spec globs after the options (e.g. "node run-tests.js --site foo tests/*.spec.js").',
-    '  - Combine page limit and project selection to mirror the GUI flow you plan to build.',
+    '  - Combine page cap and project selection to mirror the GUI flow you plan to build.',
     '  - Use env vars like REPORT_BROWSER to override the default browser opener when viewing reports.',
     '',
   ];
@@ -128,7 +128,9 @@ function showUsage() {
 function parseSites() {
   const explicitSites = [...toStringArray(argv.site), ...toStringArray(argv.sites)];
   const positional = argv._.map((item) => String(item).trim()).filter(Boolean);
-  const inferredSites = positional.filter((value) => !/\.(spec\.[jt]s|[jt]s)$/i.test(value) && !value.includes('/'));
+  const inferredSites = positional.filter(
+    (value) => !/\.(spec\.[jt]s|[jt]s)$/i.test(value) && !value.includes('/')
+  );
 
   const sites = [...explicitSites, ...inferredSites].filter(Boolean);
   if (sites.length === 0) return ['example-site'];
@@ -137,8 +139,8 @@ function parseSites() {
 
 function parseSpecs() {
   const positional = argv._.map((item) => String(item).trim()).filter(Boolean);
-  const positionalSpecs = positional.filter((value) =>
-    /\.(spec\.[jt]s|[jt]s)$/i.test(value) || value.includes('/') || value.includes('*')
+  const positionalSpecs = positional.filter(
+    (value) => /\.(spec\.[jt]s|[jt]s)$/i.test(value) || value.includes('/') || value.includes('*')
   );
   const specOptions = toStringArray(argv.spec);
   const inputs = [...specOptions, ...positionalSpecs];
@@ -175,9 +177,12 @@ const renderManifestPreview = (manifest, manifestPath) => {
   }
   console.log(`  Projects:    ${projects.length > 0 ? projects.join(', ') : 'n/a'}`);
   if (manifest.limits?.pageLimit != null) {
-    console.log(`  Page limit:  ${manifest.limits.pageLimit}`);
+    console.log(`  Page cap:    ${manifest.limits.pageLimit}`);
   }
-  if (manifest.limits?.accessibilitySample !== null && manifest.limits?.accessibilitySample !== undefined) {
+  if (
+    manifest.limits?.accessibilitySample !== null &&
+    manifest.limits?.accessibilitySample !== undefined
+  ) {
     console.log(`  A11y sample: ${manifest.limits.accessibilitySample}`);
   }
   if (manifest.profile) {
@@ -245,7 +250,6 @@ async function main() {
 
   if (argv['update-baselines']) {
     for (const site of sites) {
-      // eslint-disable-next-line no-await-in-loop
       await TestRunner.updateBaselines(site);
     }
     return;
@@ -263,7 +267,7 @@ async function main() {
     local: coerceBoolean(argv.local),
     profile,
     project: argv.browsers || argv.browser || argv.project,
-    limit: argv.limit,
+    limit: argv.pages,
     a11yKeyboardSteps: undefined,
     specs,
     workers: argv.workers,
@@ -341,9 +345,7 @@ async function main() {
           runs: this.runs.map((run) => ({
             siteName: run.siteName,
             manifest: run.manifest || null,
-            manifestPath: run.manifestPath
-              ? path.relative(process.cwd(), run.manifestPath)
-              : null,
+            manifestPath: run.manifestPath ? path.relative(process.cwd(), run.manifestPath) : null,
             summary: run.summary || null,
           })),
         };
