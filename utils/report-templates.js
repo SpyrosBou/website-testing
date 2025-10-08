@@ -556,9 +556,17 @@ const renderInternalLinksGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries
+    const detailPages = Array.isArray(runPayload?.details?.pages)
+      ? runPayload.details.pages.map((page) => ({
+          payload: {
+            page: page.page,
+            summary: page,
+          },
+        }))
+      : null;
+    const pages = (detailPages || bucket.pageEntries)
       .map((entry) => entry.payload || {})
-      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY || payload.summary);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -762,9 +770,17 @@ const renderAvailabilityGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries
+    const detailPages = Array.isArray(runPayload?.details?.pages)
+      ? runPayload.details.pages.map((page) => ({
+          payload: {
+            page: page.page,
+            summary: page,
+          },
+        }))
+      : null;
+    const pages = (detailPages || bucket.pageEntries)
       .map((entry) => entry.payload || {})
-      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY || payload.summary);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -800,8 +816,14 @@ const renderAvailabilityGroupHtml = (group) => {
             `
           : '<span class="details">None</span>';
 
+        const hasMissingStructure = Object.values(elements || {}).some((value) => value === false);
+        const hasWarnings = warnings.length > 0;
+        const rowClass = hasMissingStructure || hasWarnings
+          ? 'status-error'
+          : statusClassFromStatus(status);
+
         return `
-          <tr class="${statusClassFromStatus(status)}">
+          <tr class="${rowClass}">
             <td><code>${escapeHtml(payload.page || 'unknown')}</code></td>
             <td>${status == null ? 'n/a' : escapeHtml(String(status))}</td>
             <td>${elementChecks}</td>
@@ -845,9 +867,17 @@ const renderHttpGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries
+    const detailPages = Array.isArray(runPayload?.details?.pages)
+      ? runPayload.details.pages.map((page) => ({
+          payload: {
+            page: page.page,
+            summary: page,
+          },
+        }))
+      : null;
+    const pages = (detailPages || bucket.pageEntries)
       .map((entry) => entry.payload || {})
-      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY || payload.summary);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -865,8 +895,9 @@ const renderHttpGroupHtml = (group) => {
                 .join('')}</ul>
             `
           : '<span class="details">All checks passed</span>';
+        const rowClass = failedChecks.length > 0 ? 'status-error' : statusClassFromStatus(summary.status);
         return `
-          <tr class="${statusClassFromStatus(summary.status)}">
+          <tr class="${rowClass}">
             <td><code>${escapeHtml(payload.page || 'unknown')}</code></td>
             <td>${summary.status == null ? 'n/a' : escapeHtml(String(summary.status))}</td>
             <td>${escapeHtml(summary.statusText || '')}</td>
@@ -910,9 +941,17 @@ const renderPerformanceGroupHtml = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries
+    const detailPages = Array.isArray(runPayload?.details?.pages)
+      ? runPayload.details.pages.map((page) => ({
+          payload: {
+            page: page.page,
+            summary: page,
+          },
+        }))
+      : null;
+    const pages = (detailPages || bucket.pageEntries)
       .map((entry) => entry.payload || {})
-      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY || payload.summary);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const overviewHtml = runPayload?.overview ? renderSchemaMetrics(runPayload.overview) : '';
 
@@ -937,6 +976,7 @@ const renderPerformanceGroupHtml = (group) => {
             <td>${summary.domContentLoadedMs != null ? Math.round(summary.domContentLoadedMs) : '—'}</td>
             <td>${summary.loadCompleteMs != null ? Math.round(summary.loadCompleteMs) : '—'}</td>
             <td>${summary.firstContentfulPaintMs != null ? Math.round(summary.firstContentfulPaintMs) : '—'}</td>
+            <td>${summary.firstPaintMs != null ? Math.round(summary.firstPaintMs) : '—'}</td>
             <td>${breachList}</td>
           </tr>
         `;
@@ -946,7 +986,7 @@ const renderPerformanceGroupHtml = (group) => {
     const tableHtml = rows
       ? `
           <table>
-            <thead><tr><th>Page</th><th>Load (ms)</th><th>DOM Loaded</th><th>Load complete</th><th>FCP</th><th>Budget breaches</th></tr></thead>
+            <thead><tr><th>Page</th><th>Load (ms)</th><th>DOM Loaded</th><th>Load complete</th><th>FCP</th><th>First paint</th><th>Budget breaches</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         `
@@ -1253,9 +1293,17 @@ const renderAvailabilityGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries
+    const detailPages = Array.isArray(runPayload?.details?.pages)
+      ? runPayload.details.pages.map((page) => ({
+          payload: {
+            page: page.page,
+            summary: page,
+          },
+        }))
+      : null;
+    const pages = (detailPages || bucket.pageEntries)
       .map((entry) => entry.payload || {})
-      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY || payload.summary);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'Availability & uptime summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1268,7 +1316,9 @@ const renderAvailabilityGroupMarkdown = (group) => {
         (summary.warnings || []).map((message) => `⚠️ ${message}`).join('<br />') || 'None';
       const info = (summary.info || []).map((message) => `ℹ️ ${message}`).join('<br />') || 'None';
       const statusLabel = summary.status == null ? 'n/a' : summary.status;
-      return `| \`${payload.page || 'unknown'}\` | ${statusLabel} | ${warnings} | ${info} |`;
+      const hasStructureGap = Object.values(summary.elements || {}).some((value) => value === false);
+      const severity = hasStructureGap || (summary.warnings || []).length ? '⚠️' : '✅';
+      return `| \`${payload.page || 'unknown'}\` | ${severity} ${statusLabel} | ${warnings} | ${info} |`;
     });
 
     const parts = [`## ${heading}`];
@@ -1286,9 +1336,17 @@ const renderHttpGroupMarkdown = (group) => {
 
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pages = bucket.pageEntries
+    const detailPages = Array.isArray(runPayload?.details?.pages)
+      ? runPayload.details.pages.map((page) => ({
+          payload: {
+            page: page.page,
+            summary: page,
+          },
+        }))
+      : null;
+    const pages = (detailPages || bucket.pageEntries)
       .map((entry) => entry.payload || {})
-      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY);
+      .filter((payload) => payload.kind === KIND_PAGE_SUMMARY || payload.summary);
     const projectLabel = runPayload?.metadata?.projectName || bucket.projectName || 'default';
     const heading = `${group.title || 'HTTP response validation summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
@@ -1306,7 +1364,8 @@ const renderHttpGroupMarkdown = (group) => {
           .join('<br />') || 'None';
       const statusLabel = summary.status == null ? 'n/a' : summary.status;
       const redirect = summary.redirectLocation || '—';
-      return `| \`${payload.page || 'unknown'}\` | ${statusLabel} | ${redirect} | ${failedChecks} |`;
+      const severity = (summary.failedChecks || []).length ? '⚠️' : '✅';
+      return `| \`${payload.page || 'unknown'}\` | ${severity} ${statusLabel} | ${redirect} | ${failedChecks} |`;
     });
 
     const parts = [`## ${heading}`];
@@ -1331,8 +1390,8 @@ const renderPerformanceGroupMarkdown = (group) => {
     const heading = `${group.title || 'Performance monitoring summary'} – ${projectLabel}`;
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
 
-    const header = '| Page | Load (ms) | DOM Loaded | Load complete | FCP | Breaches |';
-    const separator = '| --- | --- | --- | --- | --- | --- |';
+    const header = '| Page | Load (ms) | DOM Loaded | Load complete | FCP | FP | Breaches |';
+    const separator = '| --- | --- | --- | --- | --- | --- | --- |';
     const rows = pages.map((payload) => {
       const summary = payload.summary || {};
       const breaches =
@@ -1342,7 +1401,7 @@ const renderPerformanceGroupMarkdown = (group) => {
               `${breach.metric}: ${Math.round(breach.value)}ms (budget ${Math.round(breach.budget)}ms)`
           )
           .join('<br />') || 'None';
-      return `| \`${payload.page || 'unknown'}\` | ${summary.loadTimeMs != null ? Math.round(summary.loadTimeMs) : '—'} | ${summary.domContentLoadedMs != null ? Math.round(summary.domContentLoadedMs) : '—'} | ${summary.loadCompleteMs != null ? Math.round(summary.loadCompleteMs) : '—'} | ${summary.firstContentfulPaintMs != null ? Math.round(summary.firstContentfulPaintMs) : '—'} | ${breaches} |`;
+      return `| \`${payload.page || 'unknown'}\` | ${summary.loadTimeMs != null ? Math.round(summary.loadTimeMs) : '—'} | ${summary.domContentLoadedMs != null ? Math.round(summary.domContentLoadedMs) : '—'} | ${summary.loadCompleteMs != null ? Math.round(summary.loadCompleteMs) : '—'} | ${summary.firstContentfulPaintMs != null ? Math.round(summary.firstContentfulPaintMs) : '—'} | ${summary.firstPaintMs != null ? Math.round(summary.firstPaintMs) : '—'} | ${breaches} |`;
     });
 
     const parts = [`## ${heading}`];
@@ -1391,6 +1450,72 @@ const renderVisualGroupMarkdown = (group) => {
     const parts = [`## ${heading}`];
     if (overview) parts.push(overview);
     parts.push('', header, separator, ...rows);
+    return parts.join('\n');
+  });
+
+  return sections.join('\n\n');
+};
+
+const renderResponsiveStructureGroupMarkdown = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = Array.isArray(runPayload?.details?.pages) ? runPayload.details.pages : [];
+    const heading = `${group.title || 'Responsive structure summary'} – ${bucket.projectName || runPayload?.metadata?.projectName || 'default'}`;
+    const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
+
+    const header = '| Page | Load (ms) | Threshold | Header | Navigation | Content | Footer | Issues |';
+    const separator = '| --- | --- | --- | --- | --- | --- | --- | --- |';
+    const rows = pages.map((page) => {
+      const issues = [...(page.gatingIssues || []), ...(page.warnings || [])];
+      const issuesCell = issues.length ? issues.map((i) => `⚠️ ${i}`).join('<br />') : 'None';
+      return `| \`${page.page || 'unknown'}\` | ${page.loadTimeMs != null ? Math.round(page.loadTimeMs) : '—'} | ${page.thresholdMs != null ? Math.round(page.thresholdMs) : '—'} | ${page.headerPresent ? '✅' : '⚠️'} | ${page.navigationPresent ? '✅' : '⚠️'} | ${page.contentPresent ? '✅' : '⚠️'} | ${page.footerPresent ? '✅' : '⚠️'} | ${issuesCell} |`;
+    });
+
+    const parts = [`## ${heading}`];
+    if (overview) parts.push(overview);
+    if (rows.length > 0) {
+      parts.push('', header, separator, ...rows);
+    } else {
+      parts.push('', '_No responsive structure data captured._');
+    }
+    return parts.join('\n');
+  });
+
+  return sections.join('\n\n');
+};
+
+const renderResponsiveWpGroupMarkdown = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = Array.isArray(runPayload?.details?.pages) ? runPayload.details.pages : [];
+    const heading = `${group.title || 'WordPress responsive features summary'} – ${bucket.projectName || runPayload?.metadata?.projectName || 'default'}`;
+    const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
+
+    const header = '| Viewport | Responsive | Block elements | Widgets | Warnings | Info |';
+    const separator = '| --- | --- | --- | --- | --- | --- |';
+    const rows = pages.map((page) => {
+      const warnings = (page.warnings || []).length
+        ? page.warnings.map((item) => `⚠️ ${item}`).join('<br />')
+        : 'None';
+      const info = (page.info || []).length
+        ? page.info.map((item) => `ℹ️ ${item}`).join('<br />')
+        : 'None';
+      return `| ${page.viewport || 'viewport'} | ${page.responsiveDetected ? '✅' : '⚠️'} | ${page.blockElements ?? 0} | ${page.widgets ?? 0} | ${warnings} | ${info} |`;
+    });
+
+    const parts = [`## ${heading}`];
+    if (overview) parts.push(overview);
+    if (rows.length > 0) {
+      parts.push('', header, separator, ...rows);
+    } else {
+      parts.push('', '_No WordPress responsive data captured._');
+    }
     return parts.join('\n');
   });
 
@@ -1500,6 +1625,8 @@ const SCHEMA_MARKDOWN_RENDERERS = {
   performance: renderPerformanceGroupMarkdown,
   visual: renderVisualGroupMarkdown,
   wcag: renderAccessibilityGroupMarkdown,
+  'responsive-structure': renderResponsiveStructureGroupMarkdown,
+  'wp-features': renderResponsiveWpGroupMarkdown,
 };
 
 const renderSchemaGroupMarkdown = (group) => {
@@ -2300,6 +2427,153 @@ const renderStructurePageCard = (summary) => {
   `;
 };
 
+const renderResponsiveStructureGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = Array.isArray(runPayload?.details?.pages) ? runPayload.details.pages : [];
+    const overview = runPayload?.overview || {};
+    const overviewMetrics = [
+      { label: 'Pages audited', value: overview.totalPages ?? pages.length },
+      { label: 'Load budget breaches', value: overview.loadBudgetBreaches ?? 0 },
+      { label: 'Pages with errors', value: overview.pagesWithErrors ?? 0 },
+      { label: 'Header missing', value: overview.headerMissing ?? 0 },
+      { label: 'Navigation missing', value: overview.navigationMissing ?? 0 },
+      { label: 'Content missing', value: overview.contentMissing ?? 0 },
+      { label: 'Footer missing', value: overview.footerMissing ?? 0 },
+    ];
+    const overviewHtml = renderSummaryMetrics(overviewMetrics);
+
+    const boolCell = (value) => (value ? '✅' : '⚠️');
+    const listCell = (items = []) =>
+      items.length
+        ? `<ul class="checks">${items
+            .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
+            .join('')}</ul>`
+        : '<span class="details">None</span>';
+    const infoCell = (items = []) =>
+      items.length
+        ? `<ul class="checks">${items
+            .map((item) => `<li class="check-pass">${escapeHtml(String(item))}</li>`)
+            .join('')}</ul>`
+        : '<span class="details">None</span>';
+
+    const rows = pages
+      .map((page) => {
+        return `
+          <tr class="${(page.gatingIssues || []).length ? 'status-error' : 'status-ok'}">
+            <td><code>${escapeHtml(page.page || 'unknown')}</code></td>
+            <td>${page.loadTimeMs != null ? Math.round(page.loadTimeMs) : '—'}</td>
+            <td>${page.thresholdMs != null ? Math.round(page.thresholdMs) : '—'}</td>
+            <td>${boolCell(page.headerPresent)}</td>
+            <td>${boolCell(page.navigationPresent)}</td>
+            <td>${boolCell(page.contentPresent)}</td>
+            <td>${boolCell(page.footerPresent)}</td>
+            <td>${listCell(page.gatingIssues)}</td>
+            <td>${listCell(page.warnings)}</td>
+            <td>${infoCell(page.info)}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const tableHtml = rows
+      ? `
+          <table>
+            <thead><tr><th>Page</th><th>Load (ms)</th><th>Threshold</th><th>Header</th><th>Navigation</th><th>Content</th><th>Footer</th><th>Gating issues</th><th>Warnings</th><th>Info</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `
+      : '<p>No responsive structure data recorded.</p>';
+
+    return `
+      <section class="summary-report summary-infrastructure">
+        <h3>${escapeHtml(bucket.projectName || runPayload?.metadata?.projectName || 'Responsive structure')}</h3>
+        ${overviewHtml}
+        ${tableHtml}
+      </section>
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'Responsive structure summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
+const renderResponsiveWpGroupHtml = (group) => {
+  const buckets = collectSchemaProjects(group);
+  if (buckets.length === 0) return '';
+
+  const sections = buckets.map((bucket) => {
+    const runPayload = firstRunPayload(bucket);
+    const pages = Array.isArray(runPayload?.details?.pages) ? runPayload.details.pages : [];
+    const overviewHtml = runPayload?.overview ? renderSummaryMetrics(runPayload.overview) : '';
+
+    const rows = pages
+      .map((page) => {
+        const responsiveCell = page.responsiveDetected ? '✅' : '⚠️';
+        const warningsCell = (page.warnings || []).length
+          ? `<ul class="checks">${page.warnings
+              .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
+              .join('')}</ul>`
+          : '<span class="details">None</span>';
+        const infoCell = (page.info || []).length
+          ? `<ul class="checks">${page.info
+              .map((item) => `<li class="check-pass">${escapeHtml(String(item))}</li>`)
+              .join('')}</ul>`
+          : '<span class="details">None</span>';
+        const errorsCell = (page.errors || []).length
+          ? `<ul class="checks">${page.errors
+              .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
+              .join('')}</ul>`
+          : '<span class="details">None</span>';
+        return `
+          <tr class="${responsiveCell === '✅' ? 'status-ok' : 'status-warning'}">
+            <td>${escapeHtml(page.viewport || bucket.projectName || 'viewport')}</td>
+            <td>${responsiveCell}</td>
+            <td>${page.blockElements ?? 0}</td>
+            <td>${page.widgets ?? 0}</td>
+            <td>${warningsCell}</td>
+            <td>${infoCell}</td>
+            <td>${errorsCell}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const tableHtml = rows
+      ? `
+          <table>
+            <thead><tr><th>Viewport</th><th>Responsive elems</th><th>Block elements</th><th>Widgets</th><th>Warnings</th><th>Info</th><th>Errors</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `
+      : '<p>No WordPress responsive data captured.</p>';
+
+    return `
+      <section class="summary-report summary-infrastructure">
+        <h3>${escapeHtml(runPayload?.metadata?.projectName || bucket.projectName || 'WordPress responsive features')}</h3>
+        ${overviewHtml}
+        ${tableHtml}
+      </section>
+    `;
+  });
+
+  const headline = escapeHtml(group.title || 'WordPress responsive features summary');
+  return `
+    <article class="schema-group">
+      <header><h2>${headline}</h2></header>
+      ${sections.join('\n')}
+    </article>
+  `;
+};
+
 const renderStructureGroupHtml = (group) => {
   const buckets = collectSchemaProjects(group);
   if (buckets.length === 0) return '';
@@ -2596,6 +2870,7 @@ const SCHEMA_HTML_RENDERERS = {
   reflow: renderReflowGroupHtml,
   'iframe-metadata': renderIframeGroupHtml,
   structure: renderStructureGroupHtml,
+  'responsive-structure': renderResponsiveStructureGroupHtml,
   'internal-links': renderInternalLinksGroupHtml,
   interactive: renderInteractiveGroupHtml,
   availability: renderAvailabilityGroupHtml,
@@ -2603,6 +2878,7 @@ const SCHEMA_HTML_RENDERERS = {
   performance: renderPerformanceGroupHtml,
   visual: renderVisualGroupHtml,
   wcag: renderAccessibilityGroupHtml,
+  'wp-features': renderResponsiveWpGroupHtml,
 };
 
 const renderSchemaGroup = (group) => {

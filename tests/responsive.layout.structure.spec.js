@@ -2,7 +2,8 @@ const { test, expect } = require('../utils/test-fixtures');
 const SiteLoader = require('../utils/site-loader');
 const { safeNavigate, waitForPageStability, safeElementInteraction } = require('../utils/test-helpers');
 const { WordPressPageObjects } = require('../utils/wordpress-page-objects');
-const { attachSummary, escapeHtml } = require('../utils/reporting-utils');
+const { attachSummary, escapeHtml, attachSchemaSummary } = require('../utils/reporting-utils');
+const { createRunSummaryPayload, createPageSummaryPayload } = require('../utils/report-schema');
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667, name: 'mobile' },
@@ -11,6 +12,179 @@ const VIEWPORTS = {
 };
 
 const PERFORMANCE_THRESHOLDS = { mobile: 3000, tablet: 2500, desktop: 2000 };
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'value';
+
+const buildResponsiveStructureSchemaPayloads = (summaries, viewportName, projectName) => {
+  if (!Array.isArray(summaries) || summaries.length === 0) return null;
+
+  const loadBreaches = summaries.filter(
+    (entry) =>
+      entry.loadTime != null &&
+      entry.threshold != null &&
+      entry.loadTime > entry.threshold
+  ).length;
+  const errorCount = summaries.filter((entry) => Boolean(entry.error)).length;
+  const missingTotals = summaries.reduce(
+    (totals, entry) => {
+      const elements = entry.elements || {};
+      if (elements.header === false) totals.headerMissing += 1;
+      if (elements.navigation === false) totals.navigationMissing += 1;
+      if (elements.content === false) totals.contentMissing += 1;
+      if (elements.footer === false) totals.footerMissing += 1;
+      return totals;
+    },
+    { headerMissing: 0, navigationMissing: 0, contentMissing: 0, footerMissing: 0 }
+  );
+
+  const baseName = `responsive-structure-${slugify(projectName)}-${slugify(viewportName)}`;
+  const runPayload = createRunSummaryPayload({
+    baseName,
+    title: `Responsive structure summary – ${viewportName}`,
+    overview: {
+      totalPages: summaries.length,
+      loadBudgetBreaches: loadBreaches,
+      pagesWithErrors: errorCount,
+      headerMissing: missingTotals.headerMissing,
+      navigationMissing: missingTotals.navigationMissing,
+      contentMissing: missingTotals.contentMissing,
+      footerMissing: missingTotals.footerMissing,
+    },
+    metadata: {
+      spec: 'responsive.layout.structure',
+      summaryType: 'responsive-structure',
+      projectName,
+      viewport: viewportName,
+      scope: 'project',
+      suppressPageEntries: true,
+      viewports: [viewportName],
+    },
+  });
+
+  runPayload.details = {
+    pages: summaries.map((entry) => ({
+      page: entry.page,
+      loadTimeMs: entry.loadTime != null ? Math.round(entry.loadTime) : null,
+      thresholdMs: entry.threshold != null ? entry.threshold : null,
+      headerPresent: Boolean(entry.elements?.header),
+      navigationPresent: Boolean(entry.elements?.navigation),
+      contentPresent: Boolean(entry.elements?.content),
+      footerPresent: Boolean(entry.elements?.footer),
+      h1Count: entry.h1Count ?? null,
+      warnings: entry.warnings || [],
+      info: entry.info || [],
+      gatingIssues: entry.gatingIssues || [],
+      errors: entry.error ? [entry.error] : [],
+    })),
+  };
+
+  const pagePayloads = summaries.map((entry) =>
+    createPageSummaryPayload({
+      baseName,
+      title: `Responsive structure – ${entry.page} (${viewportName})`,
+      page: entry.page,
+      viewport: viewportName,
+      summary: {
+        loadTimeMs: entry.loadTime != null ? Math.round(entry.loadTime) : null,
+        thresholdMs: entry.threshold != null ? entry.threshold : null,
+        headerPresent: Boolean(entry.elements?.header),
+        navigationPresent: Boolean(entry.elements?.navigation),
+        contentPresent: Boolean(entry.elements?.content),
+        footerPresent: Boolean(entry.elements?.footer),
+        h1Count: entry.h1Count ?? null,
+        warnings: entry.warnings || [],
+        info: entry.info || [],
+        gatingIssues: entry.gatingIssues || [],
+        error: entry.error || null,
+      },
+      metadata: {
+        spec: 'responsive.layout.structure',
+        summaryType: 'responsive-structure',
+        projectName,
+        viewport: viewportName,
+      },
+    })
+  );
+
+  return { runPayload, pagePayloads };
+};
+
+const buildResponsiveWpSchemaPayloads = (entries, projectName) => {
+  if (!Array.isArray(entries) || entries.length === 0) return null;
+
+  const responsiveDetected = entries.filter((entry) => entry.hasWpResponsive).length;
+  const viewportsWithWidgets = entries.filter((entry) => (entry.widgets || 0) > 0).length;
+  const errorCount = entries.filter((entry) => Boolean(entry.error)).length;
+  const averageBlocks = entries.reduce((total, entry) => total + (entry.blockElements || 0), 0) /
+    entries.length;
+
+  const baseName = `responsive-wp-${slugify(projectName)}`;
+  const runPayload = createRunSummaryPayload({
+    baseName,
+    title: 'WordPress responsive features summary',
+    overview: {
+      totalViewports: entries.length,
+      viewportsWithResponsiveElements: responsiveDetected,
+      viewportsWithWidgets,
+      viewportsWithErrors: errorCount,
+      averageBlockElements: Number.isFinite(averageBlocks)
+        ? Math.round(averageBlocks * 10) / 10
+        : 0,
+    },
+    metadata: {
+      spec: 'responsive.layout.structure',
+      summaryType: 'wp-features',
+      projectName,
+      scope: 'project',
+      suppressPageEntries: true,
+      viewports: Array.from(new Set(entries.map((entry) => entry.viewport))).filter(Boolean),
+    },
+  });
+
+  runPayload.details = {
+    pages: entries.map((entry) => ({
+      page: '/',
+      viewport: entry.viewport,
+      responsiveDetected: Boolean(entry.hasWpResponsive),
+      blockElements: entry.blockElements || 0,
+      widgets: entry.widgets || 0,
+      status: entry.status ?? null,
+      warnings: entry.warnings || [],
+      info: entry.info || [],
+      errors: entry.error ? [entry.error] : [],
+    })),
+  };
+
+  const pagePayloads = entries.map((entry) =>
+    createPageSummaryPayload({
+      baseName,
+      title: `WordPress responsive – ${entry.viewport}`,
+      page: '/',
+      viewport: entry.viewport,
+      summary: {
+        responsiveDetected: Boolean(entry.hasWpResponsive),
+        blockElements: entry.blockElements || 0,
+        widgets: entry.widgets || 0,
+        status: entry.status ?? null,
+        warnings: entry.warnings || [],
+        info: entry.info || [],
+        error: entry.error || null,
+      },
+      metadata: {
+        spec: 'responsive.layout.structure',
+        summaryType: 'wp-features',
+        projectName,
+        viewport: entry.viewport,
+      },
+    })
+  );
+
+  return { runPayload, pagePayloads };
+};
 
 const resolveResponsiveViewports = () => {
   const raw = (process.env.RESPONSIVE_VIEWPORTS || 'desktop').trim();
@@ -56,113 +230,155 @@ test.describe('Responsive Structure & UX', () => {
           ? siteConfig.testPages.slice(0, 1)
           : siteConfig.testPages;
         const pageSummaries = [];
+        const threshold = PERFORMANCE_THRESHOLDS[viewportName];
 
         for (const testPage of pagesToTest) {
           await test.step(`Structure ${viewportName}: ${testPage}`, async () => {
-            const startTime = Date.now();
-            const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
-            if (response.status() !== 200) return;
-            await waitForPageStability(page, { timeout: 15000 });
+            const summaryEntry = {
+              page: testPage,
+              threshold,
+              loadTime: null,
+              status: null,
+              elements: null,
+              warnings: [],
+              info: [],
+              gatingIssues: [],
+              h1Count: null,
+            };
 
-            const loadTime = Date.now() - startTime;
-            const threshold = PERFORMANCE_THRESHOLDS[viewportName];
-            if (loadTime > threshold) {
-              console.log(
-                `⚠️  ${viewportName} load time ${loadTime}ms exceeds threshold ${threshold}ms for ${testPage}`
-              );
-            } else {
-              console.log(
-                `✅ ${viewportName} load time ${loadTime}ms within threshold for ${testPage}`
-              );
-            }
+            try {
+              const startTime = Date.now();
+              const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
+              summaryEntry.status = response.status();
 
-            // Critical elements via page objects
-            const critical = await wp.verifyCriticalElements();
-            expect.soft(critical.header).toBe(true);
-
-            if (viewportName === 'mobile') {
-              const mobileNavSelectors = [
-                '#mobile-burger',
-                '.menu-toggle',
-                '[aria-controls]',
-                '.hamburger',
-                '.navbar-toggler',
-                '.menu-button',
-                '[aria-label*="menu"]',
-              ];
-              let mobileNavFound = false;
-              for (const s of mobileNavSelectors) {
-                if (await page.locator(s).isVisible()) {
-                  mobileNavFound = true;
-                  try {
-                    await safeElementInteraction(page.locator(s).first(), 'click', {
-                      timeout: 3000,
-                    });
-                    await page.waitForTimeout(400);
-                  } catch (_) {}
-                  break;
-                }
+              if (summaryEntry.status !== 200) {
+                summaryEntry.warnings.push(`Received status ${summaryEntry.status}`);
+                return;
               }
-              if (!mobileNavFound) {
+
+              await waitForPageStability(page, { timeout: 15000 });
+
+              summaryEntry.loadTime = Date.now() - startTime;
+              if (summaryEntry.loadTime > threshold) {
+                console.log(
+                  `⚠️  ${viewportName} load time ${summaryEntry.loadTime}ms exceeds threshold ${threshold}ms for ${testPage}`
+                );
+                summaryEntry.warnings.push(
+                  `Load time ${summaryEntry.loadTime}ms exceeds threshold ${threshold}ms`
+                );
+              } else {
+                console.log(
+                  `✅ ${viewportName} load time ${summaryEntry.loadTime}ms within threshold for ${testPage}`
+                );
+                summaryEntry.info.push(
+                  `Load time ${summaryEntry.loadTime}ms within threshold ${threshold}ms`
+                );
+              }
+
+              const critical = await wp.verifyCriticalElements();
+              expect.soft(critical.header).toBe(true);
+              if (!critical.header) summaryEntry.gatingIssues.push('Header landmark missing');
+
+              if (viewportName === 'mobile') {
+                const mobileNavSelectors = [
+                  '#mobile-burger',
+                  '.menu-toggle',
+                  '[aria-controls]',
+                  '.hamburger',
+                  '.navbar-toggler',
+                  '.menu-button',
+                  '[aria-label*="menu"]',
+                ];
+                let mobileNavFound = false;
+                for (const s of mobileNavSelectors) {
+                  if (await page.locator(s).isVisible()) {
+                    mobileNavFound = true;
+                    try {
+                      await safeElementInteraction(page.locator(s).first(), 'click', {
+                        timeout: 3000,
+                      });
+                      await page.waitForTimeout(400);
+                    } catch (_) {}
+                    break;
+                  }
+                }
+                if (!mobileNavFound) {
+                  const nav = await wp.verifyCriticalElements();
+                  expect.soft(nav.navigation).toBe(true);
+                  if (!nav.navigation) summaryEntry.gatingIssues.push('Navigation landmark missing');
+                }
+              } else {
                 const nav = await wp.verifyCriticalElements();
                 expect.soft(nav.navigation).toBe(true);
+                if (!nav.navigation) summaryEntry.gatingIssues.push('Navigation landmark missing');
               }
-            } else {
-              const nav = await wp.verifyCriticalElements();
-              expect.soft(nav.navigation).toBe(true);
-            }
-            const again = await wp.verifyCriticalElements();
-            expect.soft(again.content).toBe(true);
-            expect.soft(again.footer).toBe(true);
 
-            // Optional basic form visibility/touch checks on mobile
-            if (viewportName === 'mobile' && siteConfig.forms && siteConfig.forms.length > 0) {
-              const formPage = siteConfig.forms[0].page || testPage;
-              if (testPage === formPage) {
-                const formSelector =
-                  siteConfig.forms[0].selector || '.wpcf7-form, .contact-form, form';
-                if (await page.locator(formSelector).isVisible()) {
-                  const fields = await page
-                    .locator(`${formSelector} input, ${formSelector} textarea`)
-                    .all();
-                  for (let i = 0; i < Math.min(fields.length, 3); i++) {
-                    try {
-                      await fields[i].tap({ timeout: 1500 });
-                    } catch (_) {}
+              const again = await wp.verifyCriticalElements();
+              expect.soft(again.content).toBe(true);
+              expect.soft(again.footer).toBe(true);
+
+              summaryEntry.elements = {
+                header: Boolean(again.header ?? false),
+                navigation: Boolean(again.navigation ?? false),
+                content: Boolean(again.content ?? false),
+                footer: Boolean(again.footer ?? false),
+              };
+
+              if (!summaryEntry.elements.content)
+                summaryEntry.gatingIssues.push('Main content landmark missing');
+              if (!summaryEntry.elements.footer)
+                summaryEntry.info.push('Footer landmark not detected');
+
+              summaryEntry.h1Count = await page.locator('h1').count();
+
+              if (
+                viewportName === 'mobile' &&
+                siteConfig.forms &&
+                siteConfig.forms.length > 0
+              ) {
+                const formPage = siteConfig.forms[0].page || testPage;
+                if (testPage === formPage) {
+                  const formSelector =
+                    siteConfig.forms[0].selector || '.wpcf7-form, .contact-form, form';
+                  if (await page.locator(formSelector).isVisible()) {
+                    const fields = await page
+                      .locator(`${formSelector} input, ${formSelector} textarea`)
+                      .all();
+                    for (let i = 0; i < Math.min(fields.length, 3); i++) {
+                      try {
+                        await fields[i].tap({ timeout: 1500 });
+                      } catch (_) {}
+                    }
                   }
                 }
               }
+            } catch (error) {
+              summaryEntry.error = error?.message || String(error);
+              summaryEntry.gatingIssues.push('Unexpected error encountered during responsive audit');
+              throw error;
+            } finally {
+              pageSummaries.push(summaryEntry);
             }
-
-            // Collect per-page summary for report attachment
-            pageSummaries.push({
-              page: testPage,
-              loadTime,
-              threshold,
-              elements: {
-                header: Boolean(again.header),
-                navigation: Boolean(again.navigation),
-                content: Boolean(again.content),
-                footer: Boolean(again.footer),
-              },
-            });
           });
         }
 
-        // Attach styled report summary for this viewport
         const rowsHtml = pageSummaries
           .map((e) => {
-            const className = e.loadTime > e.threshold ? 'status-error' : 'status-ok';
-            const boolCell = (v) => (v ? '✅' : '⚠️');
+            const loadBreached =
+              e.loadTime != null && e.threshold != null && e.loadTime > e.threshold;
+            const className = e.error || loadBreached ? 'status-error' : 'status-ok';
+            const boolCell = (v) => (v === true ? '✅' : v === false ? '⚠️' : '—');
+            const loadDisplay = e.loadTime != null ? `${Math.round(e.loadTime)}ms` : '—';
+            const thresholdDisplay = e.threshold != null ? `${e.threshold}ms` : '—';
             return `
               <tr class="${className}">
                 <td><code>${escapeHtml(e.page)}</code></td>
-                <td>${Math.round(e.loadTime)}ms</td>
-                <td>${e.threshold}ms</td>
-                <td>${boolCell(e.elements.header)}</td>
-                <td>${boolCell(e.elements.navigation)}</td>
-                <td>${boolCell(e.elements.content)}</td>
-                <td>${boolCell(e.elements.footer)}</td>
+                <td>${loadDisplay}</td>
+                <td>${thresholdDisplay}</td>
+                <td>${boolCell(e.elements?.header)}</td>
+                <td>${boolCell(e.elements?.navigation)}</td>
+                <td>${boolCell(e.elements?.content)}</td>
+                <td>${boolCell(e.elements?.footer)}</td>
               </tr>
             `;
           })
@@ -178,10 +394,13 @@ test.describe('Responsive Structure & UX', () => {
           </section>
         `;
 
-        const mdRows = pageSummaries.map(
-          (e) =>
-            `| \`${e.page}\` | ${Math.round(e.loadTime)}ms | ${e.threshold}ms | ${e.elements.header ? '✅' : '⚠️'} | ${e.elements.navigation ? '✅' : '⚠️'} | ${e.elements.content ? '✅' : '⚠️'} | ${e.elements.footer ? '✅' : '⚠️'} |`
-        );
+        const mdRows = pageSummaries.map((e) => {
+          const loadDisplay = e.loadTime != null ? `${Math.round(e.loadTime)}ms` : '—';
+          const thresholdDisplay = e.threshold != null ? `${e.threshold}ms` : '—';
+          const bool = (v) => (v === true ? '✅' : v === false ? '⚠️' : '—');
+          return `| \`${e.page}\` | ${loadDisplay} | ${thresholdDisplay} | ${bool(e.elements?.header)} | ${bool(e.elements?.navigation)} | ${bool(e.elements?.content)} | ${bool(e.elements?.footer)} |`;
+        });
+
         const markdown = [
           `# Responsive structure — ${viewportName}`,
           '',
@@ -196,6 +415,19 @@ test.describe('Responsive Structure & UX', () => {
           markdown,
           setDescription: false,
         });
+
+        const testInfo = test.info();
+        const schemaPayloads = buildResponsiveStructureSchemaPayloads(
+          pageSummaries,
+          viewportName,
+          testInfo.project.name
+        );
+        if (schemaPayloads) {
+          await attachSchemaSummary(testInfo, schemaPayloads.runPayload);
+          for (const payload of schemaPayloads.pagePayloads) {
+            await attachSchemaSummary(testInfo, payload);
+          }
+        }
       });
     });
   });
@@ -300,51 +532,86 @@ test.describe('Responsive Structure & UX', () => {
     test('WordPress theme responsive patterns', async ({ page }) => {
       test.setTimeout(7200000);
       const features = [];
+
       for (const viewportKey of enabledViewportKeys) {
         const viewport = VIEWPORTS[viewportKey];
         const viewportName = viewport.name;
         await test.step(`WP features: ${viewportName}`, async () => {
-          await page.setViewportSize({ width: viewport.width, height: viewport.height });
-          const response = await safeNavigate(page, siteConfig.baseUrl);
-          if (response.status() !== 200) return;
-          await waitForPageStability(page);
-
-          const hasWpResponsive = await page
-            .locator('[class*="wp-block"], [class*="responsive"]')
-            .isVisible();
-          if (hasWpResponsive)
-            console.log(`✅ WordPress responsive elements detected on ${viewportName}`);
-
-          const blockElements = await page.locator('[class*="wp-block-"]').count();
-          if (blockElements > 0)
-            console.log(`📊 ${blockElements} Gutenberg blocks found on ${viewportName}`);
-
-          const widgets = await page.locator('.widget').count();
-          if (widgets > 0) console.log(`📊 ${widgets} widgets found on ${viewportName}`);
-
-          features.push({
+          const entry = {
             viewport: viewportName,
-            hasWpResponsive,
-            blockElements,
-            widgets,
-          });
+            status: null,
+            hasWpResponsive: false,
+            blockElements: 0,
+            widgets: 0,
+            error: null,
+            warnings: [],
+            info: [],
+          };
+
+          try {
+            await page.setViewportSize({ width: viewport.width, height: viewport.height });
+            const response = await safeNavigate(page, siteConfig.baseUrl);
+            entry.status = response.status();
+            if (entry.status !== 200) {
+              entry.warnings.push(`Received status ${entry.status}`);
+              return;
+            }
+            await waitForPageStability(page);
+
+            const responsiveLocator = page.locator('[class*="wp-block"], [class*="responsive"]');
+            const responsiveCount = await responsiveLocator.count();
+            if (responsiveCount > 0) {
+              entry.hasWpResponsive = await responsiveLocator
+                .first()
+                .isVisible()
+                .catch(() => false);
+            }
+
+            if (entry.hasWpResponsive) {
+              console.log(`✅ WordPress responsive elements detected on ${viewportName}`);
+              entry.info.push('Responsive block classes detected');
+            } else {
+              entry.warnings.push('Responsive block classes not detected');
+            }
+
+            entry.blockElements = await page.locator('[class*="wp-block-"]').count();
+            if (entry.blockElements > 0) {
+              console.log(`📊 ${entry.blockElements} Gutenberg blocks found on ${viewportName}`);
+              entry.info.push(`${entry.blockElements} Gutenberg block element(s)`);
+            } else {
+              entry.info.push('No Gutenberg block elements detected');
+            }
+
+            entry.widgets = await page.locator('.widget').count();
+            if (entry.widgets > 0) {
+              console.log(`📊 ${entry.widgets} widgets found on ${viewportName}`);
+              entry.info.push(`${entry.widgets} widget(s) found`);
+            } else {
+              entry.info.push('No WordPress widgets detected');
+            }
+          } catch (error) {
+            entry.error = error?.message || String(error);
+            throw error;
+          } finally {
+            features.push(entry);
+          }
         });
       }
 
-      // Attach report summary for WP-specific responsive features
       const rowsHtml = features
         .map((f) => {
-          const b = (v) => (v ? '✅' : '⚠️');
+          const responsive = f.hasWpResponsive ? '✅' : f.status === 200 ? '⚠️' : '—';
           return `
             <tr>
               <td>${escapeHtml(f.viewport)}</td>
-              <td>${b(Boolean(f.hasWpResponsive))}</td>
+              <td>${responsive}</td>
               <td>${f.blockElements}</td>
               <td>${f.widgets}</td>
             </tr>
           `;
         })
         .join('');
+
       const htmlBody = `
         <section class="summary-report summary-wp-responsive">
           <h3>WordPress responsive features</h3>
@@ -354,9 +621,11 @@ test.describe('Responsive Structure & UX', () => {
           </table>
         </section>
       `;
-      const mdRows = features.map(
-        (f) => `| ${f.viewport} | ${f.hasWpResponsive ? '✅' : '⚠️'} | ${f.blockElements} | ${f.widgets} |`
-      );
+
+      const mdRows = features.map((f) => {
+        const responsive = f.hasWpResponsive ? '✅' : f.status === 200 ? '⚠️' : '—';
+        return `| ${f.viewport} | ${responsive} | ${f.blockElements} | ${f.widgets} |`;
+      });
       const markdown = [
         '# WordPress responsive features',
         '',
@@ -364,12 +633,22 @@ test.describe('Responsive Structure & UX', () => {
         '| --- | --- | --- | --- |',
         ...mdRows,
       ].join('\n');
+
       await attachSummary({
         baseName: 'responsive-wp-features-summary',
         htmlBody,
         markdown,
         setDescription: false,
       });
+
+      const testInfo = test.info();
+      const schemaPayloads = buildResponsiveWpSchemaPayloads(features, testInfo.project.name);
+      if (schemaPayloads) {
+        await attachSchemaSummary(testInfo, schemaPayloads.runPayload);
+        for (const payload of schemaPayloads.pagePayloads) {
+          await attachSchemaSummary(testInfo, payload);
+        }
+      }
     });
   });
 });

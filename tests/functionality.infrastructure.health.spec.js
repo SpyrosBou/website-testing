@@ -17,6 +17,7 @@ const slugify = (value) =>
 const buildAvailabilitySchemaPayloads = (results, projectName) => {
   if (!Array.isArray(results) || results.length === 0) return null;
 
+  const runBaseName = `infra-availability-${slugify(projectName)}`;
   const pagesWithWarnings = results.filter((entry) =>
     entry.notes.some((note) => note.type === 'warning')
   ).length;
@@ -30,7 +31,7 @@ const buildAvailabilitySchemaPayloads = (results, projectName) => {
   }, 0);
 
   const runPayload = createRunSummaryPayload({
-    baseName: `infra-availability-${slugify(projectName)}`,
+    baseName: runBaseName,
     title: 'Availability & uptime summary',
     overview: {
       totalPages: results.length,
@@ -43,12 +44,27 @@ const buildAvailabilitySchemaPayloads = (results, projectName) => {
       summaryType: 'availability',
       projectName,
       scope: 'project',
+      suppressPageEntries: true,
     },
   });
 
+  runPayload.details = {
+    pages: results.map((entry) => ({
+      page: entry.page,
+      status: entry.status,
+      elements: entry.elements || null,
+      warnings: entry.notes
+        .filter((note) => note.type === 'warning')
+        .map((note) => note.message),
+      info: entry.notes
+        .filter((note) => note.type === 'info')
+        .map((note) => note.message),
+    })),
+  };
+
   const pagePayloads = results.map((entry) =>
     createPageSummaryPayload({
-      baseName: `infra-availability-${slugify(projectName)}-${slugify(entry.page)}`,
+      baseName: runBaseName,
       title: `Availability – ${entry.page}`,
       page: entry.page,
       viewport: projectName,
@@ -72,12 +88,13 @@ const buildAvailabilitySchemaPayloads = (results, projectName) => {
 const buildHttpSchemaPayloads = (results, projectName) => {
   if (!Array.isArray(results) || results.length === 0) return null;
 
+  const runBaseName = `infra-http-${slugify(projectName)}`;
   const redirects = results.filter((entry) => entry.status >= 300 && entry.status < 400).length;
   const errors = results.filter((entry) => entry.status >= 400).length;
   const failedChecks = results.filter((entry) => entry.checks.some((check) => !check.passed)).length;
 
   const runPayload = createRunSummaryPayload({
-    baseName: `infra-http-${slugify(projectName)}`,
+    baseName: runBaseName,
     title: 'HTTP response validation summary',
     overview: {
       totalPages: results.length,
@@ -91,12 +108,28 @@ const buildHttpSchemaPayloads = (results, projectName) => {
       summaryType: 'http',
       projectName,
       scope: 'project',
+      suppressPageEntries: true,
     },
   });
 
+  runPayload.details = {
+    pages: results.map((entry) => ({
+      page: entry.page,
+      status: entry.status,
+      statusText: entry.statusText,
+      redirectLocation: entry.location || null,
+      failedChecks: entry.checks
+        .filter((check) => !check.passed)
+        .map((check) => ({
+          label: check.label,
+          details: check.details || null,
+        })),
+    })),
+  };
+
   const pagePayloads = results.map((entry) =>
     createPageSummaryPayload({
-      baseName: `infra-http-${slugify(projectName)}-${slugify(entry.page)}`,
+      baseName: runBaseName,
       title: `HTTP validation – ${entry.page}`,
       page: entry.page,
       viewport: projectName,
@@ -125,8 +158,16 @@ const buildPerformanceSchemaPayloads = (data, breaches, projectName) => {
 
   const averageLoadTime = data.reduce((acc, entry) => acc + entry.loadTime, 0) / data.length;
 
+  const roundMetric = (value) => {
+    if (value === null || value === undefined) return null;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.round(numeric);
+  };
+
+  const runBaseName = `infra-performance-${slugify(projectName)}`;
   const runPayload = createRunSummaryPayload({
-    baseName: `infra-performance-${slugify(projectName)}`,
+    baseName: runBaseName,
     title: 'Performance monitoring summary',
     overview: {
       pagesSampled: data.length,
@@ -138,6 +179,7 @@ const buildPerformanceSchemaPayloads = (data, breaches, projectName) => {
       summaryType: 'performance',
       projectName,
       scope: 'project',
+      suppressPageEntries: true,
     },
   });
 
@@ -150,15 +192,16 @@ const buildPerformanceSchemaPayloads = (data, breaches, projectName) => {
 
   const pagePayloads = data.map((entry) =>
     createPageSummaryPayload({
-      baseName: `infra-performance-${slugify(projectName)}-${slugify(entry.page)}`,
+      baseName: runBaseName,
       title: `Performance – ${entry.page}`,
       page: entry.page,
       viewport: projectName,
       summary: {
-        loadTimeMs: Math.round(entry.loadTime),
-        domContentLoadedMs: Math.round(entry.domContentLoaded),
-        loadCompleteMs: Math.round(entry.loadComplete),
-        firstContentfulPaintMs: Math.round(entry.firstContentfulPaint),
+        loadTimeMs: roundMetric(entry.loadTime),
+        domContentLoadedMs: roundMetric(entry.domContentLoaded),
+        loadCompleteMs: roundMetric(entry.loadComplete),
+        firstContentfulPaintMs: roundMetric(entry.firstContentfulPaint),
+        firstPaintMs: roundMetric(entry.firstPaint),
         budgetBreaches: breachMap.get(entry.page) || [],
       },
       metadata: {
@@ -168,6 +211,18 @@ const buildPerformanceSchemaPayloads = (data, breaches, projectName) => {
       },
     })
   );
+
+  runPayload.details = {
+    pages: data.map((entry) => ({
+      page: entry.page,
+      loadTimeMs: roundMetric(entry.loadTime),
+      domContentLoadedMs: roundMetric(entry.domContentLoaded),
+      loadCompleteMs: roundMetric(entry.loadComplete),
+      firstPaintMs: roundMetric(entry.firstPaint),
+      firstContentfulPaintMs: roundMetric(entry.firstContentfulPaint),
+      budgetBreaches: breachMap.get(entry.page) || [],
+    })),
+  };
 
   return { runPayload, pagePayloads };
 };
@@ -264,56 +319,94 @@ test.describe('Functionality: Core Infrastructure', () => {
         : [siteConfig.testPages[0]]
       : siteConfig.testPages;
 
+    let deferredError = null;
     for (const testPage of pagesToTest) {
-      await test.step(`Validating response for: ${testPage}`, async () => {
-        errorContext.setPage(testPage);
-        const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
+      try {
+        await test.step(`Validating response for: ${testPage}`, async () => {
+          errorContext.setPage(testPage);
+          const response = await safeNavigate(page, `${siteConfig.baseUrl}${testPage}`);
+          if (!response) {
+            throw new Error(`No HTTP response received for ${testPage}`);
+          }
+
         const status = response.status();
         const statusText = response.statusText ? response.statusText() : '';
-        const checks = [];
-
-        expect([200, 301, 302]).toContain(status);
-        if (status === 200) {
-          const contentType = response.headers()['content-type'] || '';
-          const hasContentType = contentType.includes('text/html');
-          checks.push({
-            label: 'Content-Type includes text/html',
-            passed: hasContentType,
-            details: contentType || 'missing',
-          });
-          expect(contentType).toContain('text/html');
-
-          await expect(page.locator('html[lang]')).toBeAttached();
-          checks.push({ label: 'html[lang] attribute present', passed: true });
-
-          await expect(page.locator('meta[charset], meta[http-equiv="Content-Type"]')).toBeAttached();
-          checks.push({ label: 'charset meta tag present', passed: true });
-
-          await expect(page.locator('meta[name="viewport"]')).toBeAttached();
-          checks.push({ label: 'viewport meta tag present', passed: true });
-
-          const bodyText = await page.locator('body').textContent();
-          const fatalErrorPresent = /Fatal error/i.test(bodyText || '');
-          const warningPresent = /Warning:/i.test(bodyText || '');
-          const noticePresent = /Notice:/i.test(bodyText || '');
-          expect(fatalErrorPresent).toBe(false);
-          expect(warningPresent).toBe(false);
-          expect(noticePresent).toBe(false);
-          checks.push({ label: 'No PHP fatal/warning/notice text', passed: true });
-          console.log(`✅ Response validation passed for ${testPage}`);
-        }
-
         const entry = {
           page: testPage,
           status,
           statusText,
-          checks,
+          checks: [],
         };
-        if (status >= 300 && status < 400) {
-          entry.location = response.headers()['location'] || '';
+
+        const recordCheck = (label, passed, details) => {
+          entry.checks.push({
+            label,
+            passed,
+            details: details ? String(details) : null,
+          });
+        };
+
+        const runCheck = async (label, assertion) => {
+          try {
+            await assertion();
+            recordCheck(label, true);
+          } catch (error) {
+            recordCheck(label, false, error?.message || error);
+            throw error;
+          }
+        };
+
+        try {
+          await runCheck('HTTP status is acceptable (200/301/302)', () =>
+            expect([200, 301, 302]).toContain(status)
+          );
+
+          if (status === 200) {
+            const contentType = response.headers()['content-type'] || '';
+            await runCheck('Content-Type includes text/html', () =>
+              expect(contentType).toContain('text/html')
+            );
+
+            await runCheck('html[lang] attribute present', () =>
+              expect(page.locator('html[lang]')).toBeAttached()
+            );
+
+            await runCheck('charset meta tag present', () =>
+              expect(page.locator('meta[charset], meta[http-equiv="Content-Type"]')).toBeAttached()
+            );
+
+            await runCheck('viewport meta tag present', () =>
+              expect(page.locator('meta[name="viewport"]')).toBeAttached()
+            );
+
+            await runCheck('No PHP fatal/warning/notice text', async () => {
+              const bodyText = await page.locator('body').textContent();
+              const fatalErrorPresent = /Fatal error/i.test(bodyText || '');
+              const warningPresent = /Warning:/i.test(bodyText || '');
+              const noticePresent = /Notice:/i.test(bodyText || '');
+              expect(fatalErrorPresent).toBe(false);
+              expect(warningPresent).toBe(false);
+              expect(noticePresent).toBe(false);
+            });
+
+            console.log(`✅ Response validation passed for ${testPage}`);
+          }
+
+          if (status >= 300 && status < 400) {
+            entry.location = response.headers()['location'] || '';
+          }
+        } catch (error) {
+          entry.error = error?.message || String(error);
+          throw error;
+        } finally {
+          responseResults.push(entry);
         }
-        responseResults.push(entry);
       });
+      } catch (error) {
+        if (!deferredError) {
+          deferredError = error;
+        }
+      }
     }
 
     if (responseResults.length > 0) {
@@ -325,6 +418,10 @@ test.describe('Functionality: Core Infrastructure', () => {
           await attachSchemaSummary(testInfo, payload);
         }
       }
+    }
+
+    if (deferredError) {
+      throw deferredError;
     }
   });
 
@@ -353,32 +450,79 @@ test.describe('Functionality: Core Infrastructure', () => {
         await waitForPageStability(page, { timeout: 10000 });
         const loadTime = Date.now() - startTime;
         const metrics = await page.evaluate(() => {
-          const navigation = performance.getEntriesByType('navigation')[0];
+          const navigationEntry = performance.getEntriesByType('navigation')[0];
+          const legacyTiming = performance.timing;
+
+          const navigationStart =
+            typeof navigationEntry?.startTime === 'number'
+              ? navigationEntry.startTime
+              : typeof legacyTiming?.navigationStart === 'number'
+                ? legacyTiming.navigationStart
+                : 0;
+
+          const domContentLoaded = (() => {
+            if (typeof navigationEntry?.domContentLoadedEventEnd === 'number') {
+              return navigationEntry.domContentLoadedEventEnd - navigationStart;
+            }
+            if (legacyTiming && typeof legacyTiming.domContentLoadedEventEnd === 'number') {
+              return legacyTiming.domContentLoadedEventEnd - legacyTiming.navigationStart;
+            }
+            return Number.NaN;
+          })();
+
+          const loadComplete = (() => {
+            if (typeof navigationEntry?.loadEventEnd === 'number') {
+              return navigationEntry.loadEventEnd - navigationStart;
+            }
+            if (legacyTiming && typeof legacyTiming.loadEventEnd === 'number') {
+              return legacyTiming.loadEventEnd - legacyTiming.navigationStart;
+            }
+            return Number.NaN;
+          })();
+
           const paints = performance.getEntriesByType('paint');
+          const firstPaint = paints.find((p) => p.name === 'first-paint')?.startTime;
+          const firstContentfulPaint = paints.find((p) => p.name === 'first-contentful-paint')?.startTime;
+
           return {
-            domContentLoaded: navigation.domContentLoadedEventEnd - navigation.navigationStart,
-            loadComplete: navigation.loadEventEnd - navigation.navigationStart,
-            firstPaint: paints.find((p) => p.name === 'first-paint')?.startTime || 0,
-            firstContentfulPaint:
-              paints.find((p) => p.name === 'first-contentful-paint')?.startTime || 0,
+            domContentLoaded,
+            loadComplete,
+            firstPaint,
+            firstContentfulPaint,
           };
         });
-        performanceData.push({ page: testPage, loadTime, ...metrics });
+        const normaliseMetric = (value) => {
+          const numeric = Number(value);
+          if (!Number.isFinite(numeric) || numeric < 0) {
+            return null;
+          }
+          return numeric;
+        };
+
+        const normalisedMetrics = {
+          domContentLoaded: normaliseMetric(metrics.domContentLoaded),
+          loadComplete: normaliseMetric(metrics.loadComplete),
+          firstPaint: normaliseMetric(metrics.firstPaint),
+          firstContentfulPaint: normaliseMetric(metrics.firstContentfulPaint),
+        };
+
+        performanceData.push({ page: testPage, loadTime, ...normalisedMetrics });
+
         if (loadTime > 3000) console.log(`⚠️  ${testPage} took ${loadTime}ms (>3s)`);
         else console.log(`✅ ${testPage} loaded in ${loadTime}ms`);
 
         if (perfBudgets) {
           const budgetChecks = {
-            domContentLoaded: metrics.domContentLoaded,
-            loadComplete: metrics.loadComplete,
-            firstContentfulPaint: metrics.firstContentfulPaint,
+            domContentLoaded: normalisedMetrics.domContentLoaded,
+            loadComplete: normalisedMetrics.loadComplete,
+            firstContentfulPaint: normalisedMetrics.firstContentfulPaint,
           };
 
           for (const [budgetKey, value] of Object.entries(budgetChecks)) {
             if (!Object.prototype.hasOwnProperty.call(perfBudgets, budgetKey)) continue;
             const budget = Number(perfBudgets[budgetKey]);
             if (!Number.isFinite(budget) || budget <= 0) continue;
-            if (!Number.isFinite(value) || value <= 0) {
+            if (!Number.isFinite(value)) {
               console.log(
                 `ℹ️  ${budgetKey} metric unavailable on ${testPage}; skipping budget comparison`
               );
