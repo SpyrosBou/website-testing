@@ -285,7 +285,7 @@ input[name="report-view"] {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--grid-gap);
 }
 
@@ -309,7 +309,8 @@ input[name="report-view"] {
 
 
 .summary-card__title {
-  display: flex;
+  width: max-content;
+  display: inline-flex;
   align-items: baseline;
   gap: 0.45rem;
   font-size: 0.85rem;
@@ -317,6 +318,7 @@ input[name="report-view"] {
   text-transform: uppercase;
   color: #0f172a;
   margin: 0 0 0.4rem;
+  white-space: nowrap;
 }
 
 .summary-card__count {
