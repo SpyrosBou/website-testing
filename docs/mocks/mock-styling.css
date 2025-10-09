@@ -326,23 +326,26 @@ input[name="report-view"] {
 
 
 .summary-card__title {
-  display: block;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(15, 23, 42, 0.58);
-  margin: 0 0 0.25rem;
+  color: #0f172a;
+  margin: 0 0 0.4rem;
 }
 
 .summary-card__count {
-  font-size: 2.8rem;
+  font-size: 2.6rem;
   font-weight: 700;
-  color: #111827;
-  margin-bottom: 0.35rem;
+  color: #0f172a;
+  line-height: 1;
 }
 
-.summary-card .meta {
-  margin-top: 0.45rem;
+
+ .summary-card .meta {
+  margin-top: 0.35rem;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
