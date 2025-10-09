@@ -193,23 +193,6 @@ input[name="report-view"] {
   background: rgba(220, 38, 38, 0.12);
 }
 
-.nav-item.status-warn {
-  background: rgba(217, 119, 6, 0.08);
-  border-left: 4px solid rgba(217, 119, 6, 0.35);
-}
-
-.nav-item.status-warn:hover {
-  background: rgba(217, 119, 6, 0.12);
-}
-
-.nav-item.status-info {
-  background: rgba(37, 99, 235, 0.08);
-  border-left: 4px solid rgba(37, 99, 235, 0.35);
-}
-
-.nav-item.status-info:hover {
-  background: rgba(37, 99, 235, 0.12);
-}
 
 .nav-item__header {
   display: flex;
@@ -577,7 +560,7 @@ details.summary-accordion[open] summary {
   color: #b91c1c;
 }
 
-.status-warning {
+
   background: rgba(234, 179, 8, 0.16);
   color: #b45309;
 }

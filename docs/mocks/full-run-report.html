@@ -61,10 +61,10 @@
               <span class="nav-status status-fail">Fail</span>
             </span>
           </label>
-          <label class="nav-item status-warn" for="view-accessibility-keyboard">
+          <label class="nav-item status-fail" for="view-accessibility-keyboard">
             <span class="nav-item__header">
               <span class="nav-name">Keyboard navigation</span>
-              <span class="nav-status status-warn">Warn</span>
+              <span class="nav-status status-fail">Warn</span>
             </span>
           </label>
           <label class="nav-item status-pass" for="view-accessibility-landmarks">
@@ -89,10 +89,10 @@
               <span class="nav-status status-fail">Fail</span>
             </span>
           </label>
-          <label class="nav-item status-warn" for="view-functionality-infrastructure">
+          <label class="nav-item status-fail" for="view-functionality-infrastructure">
             <span class="nav-item__header">
               <span class="nav-name">Service endpoint health</span>
-              <span class="nav-status status-warn">Warn</span>
+              <span class="nav-status status-fail">Warn</span>
             </span>
           </label>
         </div>
@@ -109,10 +109,10 @@
 
         <div class="sidebar-group">
           <p class="group-title">Visual</p>
-          <label class="nav-item status-warn" for="view-visual-regression">
+          <label class="nav-item status-fail" for="view-visual-regression">
             <span class="nav-item__header">
               <span class="nav-name">Visual regression</span>
-              <span class="nav-status status-warn">Diffs</span>
+              <span class="nav-status status-fail">Diffs</span>
             </span>
           </label>
         </div>
@@ -191,7 +191,7 @@
                 <p class="suite-status">Contrast regressions and missing form labels remain unresolved for donation and newsletter flows.</p>
               </article>
 
-              <article class="suite-card status-warn">
+              <article class="suite-card status-fail">
                 <header>
                   <p class="spec-label">Functionality</p>
                   <h4>Console &amp; API stability</h4>
@@ -217,7 +217,7 @@
                 <p class="suite-status">Hero modules remain stable; minor footer stacking issue logged as informational.</p>
               </article>
 
-              <article class="suite-card status-warn">
+              <article class="suite-card status-fail">
                 <header>
                   <p class="spec-label">Visual</p>
                   <h4>Visual regression</h4>
@@ -348,7 +348,7 @@
               <article class="page-card">
                 <header>
                   <h3>Chrome (Mobile)</h3>
-                  <span class="status-pill status-warning">At risk</span>
+                  <span class="status-pill status-failing">At risk</span>
                 </header>
                 <ul class="checks">
                   <li>Focus outline clipped on CVV input error state.</li>
@@ -372,7 +372,7 @@
               <article class="page-card">
                 <header>
                   <h3>Chrome (Mobile)</h3>
-                  <span class="status-pill status-warning">At risk</span>
+                  <span class="status-pill status-failing">At risk</span>
                 </header>
                 <ul class="checks">
                   <li>Success toast overlays cookie banner for 4s, obscuring confirmation text.</li>
@@ -390,7 +390,7 @@
             <h2>Keyboard navigation resilience</h2>
             <p class="panel-description">Tabs through navigation, modals, and key content on the selected pages using only the keyboard. Flags focus traps, missing skip links, and components that lose focus so non-mouse users can still progress.</p>
           </div>
-          <span class="spec-status spec-status--warn">⚠ Watch</span>
+          <span class="spec-status spec-status--fail">⚠ Watch</span>
         </header>
         <div class="panel-body">
 <section class="panel-section">
@@ -450,7 +450,7 @@
               <article class="page-card">
                 <header>
                   <h3>Firefox (Desktop)</h3>
-                  <span class="status-pill status-warning">At risk</span>
+                  <span class="status-pill status-failing">At risk</span>
                 </header>
                 <ul class="checks">
                   <li>Offscreen skip link receives focus; visually hidden but audible.</li>
@@ -589,7 +589,7 @@
             <h2>Service endpoint health</h2>
             <p class="panel-description">Pings the services your site config lists (payments, CDN, content feeds) to confirm they’re up and fast. Warns when uptime dips, latency spikes, or credentials need updating before the next release.</p>
           </div>
-          <span class="spec-status spec-status--warn">⚠ Watch</span>
+          <span class="spec-status spec-status--fail">⚠ Watch</span>
         </header>
         <div class="panel-body">
 <section class="panel-section">
@@ -647,7 +647,7 @@
               <article class="page-card">
                 <header>
                   <h3>Tablet landscape</h3>
-                  <span class="status-pill status-warning">Watch</span>
+                  <span class="status-pill status-failing">Watch</span>
                 </header>
                 <ul class="checks">
                   <li>Footer CTA columns wrap at 992px – cosmetic but noted for design.</li>
@@ -665,7 +665,7 @@
             <h2>Visual regression</h2>
             <p class="panel-description">Compares fresh screenshots for every selected page to the stored baselines with tight pixel thresholds. Highlights real visual shifts so design can approve the change or request a fix.</p>
           </div>
-          <span class="spec-status spec-status--warn">⚠ Diffs</span>
+          <span class="spec-status spec-status--fail">⚠ Diffs</span>
         </header>
         <div class="panel-body">
 <section class="panel-section">
