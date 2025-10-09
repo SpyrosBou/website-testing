@@ -329,15 +329,8 @@ input[name="report-view"] {
 
  .summary-card .meta {
   margin-top: 0.35rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
   font-size: 0.9rem;
   color: #475467;
-}
-
-.summary-card .meta span.meta-muted {
-  color: #667085;
 }
 
 .suite-overview {
@@ -398,14 +391,6 @@ input[name="report-view"] {
   color: #485260;
 }
 
-.suite-metrics.suite-metrics--summary {
-  margin-bottom: 0.4rem;
-}
-
-.suite-metrics.suite-metrics--summary li {
-  color: #111827;
-  font-size: 0.85rem;
-}
 
 .suite-metrics li {
   display: flex;
