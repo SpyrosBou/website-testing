@@ -81,8 +81,16 @@ switch (cmd) {
   case 'clean-reports':
     {
       const reportsDir = path.join(process.cwd(), 'reports');
+      const args = process.argv.slice(3);
+      const wipeAll = args.includes('--all') || args.includes('-a');
       if (!fs.existsSync(reportsDir)) {
         console.log('No reports directory found.');
+        break;
+      }
+      if (wipeAll) {
+        rmrf(reportsDir);
+        fs.mkdirSync(reportsDir, { recursive: true });
+        console.log('Removed all reports.');
         break;
       }
       const { removed, kept } = pruneOldReports(reportsDir, 10);
