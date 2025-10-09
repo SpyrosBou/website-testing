@@ -71,6 +71,8 @@ Every report folder contains `report.html` and a `data/` directory with the mach
 
 Because the debug deck stays hidden unless you opt in, the top of the report remains stakeholder-friendly while power users still have one-click access to raw data when needed.
 
+Recent report polish: summary cards use succinct, comma-separated meta labels (including clarifying the `PAGES SCANNED` card as `per test`), and the suite overview grid enforces a 320px minimum card width—dropping to a single column under 480px—so `.suite-metrics` details stay inside each card without overflow.
+
 ## Quick Setup (macOS)
 
 Use this streamlined flow on a Mac to verify everything works end-to-end:
