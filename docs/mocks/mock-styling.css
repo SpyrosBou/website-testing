@@ -170,11 +170,6 @@ input[name="report-view"] {
   color: #0369a1;
 }
 
-.nav-status.status-warn {
-  background: rgba(217, 119, 6, 0.18);
-  color: #b45309;
-}
-
 .nav-item.status-pass {
   background: rgba(16, 185, 129, 0.08);
   border-left: 4px solid rgba(16, 185, 129, 0.35);
@@ -266,11 +261,6 @@ input[name="report-view"] {
 .spec-status--pass {
   background: rgba(16, 185, 129, 0.2);
   color: #047857;
-}
-
-.spec-status--warn {
-  background: rgba(217, 119, 6, 0.18);
-  color: #b45309;
 }
 
 .panel-body {
@@ -375,10 +365,6 @@ input[name="report-view"] {
   border-left: 6px solid rgba(220, 38, 38, 0.75);
 }
 
-.suite-card.status-warn {
-  border-left: 6px solid rgba(217, 119, 6, 0.75);
-}
-
 .suite-card header {
   display: grid;
   gap: 0.4rem;
@@ -456,9 +442,9 @@ input[name="report-view"] {
   color: #b91c1c;
 }
 
-.severity-warning {
-  background: rgba(217, 119, 6, 0.14);
-  color: #b45309;
+.severity-fail {
+  background: rgba(220, 38, 38, 0.14);
+  color: #b91c1c;
 }
 
 .severity-info {

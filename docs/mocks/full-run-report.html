@@ -64,7 +64,7 @@
           <label class="nav-item status-fail" for="view-accessibility-keyboard">
             <span class="nav-item__header">
               <span class="nav-name">Keyboard navigation</span>
-              <span class="nav-status status-fail">Warn</span>
+              <span class="nav-status status-fail">Fail</span>
             </span>
           </label>
           <label class="nav-item status-pass" for="view-accessibility-landmarks">
@@ -92,7 +92,7 @@
           <label class="nav-item status-fail" for="view-functionality-infrastructure">
             <span class="nav-item__header">
               <span class="nav-name">Service endpoint health</span>
-              <span class="nav-status status-fail">Warn</span>
+              <span class="nav-status status-fail">Fail</span>
             </span>
           </label>
         </div>
@@ -135,12 +135,12 @@
               <div class="meta">https://createarts.org.uk</div>
             </article>
             <article class="summary-card">
-              <h2 class="summary-card__title"><span class="summary-card__count">9</span> TESTS ON EACH PAGE</h2>
-              <div class="meta">Listed in sidebar</div>
-            </article>
-            <article class="summary-card">
               <h2 class="summary-card__title"><span class="summary-card__count">26</span> PAGES SCANNED</h2>
               <div class="meta">per test</div>
+            </article>
+            <article class="summary-card">
+              <h2 class="summary-card__title"><span class="summary-card__count">9</span> TESTS ON EACH PAGE</h2>
+              <div class="meta">Listed in sidebar</div>
             </article>
             <article class="summary-card">
               <h2 class="summary-card__title"><span class="summary-card__count">3</span> BROWSERS INCLUDED</h2>
@@ -297,7 +297,7 @@
                   <td>Impacts VoiceOver; manual label fix required.</td>
                 </tr>
                 <tr>
-                  <td><span class="severity-pill severity-warning">Warning</span></td>
+                  <td><span class="severity-pill severity-fail">Fail</span></td>
                   <td>Volunteer signup</td>
                   <td>Error summary not auto-focused after failed submission.</td>
                   <td>
@@ -367,7 +367,7 @@
             <h2>Keyboard navigation resilience</h2>
             <p class="panel-description">Tabs through navigation, modals, and key content on the selected pages using only the keyboard. Flags focus traps, missing skip links, and components that lose focus so non-mouse users can still progress.</p>
           </div>
-          <span class="spec-status spec-status--fail">⚠ Watch</span>
+          <span class="spec-status spec-status--fail">❌ Fail</span>
         </header>
         <div class="panel-body">
 <section class="panel-section">
@@ -393,7 +393,7 @@
                   <td>Regression from v15 of menu component.</td>
                 </tr>
                 <tr>
-                  <td><span class="severity-pill severity-warning">Warning</span></td>
+                  <td><span class="severity-pill severity-fail">Fail</span></td>
                   <td>Donate modal</td>
                   <td>Skip to content link anchors inside hidden modal; double tab required to reach amount selector.</td>
                   <td>
@@ -462,7 +462,7 @@
               </thead>
               <tbody>
                 <tr>
-                  <td><span class="severity-pill severity-warning">Warning</span></td>
+                  <td><span class="severity-pill severity-fail">Fail</span></td>
                   <td>/events</td>
                   <td>Two `main` landmarks present when event filter loads.</td>
                   <td>Drops to advisory because filter panel is hidden from AT by default.</td>
@@ -510,7 +510,7 @@
                   <td>PDF removed during rebrand; update to new asset URL.</td>
                 </tr>
                 <tr>
-                  <td><span class="severity-pill severity-warning">Timeout</span></td>
+                  <td><span class="severity-pill severity-fail">Timeout</span></td>
                   <td>/events/summer-showcase</td>
                   <td>https://tickets.createarts.org.uk/register</td>
                   <td>HEAD → GET</td>
@@ -527,7 +527,7 @@
           <div class="panel-info">
             <span class="spec-label">Functionality · functionality.interactive.smoke.spec.js</span>
             <h2>Console &amp; API stability</h2>
-            <p class="panel-description">Walks through the main user journeys on every tested page while watching the browser console and dependent API calls. Surfaces crashes or failed requests that would break registration, checkout, or other key tasks.</p>
+            <p class="panel-description">Walks through the main user journeys on every tested page while monitoring the browser console and dependent API calls. Surfaces crashes or failed requests that would break registration, checkout, or other key tasks.</p>
           </div>
           <span class="spec-status spec-status--fail">✕ Fail</span>
         </header>
@@ -549,7 +549,7 @@
                   <td>React hydration failed (hydration mismatch) — dynamic hero metrics render differently server vs client.</td>
                 </tr>
                 <tr>
-                  <td><span class="severity-pill severity-warning">Network</span></td>
+                  <td><span class="severity-pill severity-fail">Network</span></td>
                   <td>/donate</td>
                   <td>POST /stripe/init returns 400 for invalid publishable key in staging.</td>
                 </tr>
@@ -564,9 +564,9 @@
           <div class="panel-info">
             <span class="spec-label">Functionality · functionality.infrastructure.health.spec.js</span>
             <h2>Service endpoint health</h2>
-            <p class="panel-description">Pings the services your site config lists (payments, CDN, content feeds) to confirm they’re up and fast. Warns when uptime dips, latency spikes, or credentials need updating before the next release.</p>
+            <p class="panel-description">Pings the services your site config lists (payments, CDN, content feeds) to confirm they’re up and fast. Alerts when uptime dips, latency spikes, or credentials need updating before the next release.</p>
           </div>
-          <span class="spec-status spec-status--fail">⚠ Watch</span>
+          <span class="spec-status spec-status--fail">❌ Fail</span>
         </header>
         <div class="panel-body">
 <section class="panel-section">
@@ -588,7 +588,7 @@
                   <td>Stripe sandbox credentials rotated; update project secrets.</td>
                 </tr>
                 <tr>
-                  <td><span class="severity-pill severity-warning">Degraded</span></td>
+                  <td><span class="severity-pill severity-fail">Degraded</span></td>
                   <td>https://cdn.createarts.org.uk/health</td>
                   <td>edge-lhr</td>
                   <td>Latency 1.2s (p95) – flagged but still serving content.</td>
@@ -624,7 +624,7 @@
               <article class="page-card">
                 <header>
                   <h3>Tablet landscape</h3>
-                  <span class="status-pill status-failing">Watch</span>
+                  <span class="status-pill status-failing">Fail</span>
                 </header>
                 <ul class="checks">
                   <li>Footer CTA columns wrap at 992px – cosmetic but noted for design.</li>
