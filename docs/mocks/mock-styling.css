@@ -1,7 +1,7 @@
 :root {
   --bg-primary: #f4f6fb;
-  --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-heading: 'Work Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: "Work Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --bg-card: #ffffff;
   --border: #d9e2ec;
   --text-strong: #1f2933;
@@ -26,7 +26,10 @@ body {
   color: var(--text-strong);
 }
 
-h1, h2, h3, h4,
+h1,
+h2,
+h3,
+h4,
 .summary-card__title,
 .group-title,
 .panel-info h2,
@@ -662,7 +665,7 @@ input[name="report-view"] {
 
 .summary-page > summary {
   padding: 0.5rem;
-  font-weight: 500;
+  font-weight: 400;
   cursor: pointer;
   display: flex;
   align-items: center;
