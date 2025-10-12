@@ -619,15 +619,11 @@ details.summary-accordion[open] summary {
 
 #view-accessibility-wcag:checked ~ .report-shell .sidebar label[for="view-accessibility-wcag"],
 #view-accessibility-forms:checked ~ .report-shell .sidebar label[for="view-accessibility-forms"],
-#view-functionality-interactive:checked ~ .report-shell .sidebar label[for="view-functionality-interactive"] {
-  background: rgba(220, 38, 38, 0.28);
-  color: #101828;
-}
-
 #view-accessibility-keyboard:checked ~ .report-shell .sidebar label[for="view-accessibility-keyboard"],
+#view-functionality-interactive:checked ~ .report-shell .sidebar label[for="view-functionality-interactive"],
 #view-functionality-infrastructure:checked ~ .report-shell .sidebar label[for="view-functionality-infrastructure"],
 #view-visual-regression:checked ~ .report-shell .sidebar label[for="view-visual-regression"] {
-  background: rgba(217, 119, 6, 0.26);
+  background: rgba(220, 38, 38, 0.28);
   color: #101828;
 }
 
