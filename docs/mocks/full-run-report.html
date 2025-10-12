@@ -516,9 +516,9 @@
                 <tbody>
                   <tr class="impact-serious">
                     <td>Donation checkout</td>
-                    <td>Recurring donation checkbox lacks an accessible label.</td>
+                    <td>Recurring donation checkbox lacks accessible name.</td>
                     <td>Chrome (Desktop), Chrome (Mobile)</td>
-                    <td>Screen readers announce generic "checkbox"; users can not verify the selection.</td>
+                    <td>Report message: "Recurring donation checkbox lacks an accessible name."</td>
                   </tr>
                 </tbody>
               </table>
@@ -535,13 +535,13 @@
                     <td>Volunteer signup</td>
                     <td>Error summary does not receive focus after failed submission.</td>
                     <td>Chrome (Desktop)</td>
-                    <td>Users must reverse-tab to discover errors; consider moving focus into the summary.</td>
+                    <td>Report advisory: "Error summary did not receive focus after blank submission."</td>
                   </tr>
                   <tr class="impact-minor">
                     <td>Newsletter opt-in</td>
                     <td>Success toast overlays cookie banner for four seconds.</td>
                     <td>Chrome (Mobile)</td>
-                    <td>Toast obscures confirmation copy; reduces confidence the submission succeeded.</td>
+                    <td>Report advisory: "Success toast overlays cookie banner for four seconds."</td>
                   </tr>
                 </tbody>
               </table>
@@ -576,12 +576,12 @@
                         <tr class="impact-serious">
                           <td>Serious</td>
                           <td>Recurring donation checkbox has no accessible name.</td>
-                          <td>VoiceOver announces "checkbox" with no context; add <code>aria-label</code> or visible text.</td>
+                          <td>Report gating: "Submit checkbox lacks accessible name (recurring toggle)."</td>
                         </tr>
                         <tr class="impact-moderate">
                           <td>Moderate</td>
                           <td>Inline validation errors are not linked by <code>aria-describedby</code>.</td>
-                          <td>Screen readers miss the guidance; associate error messages with offending inputs.</td>
+                          <td>Report issue: "Inline errors: Donation amount not announced for screen readers."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -609,7 +609,7 @@
                         <tr class="impact-moderate">
                           <td>Moderate</td>
                           <td>Error summary does not receive focus when validation fails.</td>
-                          <td>Move focus into the summary element so assistive tech announces the issues immediately.</td>
+                          <td>Report advisory: "Error summary did not receive focus after blank submission."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -637,7 +637,7 @@
                         <tr class="impact-minor">
                           <td>Minor</td>
                           <td>Success toast overlaps the cookie banner on mobile.</td>
-                          <td>Shorten toast duration or shift placement so confirmation text remains visible.</td>
+                          <td>Report advisory: "Success toast overlays cookie banner for four seconds."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -701,9 +701,9 @@
                 <tbody>
                   <tr class="impact-serious">
                     <td>Primary navigation</td>
-                    <td>Shift+Tab traps focus inside mega menu; ESC closes but returns focus to body.</td>
+                    <td>Shift+Tab traps focus inside mega menu; ESC returns focus to <code>&lt;body&gt;</code>.</td>
                     <td>Chrome (Desktop)</td>
-                    <td>Regression from menu v15; restore focus to trigger and release loop.</td>
+                    <td>Report gating: "Reverse tabbing returned focus to <body>; keyboard users may get trapped."</td>
                   </tr>
                 </tbody>
               </table>
@@ -720,7 +720,7 @@
                     <td>Donate modal</td>
                     <td>Skip link anchors inside hidden modal; requires double tab to reach amount selector.</td>
                     <td>Firefox (Desktop)</td>
-                    <td>Move skip link target outside modal or adjust focus order when modal opens.</td>
+                    <td>Report advisory: "Skip link anchors inside hidden modal; adjust focus order."</td>
                   </tr>
                 </tbody>
               </table>
@@ -755,12 +755,12 @@
                         <tr class="impact-serious">
                           <td>Serious</td>
                           <td>Shift+Tab keeps focus inside multi-column menu.</td>
-                          <td>Restore focus to menu button when moving backwards past the first item.</td>
+                          <td>Report gating: "Tab order did not progress beyond the first interactive element."</td>
                         </tr>
                         <tr class="impact-moderate">
                           <td>Moderate</td>
                           <td>ESC closes menu but focus lands on <code>&lt;body&gt;</code>.</td>
-                          <td>Return focus to trigger button after closing to maintain context.</td>
+                          <td>Report gating: "Reverse tabbing returned focus to <body>; keyboard users may get trapped."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -788,7 +788,7 @@
                         <tr class="impact-moderate">
                           <td>Moderate</td>
                           <td>Skip link target is hidden behind modal overlay.</td>
-                          <td>Update skip anchor to land after modal or hide while modal is active.</td>
+                          <td>Report advisory: "Skip link target remained hidden when modal opened."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -853,7 +853,7 @@
                   <tr class="impact-moderate">
                     <td>/events</td>
                     <td>Duplicate <code>&lt;main&gt;</code> landmarks rendered when filter opens.</td>
-                    <td>Hide secondary container or swap to <code>section</code> so screen reader landmarks remain unique.</td>
+                    <td>Report warning: "Duplicate <main> landmarks detected when filters open."</td>
                   </tr>
                 </tbody>
               </table>
@@ -869,7 +869,7 @@
                   <tr class="impact-minor">
                     <td>/about</td>
                     <td><code>h4</code> used without preceding <code>h3</code> in leadership list.</td>
-                    <td>Content still readable but adjust heading level for consistent outline.</td>
+                    <td>Report advisory: "Heading level skipped from h2 to h4 in leadership section."</td>
                   </tr>
                 </tbody>
               </table>
@@ -904,7 +904,7 @@
                         <tr class="impact-moderate">
                           <td>Moderate</td>
                           <td>Second <code>&lt;main&gt;</code> element wraps filter controls when opened.</td>
-                          <td>Convert to <code>aside</code> or hide with <code>aria-hidden</code> until filter is active.</td>
+                          <td>Report warning: "Duplicate <main> landmarks detected when filters open."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -932,7 +932,7 @@
                         <tr class="impact-minor">
                           <td>Minor</td>
                           <td>Heading skips from <code>h2</code> to <code>h4</code> in leadership section.</td>
-                          <td>Update to <code>h3</code> for consistent document outline.</td>
+                          <td>Report advisory: "Heading level skipped from h2 to h4."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -998,7 +998,7 @@
                     <td>404</td>
                     <td>/news/funding-update</td>
                     <td>https://createarts.org.uk/documents/2024-update.pdf</td>
-                    <td>PDF removed during rebrand; update link to the 2024 financial summary.</td>
+                    <td>Report entry: status 404 (GET) - document removed.</td>
                   </tr>
                 </tbody>
               </table>
@@ -1015,7 +1015,7 @@
                     <td>Timeout</td>
                     <td>/events/summer-showcase</td>
                     <td>https://tickets.createarts.org.uk/register</td>
-                    <td>HEAD blocked by CDN; GET succeeds in 4.6s. Allow GET fallback or whitelist HEAD.</td>
+                    <td>Report entry: HEAD timeout; GET fallback succeeded (4.6s).</td>
                   </tr>
                 </tbody>
               </table>
@@ -1049,7 +1049,7 @@
                       <tbody>
                         <tr>
                           <td><code>https://createarts.org.uk/documents/2024-update.pdf</code></td>
-                          <td>Removed document; link should point to <code>documents/2024-impact-report.pdf</code>.</td>
+                          <td>Report sample: status 404 (GET) - document removed.</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1076,7 +1076,7 @@
                       <tbody>
                         <tr>
                           <td><code>https://tickets.createarts.org.uk/register</code></td>
-                          <td>CDN blocks HEAD; GET request completes but is slow (4.6s). Consider preloading or bypassing HEAD.</td>
+                          <td>Report sample: HEAD timeout; GET fallback completed in 4.6s.</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1141,7 +1141,7 @@
                   <tr class="impact-serious">
                     <td>/contact</td>
                     <td>Console error</td>
-                    <td>React hydration failed (mismatch between server and client metrics component).</td>
+                    <td>Report gating: "Console error: React hydration failed (hydration mismatch)."</td>
                   </tr>
                 </tbody>
               </table>
@@ -1157,7 +1157,7 @@
                   <tr class="impact-moderate">
                     <td>/donate</td>
                     <td>Network 400</td>
-                    <td>POST <code>/stripe/init</code> returns 400 for staging publishable key; retries succeed in production.</td>
+                    <td>Report advisory: "POST /stripe/init returned 400 (staging key)."</td>
                   </tr>
                 </tbody>
               </table>
@@ -1191,7 +1191,7 @@
                       <tbody>
                         <tr>
                           <td>React hydration mismatch</td>
-                          <td>Dynamic hero metrics render differently server vs client; leads to blank contact form.</td>
+                          <td>Report gating: "Console error: React hydration failed (hydration mismatch)."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1218,7 +1218,7 @@
                       <tbody>
                         <tr>
                           <td>POST /stripe/init returns 400</td>
-                          <td>Using staging publishable key; retry with live key or rotate sandbox credentials.</td>
+                          <td>Report advisory: "POST /stripe/init returned 400 (staging key)."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1284,7 +1284,7 @@
                     <td>500</td>
                     <td>https://api.createarts.org.uk/payments/stripe/status</td>
                     <td>staging</td>
-                    <td>Stripe sandbox credentials rotated; refresh <code>STRIPE_SECRET</code> before next deploy.</td>
+                    <td>Report outage: "Stripe sandbox credentials rotated; status endpoint returning 500."</td>
                   </tr>
                 </tbody>
               </table>
@@ -1301,7 +1301,7 @@
                     <td>Degraded</td>
                     <td>https://cdn.createarts.org.uk/health</td>
                     <td>edge-lhr</td>
-                    <td>Latency 1.2s (p95). Monitor after cache warmup; raise ticket if persists.</td>
+                    <td>Report warning: "Latency 1.2s (p95) reported by CDN health check."</td>
                   </tr>
                 </tbody>
               </table>
@@ -1335,7 +1335,7 @@
                       <tbody>
                         <tr>
                           <td>GET <code>/payments/stripe/status</code></td>
-                          <td>500 Internal Server Error - sandbox keys expired.</td>
+                          <td>Report outage: "Endpoint responded 500 (sandbox keys expired)."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1362,7 +1362,7 @@
                       <tbody>
                         <tr>
                           <td>GET <code>/health</code></td>
-                          <td>200 OK in 1.2s (p95). Investigate caching or regional routing.</td>
+                          <td>Report warning: "Latency 1.2s (p95) on CDN health check."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1427,7 +1427,7 @@
                     <td>Tablet landscape (1024px)</td>
                     <td>Footer CTA columns wrap inconsistently.</td>
                     <td>Donate, Programs</td>
-                    <td>Design review requested; consider adjusting grid gap at 1024px.</td>
+                    <td>Report advisory: "Footer CTA grid wraps at 992px."</td>
                   </tr>
                 </tbody>
               </table>
@@ -1470,11 +1470,11 @@
                       <tbody>
                         <tr>
                           <td>Donate</td>
-                          <td>Footer CTA grid wraps at 992px; adjust column width or stack earlier.</td>
+                          <td>Report advisory: "Footer CTA grid wraps at 992px."</td>
                         </tr>
                         <tr>
                           <td>Programs</td>
-                          <td>Hero testimonial overlaps navigation when viewport height &lt; 700px.</td>
+                          <td>Report advisory: "Hero testimonial overlaps navigation below 700px height."</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1540,7 +1540,7 @@
                     <td>Global navigation alert badge</td>
                     <td>Mobile portrait</td>
                     <td>0.46%</td>
-                    <td>Badge shifted +6px because localized copy wraps; adjust spacing or update baseline post design sign-off.</td>
+                    <td>Report diff: 0.46% pixel variance after localized copy wrap.</td>
                   </tr>
                 </tbody>
               </table>
@@ -1557,13 +1557,13 @@
                     <td>Donate hero carousel</td>
                     <td>Desktop</td>
                     <td>0.31%</td>
-                    <td>New imagery introduced; update baseline after stakeholder approval.</td>
+                    <td>Report advisory: 0.31% diff after new imagery.</td>
                   </tr>
                   <tr class="impact-minor">
                     <td>Footer newsletter module</td>
                     <td>Tablet landscape</td>
                     <td>0.24%</td>
-                    <td>Shadow intensity changed; low priority follow-up.</td>
+                    <td>Report advisory: 0.24% diff due to shadow change.</td>
                   </tr>
                 </tbody>
               </table>
@@ -1591,7 +1591,7 @@
                     <p class="details"><strong>Viewport:</strong> Mobile portrait</p>
                     <p class="details"><strong>Delta:</strong> 0.46%</p>
                   </div>
-                  <p class="details">Localized copy pushes badge outside container; adjust layout then accept new baseline.</p>
+                  <p class="details">Report diff: 0.46% pixel variance after localized copy wrap.</p>
                 </section>
               </div>
             </details>
@@ -1608,7 +1608,7 @@
                     <p class="details"><strong>Viewport:</strong> Desktop</p>
                     <p class="details"><strong>Delta:</strong> 0.31%</p>
                   </div>
-                  <p class="details">New imagery introduced intentionally; update baseline after design approval.</p>
+                  <p class="details">Report advisory: 0.31% diff after new imagery.</p>
                 </section>
               </div>
             </details>
@@ -1625,7 +1625,7 @@
                     <p class="details"><strong>Viewport:</strong> Tablet landscape</p>
                     <p class="details"><strong>Delta:</strong> 0.24%</p>
                   </div>
-                  <p class="details">Shadow intensity changed slightly; confirm design intent before updating baseline.</p>
+                  <p class="details">Report advisory: 0.24% diff due to shadow change.</p>
                 </section>
               </div>
             </details>
