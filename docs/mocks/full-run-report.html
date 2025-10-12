@@ -491,95 +491,183 @@
           <div class="panel-info">
             <span class="spec-label">Accessibility - a11y.forms.validation.spec.js</span>
             <h2>Forms provide accessible labelling and validation feedback</h2>
-            <p class="panel-description">Exercises the forms configured in your site JSON on each tested page. Confirms labels, hints, and error messaging remain usable for screen readers and keyboard users so no-one gets blocked mid submission.</p>
+            <p class="panel-description">Exercises configured form journeys and verifies labels, hints, and validation remain accessible so screen reader and keyboard users can complete submissions without blockers.</p>
           </div>
-          <span class="spec-status spec-status--fail">x Fail</span>
+          <span class="spec-status spec-status--fail">Fail</span>
         </header>
         <div class="panel-body">
-<section class="panel-section">
-            <h3>Priority form findings</h3>
-            <table class="summary-table">
-              <thead>
-                <tr>
-                  <th>Severity</th>
-                  <th>Form</th>
-                  <th>Issue</th>
-                  <th>Browsers</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><span class="severity-pill severity-gating">Gating</span></td>
-                  <td>Donation checkout</td>
-                  <td>Recurring donation checkbox lacks aria-label; SRs announce generic "checkbox".</td>
-                  <td>
-                    <span class="browser-tag">Chrome (Desktop)</span>
-                    <span class="browser-tag">Chrome (Mobile)</span>
-                  </td>
-                  <td>Impacts VoiceOver; manual label fix required.</td>
-                </tr>
-                <tr>
-                  <td><span class="severity-pill severity-fail">Fail</span></td>
-                  <td>Volunteer signup</td>
-                  <td>Error summary not auto-focused after failed submission.</td>
-                  <td>
-                    <span class="browser-tag">Chrome (Desktop)</span>
-                  </td>
-                  <td>Users must tab backwards to discover errors.</td>
-                </tr>
-              </tbody>
-            </table>
+          <section class="schema-group">
+            <section class="summary-report summary-forms">
+              <h3>Forms validation run summary</h3>
+              <p>Validated <strong>12</strong> form interactions across Chrome desktop and mobile.</p>
+              <ul class="status-summary">
+                <li><span class="status-pill status-error">Gating violations</span><span>1 form</span></li>
+                <li><span class="status-pill status-warning">Warnings</span><span>2 forms</span></li>
+              </ul>
+              <p class="details">Coverage highlights: donation checkout, volunteer signup, newsletter opt-in.</p>
+            </section>
+
+            <section class="summary-report summary-forms">
+              <h3>Gating form violations</h3>
+              <table>
+                <thead>
+                  <tr><th>Form</th><th>Finding</th><th>Browsers</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                  <tr class="impact-serious">
+                    <td>Donation checkout</td>
+                    <td>Recurring donation checkbox lacks an accessible label.</td>
+                    <td>Chrome (Desktop), Chrome (Mobile)</td>
+                    <td>Screen readers announce generic "checkbox"; users can not verify the selection.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="summary-report summary-forms">
+              <h3>Form warnings and advisories</h3>
+              <table>
+                <thead>
+                  <tr><th>Form</th><th>Finding</th><th>Browsers</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                  <tr class="impact-moderate">
+                    <td>Volunteer signup</td>
+                    <td>Error summary does not receive focus after failed submission.</td>
+                    <td>Chrome (Desktop)</td>
+                    <td>Users must reverse-tab to discover errors; consider moving focus into the summary.</td>
+                  </tr>
+                  <tr class="impact-minor">
+                    <td>Newsletter opt-in</td>
+                    <td>Success toast overlays cookie banner for four seconds.</td>
+                    <td>Chrome (Mobile)</td>
+                    <td>Toast obscures confirmation copy; reduces confidence the submission succeeded.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
           </section>
 
-          <details class="summary-accordion">
-            <summary>Donation checkout</summary>
-            <div class="accordion-body">
-              <article class="page-card">
-                <header>
-                  <h3>Chrome (Desktop)</h3>
-                  <span class="status-pill status-error">Blocked</span>
-                </header>
-                <ul class="checks">
-                  <li>VoiceOver announces "checkbox" with no context on recurring toggle.</li>
-                  <li>Inline error not included in aria-describedby list.</li>
-                </ul>
-              </article>
-              <article class="page-card">
-                <header>
-                  <h3>Chrome (Mobile)</h3>
-                  <span class="status-pill status-failing">At risk</span>
-                </header>
-                <ul class="checks">
-                  <li>Focus outline clipped on CVV input error state.</li>
-                </ul>
-              </article>
+          <section class="summary-report summary-forms" data-per-page="list">
+            <div class="summary-per-page-header">
+              <h3>Per-form findings</h3>
+              <div class="summary-toggle-controls">
+                <button type="button" class="summary-toggle-button" data-toggle="expand">Expand all</button>
+                <button type="button" class="summary-toggle-button" data-toggle="collapse">Collapse all</button>
+              </div>
             </div>
-          </details>
 
-          <details class="summary-accordion">
-            <summary>Newsletter opt-in</summary>
-            <div class="accordion-body">
-              <article class="page-card">
-                <header>
-                  <h3>Chrome (Desktop)</h3>
-                  <span class="status-pill status-ok">Passed</span>
-                </header>
-                <ul class="checks empty">
-                  <li>No issues detected</li>
-                </ul>
-              </article>
-              <article class="page-card">
-                <header>
-                  <h3>Chrome (Mobile)</h3>
-                  <span class="status-pill status-failing">At risk</span>
-                </header>
-                <ul class="checks">
-                  <li>Success toast overlays cookie banner for 4s, obscuring confirmation text.</li>
-                </ul>
-              </article>
-            </div>
-          </details>
+            <details class="summary-page summary-page--fail">
+              <summary>Donation checkout</summary>
+              <div class="summary-page__body">
+                <section class="summary-report summary-forms page-card">
+                  <div class="page-card__header">
+                    <h3>Donation checkout</h3>
+                    <span class="status-pill status-error">Gating violation</span>
+                  </div>
+                  <div class="page-card__meta">
+                    <p class="details"><strong>Browsers:</strong> Chrome (Desktop), Chrome (Mobile)</p>
+                    <p class="details"><strong>Status:</strong> Gating WCAG violation</p>
+                  </div>
+                  <div class="page-card__table">
+                    <table>
+                      <thead><tr><th>Severity</th><th>Finding</th><th>Notes</th></tr></thead>
+                      <tbody>
+                        <tr class="impact-serious">
+                          <td>Serious</td>
+                          <td>Recurring donation checkbox has no accessible name.</td>
+                          <td>VoiceOver announces "checkbox" with no context; add <code>aria-label</code> or visible text.</td>
+                        </tr>
+                        <tr class="impact-moderate">
+                          <td>Moderate</td>
+                          <td>Inline validation errors are not linked by <code>aria-describedby</code>.</td>
+                          <td>Screen readers miss the guidance; associate error messages with offending inputs.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            </details>
+
+            <details class="summary-page summary-page--warn">
+              <summary>Volunteer signup</summary>
+              <div class="summary-page__body">
+                <section class="summary-report summary-forms page-card">
+                  <div class="page-card__header">
+                    <h3>Volunteer signup</h3>
+                    <span class="status-pill status-warning">Warning</span>
+                  </div>
+                  <div class="page-card__meta">
+                    <p class="details"><strong>Browsers:</strong> Chrome (Desktop)</p>
+                    <p class="details"><strong>Status:</strong> Focus handling needs improvement</p>
+                  </div>
+                  <div class="page-card__table">
+                    <table>
+                      <thead><tr><th>Severity</th><th>Finding</th><th>Notes</th></tr></thead>
+                      <tbody>
+                        <tr class="impact-moderate">
+                          <td>Moderate</td>
+                          <td>Error summary does not receive focus when validation fails.</td>
+                          <td>Move focus into the summary element so assistive tech announces the issues immediately.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            </details>
+
+            <details class="summary-page summary-page--warn">
+              <summary>Newsletter opt-in</summary>
+              <div class="summary-page__body">
+                <section class="summary-report summary-forms page-card">
+                  <div class="page-card__header">
+                    <h3>Newsletter opt-in</h3>
+                    <span class="status-pill status-warning">Warning</span>
+                  </div>
+                  <div class="page-card__meta">
+                    <p class="details"><strong>Browsers:</strong> Chrome (Desktop), Chrome (Mobile)</p>
+                    <p class="details"><strong>Status:</strong> Non-blocking advisories</p>
+                  </div>
+                  <div class="page-card__table">
+                    <table>
+                      <thead><tr><th>Severity</th><th>Finding</th><th>Notes</th></tr></thead>
+                      <tbody>
+                        <tr class="impact-minor">
+                          <td>Minor</td>
+                          <td>Success toast overlaps the cookie banner on mobile.</td>
+                          <td>Shorten toast duration or shift placement so confirmation text remains visible.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            </details>
+          </section>
+          <script>
+            (function () {
+              const scriptEl = document.currentScript;
+              if (!scriptEl) return;
+              const listSection = scriptEl.previousElementSibling;
+              if (!listSection) return;
+              const accordions = Array.from(listSection.querySelectorAll('details.summary-page'));
+              if (accordions.length === 0) return;
+
+              const setOpenState = (open) => {
+                accordions.forEach((accordion) => {
+                  accordion.open = open;
+                });
+              };
+
+              listSection.querySelectorAll('[data-toggle]').forEach((button) => {
+                button.addEventListener('click', () => {
+                  setOpenState(button.dataset.toggle === 'expand');
+                });
+              });
+            })();
+          </script>
         </div>
       </section>
 
