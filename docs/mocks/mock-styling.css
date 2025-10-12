@@ -116,7 +116,8 @@ input[name="report-view"] {
 }
 
 .group-title {
-  margin: 0;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
