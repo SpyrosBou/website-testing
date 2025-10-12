@@ -1526,7 +1526,7 @@
                 <li><span class="status-pill status-error">Blocking diffs</span><span>1 component</span></li>
                 <li><span class="status-pill status-warning">Advisories</span><span>2 components</span></li>
               </ul>
-              <p class="details">Diffs are gating when variance exceeds threshold or impacts interactive elements.</p>
+              <p class="details">Diffs are gating when pixel variance exceeds the configured threshold (<span class='delta-threshold'>0.30% in this run</span>) or impacts interactive elements.</p>
             </section>
 
             <section class="summary-report summary-visual">
@@ -1540,7 +1540,7 @@
                     <td>Global navigation alert badge</td>
                     <td>Mobile portrait</td>
                     <td>0.46%</td>
-                    <td>Report diff: 0.46% pixel variance after localized copy wrap.</td>
+                    <td>Localized copy wrap exceeded 0.30% gating threshold.</td>
                   </tr>
                 </tbody>
               </table>
@@ -1557,13 +1557,13 @@
                     <td>Donate hero carousel</td>
                     <td>Desktop</td>
                     <td>0.31%</td>
-                    <td>Report advisory: 0.31% diff after new imagery.</td>
+                    <td>Intentional imagery update pending design approval.</td>
                   </tr>
                   <tr class="impact-minor">
                     <td>Footer newsletter module</td>
                     <td>Tablet landscape</td>
                     <td>0.24%</td>
-                    <td>Report advisory: 0.24% diff due to shadow change.</td>
+                    <td>Shadow intensity tweaked; confirm design intent.</td>
                   </tr>
                 </tbody>
               </table>
@@ -1589,9 +1589,9 @@
                   </div>
                   <div class="page-card__meta">
                     <p class="details"><strong>Viewport:</strong> Mobile portrait</p>
-                    <p class="details"><strong>Delta:</strong> 0.46%</p>
+                    <p class="details"><strong>Delta:</strong> 0.46% (<span class='delta-threshold'>threshold 0.30%</span>)</p>
                   </div>
-                  <p class="details">Report diff: 0.46% pixel variance after localized copy wrap.</p>
+                  <p class="details">Localized copy wrap exceeded the gating threshold.</p>
                   <div class="visual-previews">
                     <figure>
                       <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect fill='%23f1f5f9' width='320' height='180'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Inter' font-size='20' fill='%2337485c'%3EBaseline%3C/text%3E%3C/svg%3E" alt="Baseline screenshot placeholder" />
@@ -1625,7 +1625,7 @@
                     <p class="details"><strong>Viewport:</strong> Desktop</p>
                     <p class="details"><strong>Delta:</strong> 0.31%</p>
                   </div>
-                  <p class="details">Report advisory: 0.31% diff after new imagery.</p>
+                  <p class="details">Imagery refresh intentionally introduced; awaiting design approval.</p>
                   <div class="visual-previews">
                     <figure>
                       <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect fill='%23f1f5f9' width='320' height='180'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Inter' font-size='18' fill='%2337485c'%3EOld hero%3C/text%3E%3C/svg%3E" alt="Baseline hero placeholder" />
@@ -1655,7 +1655,7 @@
                     <p class="details"><strong>Viewport:</strong> Tablet landscape</p>
                     <p class="details"><strong>Delta:</strong> 0.24%</p>
                   </div>
-                  <p class="details">Report advisory: 0.24% diff due to shadow change.</p>
+                  <p class="details">Shadow intensity changed slightly; verify with design.</p>
                   <div class="visual-previews">
                     <figure>
                       <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect fill='%23f1f5f9' width='320' height='180'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Inter' font-size='16' fill='%2337485c'%3EBaseline footer%3C/text%3E%3C/svg%3E" alt="Baseline footer placeholder" />

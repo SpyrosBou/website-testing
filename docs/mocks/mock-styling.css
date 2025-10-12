@@ -792,6 +792,10 @@ input[name="report-view"] {
   border-bottom: none;
 }
 
+.delta-threshold {
+  font-weight: 500;
+}
+
 .summary-report.summary-visual .visual-previews,
 .summary-report.summary-responsive .visual-previews {
   display: grid;
