@@ -71,7 +71,7 @@ Every report folder contains `report.html` and a `data/` directory with the mach
 
 Because the debug deck stays hidden unless you opt in, the top of the report remains stakeholder-friendly while power users still have one-click access to raw data when needed.
 
-Recent report polish: summary cards use succinct, comma-separated meta labels (including clarifying the `PAGES SCANNED` card as `per test`), and the suite overview grid enforces a 320px minimum card width—dropping to a single column under 480px—so `.suite-metrics` details stay inside each card without overflow.
+Recent report polish: summary cards use succinct, comma-separated meta labels (including clarifying the `PAGES SCANNED` card as `per test`). Suite overview cards now stack one per row so each block has room for headlines and status context before you dive into the spec-specific tabs.
 
 ## Quick Setup (macOS)
 
@@ -299,6 +299,7 @@ Each Allure summary now includes a “WCAG coverage” banner for these manual a
 - `npm run read-reports` — open the most recent report in your default browser.
 - `npm run read-reports <n>` — open the newest `<n>` reports.
 - When adding a new suite, prefer emitting schema payloads via `attachSchemaSummary` (use `attachSummary` only as a transitional fallback) so the reporter can render the same inline HTML/Markdown blocks automatically.
+- The current mock and implementation plan for the refreshed report layout live in `docs/mocks/` and `docs/reporting-redesign-roadmap.md`.
 - Treat WCAG findings surfaced by the suites as defects to address. We do **not** suppress or whitelist contrast (or any other WCAG-level) violations in the harness; our automated results must stay faithful to a real audit even when product/design decides to accept the risk.
 
 ## CI & Scheduling
