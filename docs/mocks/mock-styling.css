@@ -92,7 +92,6 @@ input[name="report-view"] {
   line-height: 1.4;
 }
 
-
 .sidebar-nav {
   margin-top: 2.5rem;
   display: grid;
@@ -101,7 +100,6 @@ input[name="report-view"] {
 
 .sidebar-group {
   display: grid;
-  gap: 0.6rem;
 }
 
 .group-title {
@@ -187,7 +185,6 @@ input[name="report-view"] {
 .nav-item.status-fail:hover {
   background: rgba(220, 38, 38, 0.12);
 }
-
 
 .nav-item__header {
   display: flex;
@@ -297,7 +294,6 @@ input[name="report-view"] {
   pointer-events: none;
 }
 
-
 .summary-card__title {
   width: max-content;
   display: inline-flex;
@@ -318,8 +314,7 @@ input[name="report-view"] {
   line-height: 1;
 }
 
-
- .summary-card .meta {
+.summary-card .meta {
   margin-top: 0.35rem;
   font-size: 0.9rem;
   color: #475467;
@@ -384,7 +379,6 @@ input[name="report-view"] {
   font-size: 0.9rem;
   color: #485260;
 }
-
 
 .suite-metrics li {
   display: flex;
@@ -537,11 +531,6 @@ details.summary-accordion[open] summary {
 .status-error {
   background: rgba(220, 38, 38, 0.14);
   color: #b91c1c;
-}
-
-
-  background: rgba(234, 179, 8, 0.16);
-  color: #b45309;
 }
 
 .status-ok {
