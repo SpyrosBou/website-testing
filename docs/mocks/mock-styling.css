@@ -346,14 +346,8 @@ input[name="report-view"] {
 
 .suite-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1.5rem;
-}
-
-@media (max-width: 480px) {
-  .suite-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .suite-card {
