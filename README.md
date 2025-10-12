@@ -302,6 +302,12 @@ Each Allure summary now includes a “WCAG coverage” banner for these manual a
 - The current mock and implementation plan for the refreshed report layout live in `docs/mocks/` and `docs/reporting-redesign-roadmap.md`.
 - Treat WCAG findings surfaced by the suites as defects to address. We do **not** suppress or whitelist contrast (or any other WCAG-level) violations in the harness; our automated results must stay faithful to a real audit even when product/design decides to accept the risk.
 
+#### Schema payload contract
+
+- Run + page schema payloads that opt into the refreshed reporter must provide `summary.gating`, `summary.warnings`, `summary.advisories`, and `summary.notes` as arrays (empty arrays are fine) so the renderer can drop findings into the shared tables/cards without guessing at per-suite keys. Visual payloads should also surface `deltaPercent` and artifact filenames to drive the inline diff previews.
+- Legacy payloads (e.g., older WCAG audit attachments) still validate, but new work should follow the contract above. `docs/report-schema-inventory.md` lists the current suites and the fields they emit; keep that file in sync as new specs adopt the schema.
+- The schema validator now enforces this contract: `attachSchemaSummary` will throw if a payload omits the standard arrays, making it easier to catch regressions while authoring specs.
+
 ## CI & Scheduling
 
 - CI smoke tests no longer run automatically on PRs, pushes, or on a schedule.

@@ -12,6 +12,7 @@ The mock HTML report is now approved and locked. All future work happens on the 
 - Ensure each payload exposes `gating`, `warnings`, `advisories`, `notes`, and artifact metadata (baseline/current/diff for visual).
 - Document any gaps in `utils/test-helpers.js` or spec fixtures and patch them before template work starts.
 - Add backstop unit coverage around `attachSchemaSummary` (and related helpers) for required fields and naming.
+- Keep `docs/report-schema-inventory.md` current so engineering/QA can cross-check payload expectations while migrating the reporter.
 
 ## Phase 2 · Template Migration
 - Rebuild the summary tab in `utils/report-templates.js` so suite cards render vertically with the new copy, gating totals, and delta text.
