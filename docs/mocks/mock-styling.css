@@ -688,6 +688,60 @@ input[name="report-view"] {
   background: #f8fafc;
 }
 
+.summary-page--ok {
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  background: rgba(16, 185, 129, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.18);
+}
+
+.summary-page--ok > summary {
+  color: #065f46;
+}
+
+.summary-page--ok[open] > summary {
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.summary-page--ok .summary-page__body {
+  background: rgba(240, 253, 244, 0.92);
+}
+
+.summary-page--fail {
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  background: rgba(220, 38, 38, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.18);
+}
+
+.summary-page--fail > summary {
+  color: #7f1d1d;
+}
+
+.summary-page--fail[open] > summary {
+  border-bottom: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.summary-page--fail .summary-page__body {
+  background: rgba(254, 242, 242, 0.92);
+}
+
+.summary-page--warn {
+  border: 1px solid rgba(217, 119, 6, 0.22);
+  background: rgba(217, 119, 6, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.18);
+}
+
+.summary-page--warn > summary {
+  color: #78350f;
+}
+
+.summary-page--warn[open] > summary {
+  border-bottom: 1px solid rgba(217, 119, 6, 0.25);
+}
+
+.summary-page--warn .summary-page__body {
+  background: rgba(255, 247, 237, 0.92);
+}
+
 .page-card__header {
   display: flex;
   align-items: center;
