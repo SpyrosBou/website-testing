@@ -116,7 +116,7 @@ input[name="report-view"] {
   align-items: flex-start;
   justify-content: flex-start;
   padding: 0.65rem 0.85rem;
-  border-radius: var(--radius-md);
+  border-radius: 0;
   font-size: 0.95rem;
   color: var(--text-strong);
   background: rgba(255, 255, 255, 0.45);
