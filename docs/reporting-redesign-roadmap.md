@@ -1,28 +1,39 @@
 # Reporting Redesign Roadmap
 
-The mock HTML report now reflects the target layout and copy we want to ship (single-column suite cards, schema-driven panels for every spec, and inline visual diff previews). To mirror this in the generated Playwright reports we need to land the following updates in the real reporter:
+The mock HTML report is now approved and locked. All future work happens on the feature branch that carries the production reporter changes; keep this document updated alongside that branch.
 
-## Implementation Tasks
+## Phase 0 · Prep
+- Take a fresh copy of `docs/mocks/full-run-report.html` and `docs/mocks/mock-styling.css` into the branch for quick comparison.
+- Snapshot the current reporter output (`reports/run-*/report.html`) so we can diff structure and CSS after each phase.
+- File tracking tickets for every spec panel so QA can sign off individually once they match the mock.
 
-1. **Reporter templates**
-   - Update `utils/report-templates.js` to consume the new schema payloads for forms, keyboard, landmarks, links, interactive smoke, infrastructure, responsive, and visual specs.
-   - Ensure each template recognises `summary-page--fail|warn|ok` classes and renders the same HTML structure shown in `docs/mocks/full-run-report.html`.
+## Phase 1 · Schema + Data Audit
+- Inventory every spec payload produced by the test runner (accessibility/a11y, responsive, functionality variants, visual).
+- Ensure each payload exposes `gating`, `warnings`, `advisories`, `notes`, and artifact metadata (baseline/current/diff for visual).
+- Document any gaps in `utils/test-helpers.js` or spec fixtures and patch them before template work starts.
+- Add backstop unit coverage around `attachSchemaSummary` (and related helpers) for required fields and naming.
 
-2. **Shared styling**
-   - Move the refined CSS from `docs/mocks/mock-styling.css` into the production stylesheet under `report/assets`.
-   - Confirm that suite overview cards stack vertically and that visual diff previews use the `.visual-previews` grid.
+## Phase 2 · Template Migration
+- Rebuild the summary tab in `utils/report-templates.js` so suite cards render vertically with the new copy, gating totals, and delta text.
+- Port individual spec panels to the schema-driven structure shown in the mock, including consistent wording for “Gating WCAG violations”.
+- Surface visual regression deltas, previews, and notes exactly where the mock displays them (including `font-weight: 600` for inline deltas).
+- Confirm the radio navigation + panel switching behaviour still works once templates are swapped.
 
-3. **Schema payload consistency**
-   - Verify every spec populates `gating`, `warnings`, `advisories`, `notes`, and artifact metadata exactly as the mock assumes.
-   - Add unit tests around `attachSchemaSummary` helpers to catch missing fields (e.g., ensure visual artifacts include baseline/current/diff names).
+## Phase 3 · Styling Integration
+- Move CSS from `docs/mocks/mock-styling.css` into the production stylesheet under `report/assets` (or equivalent bundler entry).
+- Remove any older palettes (dark blues, warn backgrounds) so fail/pass/neutral hues match the mock across suites.
+- Verify typography updates: Inter as the base font, headings and titles limited to `font-weight: 500`.
+- Reduce padding/radius for spec containers as shown in the mock and ensure summary-page backgrounds change with pass/fail state.
 
-4. **Summary tab wiring**
-   - Update the summary card metrics and suite roll-ups to pull data from the new payloads (gating counts, advisories, total diffs).
-   - Confirm the radio navigation + panel switching still works once the layout is swapped in.
+## Phase 4 · Interaction & Accessibility Pass
+- Re-check keyboard focus, tab order, and ARIA labelling for the new stacked layout and accordions.
+- Ensure visual diff previews are accessible (alt text, focusable controls for toggling/magnifying).
+- Confirm that “notes” cells read clearly with example production content, not placeholder authoring copy.
 
-5. **QA checklist**
-   - Run `node run-tests.js --site=<example>` and compare `reports/run-*/report.html` with `docs/mocks/full-run-report.html`.
-   - Test across desktop/mobile to ensure stacked suites and accordion controls behave correctly.
-   - Capture before/after screenshots for all spec panels and attach to the PR.
+## Phase 5 · QA & Verification
+- Run `node run-tests.js --site=<example>` for representative sites; capture `reports/run-*/data/run.json` for payload verification.
+- Compare generated HTML against the mock using diff tooling and spot-check responsive breakpoints.
+- Take full-page screenshots of each suite tab (desktop + mobile widths) and attach them to the implementation PR.
+- Log any discrepancies in the tracking board; do not merge until the live report visually matches the mock.
 
-Track progress in the main reporting board and close this roadmap once the live report matches the approved mock.
+Track progress in the reporting board and close this roadmap when production reports render identically to `docs/mocks/full-run-report.html`.

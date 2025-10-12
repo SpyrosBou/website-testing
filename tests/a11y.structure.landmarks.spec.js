@@ -92,6 +92,7 @@ test.describe('Accessibility: Structural landmarks', () => {
       const report = {
         page: pagePath,
         gating: [],
+        warnings: [],
         advisories: [],
         headingLevels: [],
         headingSkips: [],
@@ -100,6 +101,7 @@ test.describe('Accessibility: Structural landmarks', () => {
         navigationCount: 0,
         headerCount: 0,
         footerCount: 0,
+        notes: [],
       };
       reports.push(report);
 
@@ -154,6 +156,10 @@ test.describe('Accessibility: Structural landmarks', () => {
             `Heading levels skip levels on this page (${structure.headingSkips.length} occurrence(s)).`
           );
         }
+
+        report.notes.push(
+          `Heading outline captured ${structure.headings.length} nodes with ${structure.headingSkips.length} level skip(s).`
+        );
       });
     }
 
@@ -181,19 +187,21 @@ test.describe('Accessibility: Structural landmarks', () => {
     });
     runPayload.details = {
       pages: reports.map((report) => ({
-        page: report.page,
-        h1Count: report.h1Count,
-        hasMainLandmark: report.hasMain,
-        navigationLandmarks: report.navigationCount,
-        headerLandmarks: report.headerCount,
-        footerLandmarks: report.footerCount,
-        headingSkips: report.headingSkips,
-        gating: report.gating,
-        advisories: report.advisories,
-        headingOutline: report.headingLevels,
-      })),
-      wcagReferences: STRUCTURE_WCAG_REFERENCES,
-    };
+      page: report.page,
+      h1Count: report.h1Count,
+      hasMainLandmark: report.hasMain,
+      navigationLandmarks: report.navigationCount,
+      headerLandmarks: report.headerCount,
+      footerLandmarks: report.footerCount,
+      headingSkips: report.headingSkips,
+      gating: report.gating,
+      warnings: report.warnings,
+      advisories: report.advisories,
+      headingOutline: report.headingLevels,
+      notes: report.notes,
+    })),
+    wcagReferences: STRUCTURE_WCAG_REFERENCES,
+  };
     await attachSchemaSummary(testInfo, runPayload);
 
     for (const report of reports) {
@@ -210,8 +218,11 @@ test.describe('Accessibility: Structural landmarks', () => {
           footerLandmarks: report.footerCount,
           headingSkips: report.headingSkips,
           gatingIssues: report.gating,
+          gating: report.gating,
+          warnings: report.warnings,
           advisories: report.advisories,
           headingOutline: report.headingLevels,
+          notes: report.notes,
         },
         metadata: {
           spec: 'a11y.structure.landmarks',

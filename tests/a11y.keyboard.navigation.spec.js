@@ -273,8 +273,10 @@ test.describe('Accessibility: Keyboard navigation', () => {
           visitedCount: 0,
           skipLink: null,
           gating: [],
+          warnings: [],
           advisories: [],
           sequence: [],
+          notes: [],
         };
         reports.push(report);
 
@@ -379,6 +381,15 @@ test.describe('Accessibility: Keyboard navigation', () => {
           await page.keyboard.press('Tab');
           await page.waitForTimeout(50);
         }
+
+        report.notes.push(
+          `Traversed ${report.visitedCount} of ${report.focusableCount} focusable elements in tab sequence.`
+        );
+        if (report.skipLink && (report.skipLink.text || report.skipLink.href)) {
+          report.notes.push(
+            `Skip link detected (${report.skipLink.text || report.skipLink.href}) targeting ${report.skipLink.href}.`
+          );
+        }
       });
     }
 
@@ -402,18 +413,20 @@ test.describe('Accessibility: Keyboard navigation', () => {
         scope: 'project',
       },
     });
-    runPayload.details = {
-      pages: reports.map((report) => ({
-        page: report.page,
-        focusableCount: report.focusableCount,
-        visitedCount: report.visitedCount,
-        skipLink: report.skipLink,
-        gating: report.gating,
-        advisories: report.advisories,
-        focusSequence: report.sequence,
-      })),
-      wcagReferences: KEYBOARD_WCAG_REFERENCES,
-    };
+  runPayload.details = {
+    pages: reports.map((report) => ({
+      page: report.page,
+      focusableCount: report.focusableCount,
+      visitedCount: report.visitedCount,
+      skipLink: report.skipLink,
+      gating: report.gating,
+      warnings: report.warnings,
+      advisories: report.advisories,
+      focusSequence: report.sequence,
+      notes: report.notes,
+    })),
+    wcagReferences: KEYBOARD_WCAG_REFERENCES,
+  };
     await attachSchemaSummary(testInfo, runPayload);
 
     for (const report of reports) {
@@ -424,11 +437,14 @@ test.describe('Accessibility: Keyboard navigation', () => {
         viewport: 'keyboard',
         summary: {
           gatingIssues: report.gating,
+          gating: report.gating,
+          warnings: report.warnings,
           advisories: report.advisories,
           focusableCount: report.focusableCount,
           visitedCount: report.visitedCount,
           skipLink: report.skipLink,
           focusSequence: report.sequence,
+          notes: report.notes,
         },
         metadata: {
           spec: 'a11y.keyboard.navigation',
