@@ -121,6 +121,395 @@ const renderRuleSnapshotsTable = (snapshots) => {
   `;
 };
 
+const SUITE_GROUP_DEFINITIONS = [
+  {
+    id: 'accessibility',
+    label: 'Accessibility',
+    heading: 'WCAG & manual audits',
+    summaryTypes: [
+      'wcag',
+      'forms',
+      'keyboard',
+      'reduced-motion',
+      'reflow',
+      'iframe-metadata',
+      'structure',
+    ],
+  },
+  {
+    id: 'functionality',
+    label: 'Functionality',
+    heading: 'Console, links, and service health',
+    summaryTypes: ['interactive', 'internal-links', 'availability', 'http', 'performance'],
+  },
+  {
+    id: 'responsive',
+    label: 'Responsive',
+    heading: 'Breakpoint and WordPress coverage',
+    summaryTypes: ['responsive-structure', 'wp-features'],
+  },
+  {
+    id: 'visual',
+    label: 'Visual',
+    heading: 'Screenshot comparisons',
+    summaryTypes: ['visual'],
+  },
+];
+
+const getNumericValue = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  return 0;
+};
+
+const sumOverviewKeys = (entries, keys) =>
+  entries.reduce((total, entry) => {
+    if (!entry || typeof entry.overview !== 'object') return total;
+    keys.forEach((key) => {
+      if (key in entry.overview) {
+        total += getNumericValue(entry.overview[key]);
+      }
+    });
+    return total;
+  }, 0);
+
+const BLOCKING_PRIMARY_KEYS = [
+  'totalGatingFindings',
+  'totalConsoleErrors',
+  'totalResourceErrors',
+  'brokenLinksDetected',
+  'diffs',
+  'budgetBreaches',
+  'budgetExceeded',
+  'errors',
+];
+
+const BLOCKING_FALLBACK_KEYS = [
+  'gatingPages',
+  'pagesWithGatingIssues',
+  'pagesWithErrors',
+  'pagesWithFailedChecks',
+  'pagesWithConsoleErrors',
+  'pagesWithResourceErrors',
+  'diffPages',
+  'pagesWithDiffs',
+];
+
+const pickFirstAvailableKey = (source, keys) => {
+  for (const key of keys) {
+    if (source[key] != null) return key;
+  }
+  return null;
+};
+
+const deriveSuiteMetrics = (entries) => {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return { blocking: 0, warnings: 0, advisories: 0, affectedPages: 0 };
+  }
+
+  let blocking = 0;
+  let warnings = 0;
+  let advisories = 0;
+  let affectedPages = 0;
+
+  entries.forEach((entry) => {
+    const overview = entry?.overview || {};
+    const hasPrimaryBlockingKey = BLOCKING_PRIMARY_KEYS.some((key) => overview[key] != null);
+    if (hasPrimaryBlockingKey) {
+      blocking += sumOverviewKeys([entry], BLOCKING_PRIMARY_KEYS);
+    } else {
+      const fallbackKey = pickFirstAvailableKey(overview, BLOCKING_FALLBACK_KEYS);
+      if (fallbackKey) {
+        blocking += getNumericValue(overview[fallbackKey]);
+      }
+    }
+
+    warnings += sumOverviewKeys(
+      [entry],
+      ['pagesWithWarnings', 'advisoryPages', 'pagesWithAdvisories', 'warnings']
+    );
+
+    advisories += sumOverviewKeys(
+      [entry],
+      ['totalAdvisoryFindings', 'advisories', 'totalBestPracticeFindings']
+    );
+
+    affectedPages += sumOverviewKeys(
+      [entry],
+      ['gatingPages', 'pagesWithGatingIssues', 'pagesWithErrors', 'diffPages', 'pagesWithDiffs']
+    );
+  });
+
+  return { blocking, warnings, advisories, affectedPages };
+};
+
+const collectRunSummariesByType = (records = []) => {
+  const map = new Map();
+  records.forEach((record) => {
+    (record?.summaries || []).forEach((summary) => {
+      if (!summary || summary.kind !== KIND_RUN_SUMMARY) return;
+      const summaryType = summary.metadata?.summaryType;
+      if (!summaryType) return;
+      const scope = summary.metadata?.scope;
+      const existing = map.get(summaryType);
+      if (!existing) {
+        map.set(summaryType, summary);
+        return;
+      }
+      if (existing.metadata?.scope !== 'run' && scope === 'run') {
+        map.set(summaryType, summary);
+      }
+    });
+  });
+  return map;
+};
+
+const formatNumber = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value.toLocaleString();
+  return value;
+};
+
+const pluralise = (value, singular, plural) => {
+  const count = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(count)) return singular;
+  return count === 1 ? singular : plural;
+};
+
+const formatList = (values, emptyFallback = null) => {
+  if (!Array.isArray(values) || values.length === 0) return emptyFallback;
+  return values.join(', ');
+};
+
+const resolvePagesTested = (summaryMap) => {
+  const preferredOrder = [
+    { type: 'wcag', keys: ['totalPages', 'totalPagesAudited'] },
+    { type: 'responsive-structure', keys: ['totalPages'] },
+    { type: 'visual', keys: ['totalPages'] },
+    { type: 'internal-links', keys: ['totalPages'] },
+  ];
+
+  for (const { type, keys } of preferredOrder) {
+    const summary = summaryMap.get(type);
+    if (!summary) continue;
+    for (const key of keys) {
+      const value = summary?.overview ? summary.overview[key] : null;
+      const numeric = getNumericValue(value);
+      if (numeric > 0) return numeric;
+    }
+  }
+
+  let fallback = 0;
+  summaryMap.forEach((summary) => {
+    const overview = summary?.overview || {};
+    ['totalPages', 'totalPagesAudited', 'pagesSampled'].forEach((key) => {
+      const numeric = getNumericValue(overview[key]);
+      if (numeric > fallback) fallback = numeric;
+    });
+  });
+
+  return fallback || null;
+};
+
+const buildSuiteCards = (summaryMap) =>
+  SUITE_GROUP_DEFINITIONS.map((group) => {
+    const entries = group.summaryTypes
+      .map((type) => summaryMap.get(type))
+      .filter((entry) => Boolean(entry));
+
+    if (entries.length === 0) return null;
+
+    const metrics = deriveSuiteMetrics(entries);
+    const specIds = new Set();
+    entries.forEach((entry) => {
+      const specId = entry.metadata?.spec;
+      if (specId) {
+        specIds.add(`${specId}.spec.js`);
+      }
+    });
+
+    const specsText = specIds.size ? Array.from(specIds).join(', ') : 'Not captured';
+    const hasBlocking = metrics.blocking > 0;
+    const hasWarnings = metrics.warnings > 0 || metrics.advisories > 0;
+    const statusClass = hasBlocking ? 'status-fail' : hasWarnings ? 'status-info' : 'status-pass';
+    const blockingText = hasBlocking
+      ? `${formatNumber(metrics.blocking)} blocking ${pluralise(metrics.blocking, 'finding', 'findings')}`
+      : 'None';
+    const warningsTotal = metrics.warnings + metrics.advisories;
+    const warningsText = warningsTotal
+      ? `${formatNumber(warningsTotal)} ${pluralise(warningsTotal, 'warning', 'warnings')}`
+      : 'None';
+    const summaryText = hasBlocking
+      ? 'Blocking issues detected. Open this suite tab for the affected pages and fixes.'
+      : hasWarnings
+        ? 'No blockers, but warnings were logged for follow-up.'
+        : 'No blocking issues detected in this suite.';
+
+    return {
+      id: group.id,
+      label: group.label,
+      heading: group.heading,
+      statusClass,
+      specsText,
+      blockingText,
+      warningsText,
+      summaryText,
+    };
+  }).filter(Boolean);
+
+const renderSuiteCardsSection = (suiteCards) => {
+  if (!Array.isArray(suiteCards) || suiteCards.length === 0) return '';
+
+  const cardsHtml = suiteCards
+    .map(
+      (card) => `
+        <article class="suite-card ${escapeHtml(card.statusClass)}">
+          <header>
+            <p class="spec-label">${escapeHtml(card.label)}</p>
+            <h4>${escapeHtml(card.heading)}</h4>
+          </header>
+          <ul class="suite-metrics">
+            <li><strong>Specs:</strong> ${escapeHtml(card.specsText)}</li>
+            <li><strong>Blocking findings:</strong> ${escapeHtml(card.blockingText)}</li>
+            <li><strong>Warnings:</strong> ${escapeHtml(card.warningsText)}</li>
+          </ul>
+          <p class="suite-status">${escapeHtml(card.summaryText)}</p>
+        </article>
+      `
+    )
+    .join('\n');
+
+  return `
+    <section class="suite-overview" aria-label="Suites at a glance">
+      <h3>Suites at a glance</h3>
+      <div class="suite-grid">
+        ${cardsHtml}
+      </div>
+    </section>
+  `;
+};
+
+const renderSummaryHeroMeta = (run) => {
+  const items = [];
+  if (run?.site?.baseUrl || run?.site?.name) {
+    items.push({
+      label: 'Site',
+      value: run.site.baseUrl || run.site.name,
+    });
+  }
+  if (run?.runId) {
+    items.push({ label: 'Run ID', value: run.runId });
+  }
+  if (run?.durationFriendly) {
+    items.push({ label: 'Duration', value: run.durationFriendly });
+  }
+
+  if (items.length === 0) return '';
+
+  const rows = items
+    .map(
+      (item) => `
+        <div>
+          <dt>${escapeHtml(item.label)}</dt>
+          <dd>${escapeHtml(item.value)}</dd>
+        </div>
+      `
+    )
+    .join('\n');
+
+  return `
+    <dl class="summary-hero__meta">
+      ${rows}
+    </dl>
+  `;
+};
+
+const renderSummaryStatCards = (run, summaryMap, suiteCards) => {
+  const pagesTested = resolvePagesTested(summaryMap);
+  const suiteCount = Array.isArray(suiteCards) ? suiteCards.length : 0;
+  const blockingSuiteCount = Array.isArray(suiteCards)
+    ? suiteCards.filter((card) => card.statusClass === 'status-fail').length
+    : 0;
+  const projects = Array.isArray(run?.projects) ? run.projects : [];
+  const totalTests =
+    typeof run?.totalTests === 'number' && Number.isFinite(run.totalTests)
+      ? run.totalTests
+      : typeof run?.totalTestsPlanned === 'number' && Number.isFinite(run.totalTestsPlanned)
+        ? run.totalTestsPlanned
+        : null;
+
+  const stats = [
+    {
+      label: 'Pages scanned',
+      value:
+        pagesTested != null
+          ? `${formatNumber(pagesTested)} ${pluralise(pagesTested, 'page', 'pages')}`
+          : 'Not captured',
+    },
+    {
+      label: 'Suites executed',
+      value: `${formatNumber(suiteCount)} ${pluralise(suiteCount, 'suite', 'suites')}`,
+    },
+    {
+      label: 'Blocking suites',
+      value: blockingSuiteCount ? formatNumber(blockingSuiteCount) : 'None',
+    },
+    {
+      label: 'Browsers included',
+      value: projects.length ? `${projects.length} (${formatList(projects)})` : 'Not captured',
+    },
+    {
+      label: 'Total tests',
+      value: totalTests != null ? formatNumber(totalTests) : 'Not captured',
+    },
+  ];
+
+  const cardsHtml = stats
+    .map(
+      (stat) => `
+        <article class="summary-grid__card">
+          <h2 class="summary-grid__title">
+            <span class="summary-grid__value">${escapeHtml(String(stat.value))}</span>
+            ${escapeHtml(stat.label)}
+          </h2>
+        </article>
+      `
+    )
+    .join('\n');
+
+  return `
+    <section class="summary-grid" aria-label="Run snapshot">
+      ${cardsHtml}
+    </section>
+  `;
+};
+
+const renderSummaryOverview = (run, schemaRecords) => {
+  const summaryMap = collectRunSummariesByType(schemaRecords);
+  if (summaryMap.size === 0 && !run) return '';
+
+  const suiteCards = buildSuiteCards(summaryMap);
+  const heroMeta = renderSummaryHeroMeta(run);
+  const statCards = renderSummaryStatCards(run, summaryMap, suiteCards);
+  const suitesHtml = renderSuiteCardsSection(suiteCards);
+
+  return `
+    <section class="summary-overview">
+      <header class="summary-hero">
+        <div class="summary-hero__info">
+          <span class="summary-hero__label">Summary</span>
+          <h2>Test run overview</h2>
+          <p class="summary-hero__description">
+            Get the quick take on this run before drilling into detailed suite tabs.
+          </p>
+        </div>
+        ${heroMeta}
+      </header>
+      ${statCards}
+      ${suitesHtml}
+    </section>
+  `;
+};
+
 const buildSchemaGroups = (records = []) => {
   const groups = new Map();
   records.forEach((record) => {
@@ -818,9 +1207,8 @@ const renderAvailabilityGroupHtml = (group) => {
 
         const hasMissingStructure = Object.values(elements || {}).some((value) => value === false);
         const hasWarnings = warnings.length > 0;
-        const rowClass = hasMissingStructure || hasWarnings
-          ? 'status-error'
-          : statusClassFromStatus(status);
+        const rowClass =
+          hasMissingStructure || hasWarnings ? 'status-error' : statusClassFromStatus(status);
 
         return `
           <tr class="${rowClass}">
@@ -895,7 +1283,8 @@ const renderHttpGroupHtml = (group) => {
                 .join('')}</ul>
             `
           : '<span class="details">All checks passed</span>';
-        const rowClass = failedChecks.length > 0 ? 'status-error' : statusClassFromStatus(summary.status);
+        const rowClass =
+          failedChecks.length > 0 ? 'status-error' : statusClassFromStatus(summary.status);
         return `
           <tr class="${rowClass}">
             <td><code>${escapeHtml(payload.page || 'unknown')}</code></td>
@@ -1316,7 +1705,9 @@ const renderAvailabilityGroupMarkdown = (group) => {
         (summary.warnings || []).map((message) => `⚠️ ${message}`).join('<br />') || 'None';
       const info = (summary.info || []).map((message) => `ℹ️ ${message}`).join('<br />') || 'None';
       const statusLabel = summary.status == null ? 'n/a' : summary.status;
-      const hasStructureGap = Object.values(summary.elements || {}).some((value) => value === false);
+      const hasStructureGap = Object.values(summary.elements || {}).some(
+        (value) => value === false
+      );
       const severity = hasStructureGap || (summary.warnings || []).length ? '⚠️' : '✅';
       return `| \`${payload.page || 'unknown'}\` | ${severity} ${statusLabel} | ${warnings} | ${info} |`;
     });
@@ -1463,10 +1854,16 @@ const renderResponsiveStructureGroupMarkdown = (group) => {
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
     const pages = Array.isArray(runPayload?.details?.pages) ? runPayload.details.pages : [];
-    const heading = `${group.title || 'Responsive structure summary'} – ${bucket.projectName || runPayload?.metadata?.projectName || 'default'}`;
+
+    const heading = [
+      group.title || 'Responsive structure summary',
+      bucket.projectName || runPayload?.metadata?.projectName || 'default',
+    ].join(' – ');
+
     const overview = runPayload?.overview ? renderSchemaMetricsMarkdown(runPayload.overview) : '';
 
-    const header = '| Page | Load (ms) | Threshold | Header | Navigation | Content | Footer | Issues |';
+    const header =
+      '| Page | Load (ms) | Threshold | Header | Navigation | Content | Footer | Issues |';
     const separator = '| --- | --- | --- | --- | --- | --- | --- | --- |';
     const rows = pages.map((page) => {
       const issues = [...(page.gatingIssues || []), ...(page.warnings || [])];
@@ -1710,52 +2107,6 @@ const renderStatusFilters = (statusCounts) => {
         <input id="report-search" type="search" placeholder="Filter by test name, project, tags, or text" />
       </div>
     </div>
-  `;
-};
-
-const renderSummaryCards = (run) => {
-  const counts = run.statusCounts || {};
-  const cards = [
-    {
-      label: 'Total Tests',
-      value: run.totalTests ?? counts.total ?? 0,
-      tone: 'total',
-    },
-    {
-      label: 'Passed',
-      value: counts.passed || 0,
-      tone: 'passed',
-    },
-    {
-      label: 'Failed',
-      value: counts.failed || 0,
-      tone: (counts.failed || 0) > 0 ? 'failed' : 'muted',
-    },
-    {
-      label: 'Skipped',
-      value: counts.skipped || 0,
-      tone: 'skipped',
-    },
-    {
-      label: 'Flaky',
-      value: counts.flaky || 0,
-      tone: (counts.flaky || 0) > 0 ? 'flaky' : 'muted',
-    },
-  ];
-
-  return `
-    <section class="summary-cards" aria-label="Run summary">
-      ${cards
-        .map(
-          (card) => `
-            <article class="summary-card tone-${card.tone}">
-              <div class="summary-card__label">${escapeHtml(card.label)}</div>
-              <div class="summary-card__value">${escapeHtml(card.value)}</div>
-            </article>
-          `
-        )
-        .join('\n')}
-    </section>
   `;
 };
 
@@ -3473,35 +3824,192 @@ main {
   padding: 2rem;
 }
 
-.summary-cards {
+.summary-overview {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 2rem;
+  margin-bottom: 3rem;
 }
 
-.summary-card {
+.summary-hero {
+  background: #eef2ff;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 18px;
+  padding: 1.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-start;
+  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.12);
+}
+
+.summary-hero__info {
+  flex: 1 1 280px;
+}
+
+.summary-hero__label {
+  display: inline-block;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563eb;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.summary-hero__info h2 {
+  margin: 0;
+  font-size: 1.9rem;
+  color: #1f2937;
+}
+
+.summary-hero__description {
+  margin: 0.75rem 0 0;
+  color: #475467;
+  max-width: 38ch;
+  font-size: 1rem;
+}
+
+.summary-hero__meta {
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+  min-width: 220px;
+  flex: 0 1 240px;
+}
+
+.summary-hero__meta div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.summary-hero__meta dt {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.summary-hero__meta dd {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.summary-grid__card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 1rem;
+  padding: 1.25rem;
   box-shadow: var(--shadow-sm);
 }
 
-.summary-card__label {
+.summary-grid__title {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.summary-grid__value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.suite-overview {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.suite-overview h3 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--text-primary);
+}
+
+.suite-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.suite-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 100%;
+}
+
+.suite-card header {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.suite-card .spec-label {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.suite-card h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.suite-card.status-fail {
+  border-color: #f3b5b3;
+  box-shadow: 0 18px 32px rgba(220, 38, 38, 0.18);
+}
+
+.suite-card.status-pass {
+  border-color: #cce4cc;
+  box-shadow: 0 18px 32px rgba(16, 185, 129, 0.15);
+}
+
+.suite-card.status-info {
+  border-color: #f7d070;
+  box-shadow: 0 18px 32px rgba(249, 115, 22, 0.15);
+}
+
+.suite-metrics {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
   font-size: 0.9rem;
   color: var(--text-muted);
 }
 
-.summary-card__value {
-  font-size: 1.8rem;
-  font-weight: 700;
-  margin-top: 0.35rem;
+.suite-metrics strong {
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.summary-card.tone-passed { border-color: #86efac; }
-.summary-card.tone-failed { border-color: #fca5a5; }
-.summary-card.tone-flaky { border-color: #fde68a; }
+.suite-status {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #344054;
+}
+
 
 .run-metadata {
   background: var(--bg-card);
@@ -4262,11 +4770,11 @@ function renderReportHtml(run) {
   `;
   const schemaHtml = schemaRender.html || '';
   const metadataHtml = renderMetadata(run);
-  const summaryCardsHtml = renderSummaryCards(run);
+  const summaryOverviewHtml = renderSummaryOverview(run, run.schemaSummaries || []);
   const runSummariesHtml = renderRunSummaries(filteredRunSummaries);
   const mainSections = [
+    summaryOverviewHtml,
     metadataHtml,
-    summaryCardsHtml,
     schemaHtml,
     runSummariesHtml,
     layoutHtml,
