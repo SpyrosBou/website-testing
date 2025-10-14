@@ -227,6 +227,122 @@ const SUITE_GROUP_DEFINITIONS = [
   },
 ];
 
+const SUITE_PANEL_DEFINITIONS = [
+  {
+    id: 'accessibility-wcag',
+    summaryType: 'wcag',
+    navGroup: 'Accessibility',
+    navLabel: 'WCAG audit',
+    specLabel: 'Accessibility',
+    title: 'WCAG Findings',
+    description:
+      'Runs axe-core plus custom WCAG checks across the manifest to surface gating violations and advisory findings.',
+  },
+  {
+    id: 'accessibility-forms',
+    summaryType: 'forms',
+    navGroup: 'Accessibility',
+    navLabel: 'Forms validation',
+    specLabel: 'Accessibility',
+    title: 'Forms Validation Findings',
+    description:
+      'Evaluates configured forms for labelling, error messaging, and accessible validation responses.',
+  },
+  {
+    id: 'accessibility-keyboard',
+    summaryType: 'keyboard',
+    navGroup: 'Accessibility',
+    navLabel: 'Keyboard navigation',
+    specLabel: 'Accessibility',
+    title: 'Keyboard Navigation Findings',
+    description:
+      'Walks focus through key flows to confirm visible focus states, skip links, and navigable control ordering.',
+  },
+  {
+    id: 'accessibility-structure',
+    summaryType: 'structure',
+    navGroup: 'Accessibility',
+    navLabel: 'Structural semantics',
+    specLabel: 'Accessibility',
+    title: 'Structural Semantics Findings',
+    description:
+      'Audits headings and ARIA landmarks to ensure pages expose consistent document outlines and main regions.',
+  },
+  {
+    id: 'functionality-links',
+    summaryType: 'internal-links',
+    navGroup: 'Functionality',
+    navLabel: 'Internal link integrity',
+    specLabel: 'Functionality',
+    title: 'Internal Link Integrity',
+    description:
+      'Checks sampled internal links for HTTP errors or unexpected redirects so navigation remains intact.',
+  },
+  {
+    id: 'functionality-interactive',
+    summaryType: 'interactive',
+    navGroup: 'Functionality',
+    navLabel: 'Console & API stability',
+    specLabel: 'Functionality',
+    title: 'Console & API Stability',
+    description:
+      'Monitors console and network failures during lightweight interactions to catch regression crashes early.',
+  },
+  {
+    id: 'functionality-availability',
+    summaryType: 'availability',
+    navGroup: 'Functionality',
+    navLabel: 'Service endpoint health',
+    specLabel: 'Functionality',
+    title: 'Service Endpoint Health',
+    description:
+      'Verifies uptime checks, HTTP status expectations, and core service availability for the sampled pages.',
+  },
+  {
+    id: 'responsive-layout',
+    summaryType: 'responsive-structure',
+    navGroup: 'Responsive',
+    navLabel: 'Responsive breakpoint coverage',
+    specLabel: 'Responsive',
+    title: 'Responsive Breakpoint Coverage',
+    description:
+      'Captures layout structure across viewports, flagging missing navigation, headers, or content sections.',
+  },
+  {
+    id: 'visual-regression',
+    summaryType: 'visual',
+    navGroup: 'Visual',
+    navLabel: 'Visual regression',
+    specLabel: 'Visual',
+    title: 'Visual Regression Findings',
+    description:
+      'Highlights screenshot diffs, thresholds, and artifact previews for pages with detected pixel deltas.',
+  },
+];
+
+const PANEL_STATUS_META = {
+  fail: {
+    label: 'Fail',
+    specClass: 'spec-status--fail',
+    navClass: 'status-fail',
+  },
+  warn: {
+    label: 'Review',
+    specClass: 'spec-status--warn',
+    navClass: 'status-info',
+  },
+  pass: {
+    label: 'Pass',
+    specClass: 'spec-status--pass',
+    navClass: 'status-pass',
+  },
+  info: {
+    label: 'Overview',
+    specClass: 'spec-status--info',
+    navClass: 'status-info',
+  },
+};
+
 const getNumericValue = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'boolean') return value ? 1 : 0;
@@ -2254,6 +2370,168 @@ const renderRunSummaries = (summaries) => {
   `;
 };
 
+const buildSuitePanels = (schemaGroups, summaryMap) => {
+  const groupsByType = new Map();
+  schemaGroups.forEach((group) => {
+    const type = summaryTypeFromGroup(group);
+    if (!type) return;
+    if (!groupsByType.has(type)) groupsByType.set(type, []);
+    groupsByType.get(type).push(group);
+  });
+
+  const baseNamesUsed = new Set();
+  const panels = [];
+
+  for (const definition of SUITE_PANEL_DEFINITIONS) {
+    const groups = groupsByType.get(definition.summaryType);
+    if (!groups || groups.length === 0) continue;
+
+    const groupHtml = groups
+      .map((group) => {
+        if (group?.baseName) baseNamesUsed.add(group.baseName);
+        return renderSchemaGroup(group);
+      })
+      .join('\n');
+
+    if (!groupHtml.trim()) continue;
+
+    const summaryPayload = summaryMap.get(definition.summaryType);
+    const metrics = summaryPayload ? deriveSuiteMetrics([summaryPayload]) : null;
+    const status = panelStatusFromMetrics(metrics);
+    const statusMeta = PANEL_STATUS_META[status] || PANEL_STATUS_META.info;
+
+    panels.push({
+      id: definition.id,
+      navGroup: definition.navGroup,
+      label: definition.navLabel,
+      specLabel: definition.specLabel,
+      title: definition.title,
+      description: definition.description,
+      status,
+      statusMeta,
+      content: `
+        <header class="panel-header">
+          <div class="panel-info">
+            <span class="spec-label">${escapeHtml(definition.specLabel)}</span>
+            <h2>${escapeHtml(definition.title)}</h2>
+            ${
+              definition.description
+                ? `<p class="panel-description">${escapeHtml(definition.description)}</p>`
+                : ''
+            }
+          </div>
+          <span class="spec-status ${statusMeta.specClass}">${escapeHtml(statusMeta.label)}</span>
+        </header>
+        <div class="panel-body">
+          ${groupHtml}
+        </div>
+      `,
+    });
+  }
+
+  return { panels, baseNamesUsed };
+};
+
+const buildPanelToggleStyles = (panels) =>
+  panels
+    .map(
+      (panel) => `
+#view-${panel.id}:checked ~ .report-shell .report-content [data-view="view-${panel.id}"] {
+  display: block;
+}
+#view-${panel.id}:checked ~ .report-shell .sidebar label[for="view-${panel.id}"] {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.12);
+  box-shadow: 0 14px 30px rgba(59, 130, 246, 0.18);
+}
+`
+    )
+    .join('\n');
+
+const renderSidebar = (panels, run, summaryMap) => {
+  const siteName = (() => {
+    if (run?.site?.name) return run.site.name;
+    if (run?.site?.baseUrl) return run.site.baseUrl;
+    if (run?.title) return run.title;
+    return 'Playwright Test Run';
+  })();
+
+  let siteHost = null;
+  if (run?.site?.baseUrl) {
+    try {
+      const parsed = new URL(run.site.baseUrl);
+      siteHost = parsed.host || parsed.hostname || null;
+    } catch (_) {
+      siteHost = run.site.baseUrl;
+    }
+  }
+
+  const pagesTested = resolvePagesTested(summaryMap);
+
+  const metadataItems = [
+    run?.runId ? { label: 'Run ID', value: run.runId } : null,
+    run?.durationFriendly ? { label: 'Duration', value: run.durationFriendly } : null,
+    pagesTested != null ? { label: 'Pages tested', value: formatCount(pagesTested) } : null,
+  ].filter(Boolean);
+
+  const metadataHtml = metadataItems
+    .map(
+      (item) => `
+        <div>
+          <dt>${escapeHtml(item.label)}</dt>
+          <dd>${escapeHtml(item.value)}</dd>
+        </div>
+      `
+    )
+    .join('\n');
+
+  const groups = new Map();
+  const order = [];
+  panels.forEach((panel) => {
+    const key = panel.navGroup || '__summary__';
+    if (!groups.has(key)) {
+      groups.set(key, []);
+      order.push(key);
+    }
+    groups.get(key).push(panel);
+  });
+
+  const navSections = order
+    .map((key) => {
+      const entries = groups.get(key);
+      const heading = key === '__summary__' ? '' : `<p class="group-title">${escapeHtml(key)}</p>`;
+      const items = entries
+        .map((panel) => {
+          const statusMeta =
+            panel.statusMeta || PANEL_STATUS_META[panel.status] || PANEL_STATUS_META.info;
+          return `
+            <label class="nav-item ${statusMeta.navClass}" for="view-${panel.id}">
+              <span class="nav-item__header">
+                <span class="nav-name">${escapeHtml(panel.label)}</span>
+                <span class="nav-status">${escapeHtml(statusMeta.label)}</span>
+              </span>
+            </label>
+          `;
+        })
+        .join('\n');
+      return `<div class="sidebar-group">${heading}${items}</div>`;
+    })
+    .join('\n');
+
+  return `
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>${escapeHtml(siteName)}</h1>
+        ${siteHost ? `<p class="sidebar-subtitle">${escapeHtml(siteHost)}</p>` : ''}
+        ${metadataHtml ? `<dl class="metadata">${metadataHtml}</dl>` : ''}
+      </div>
+      <nav class="sidebar-nav">
+        ${navSections}
+      </nav>
+    </aside>
+  `;
+};
+
 const renderFormsPageCard = (summary) => {
   if (!summary) return '';
   const gating = summary.gatingIssues || [];
@@ -3343,77 +3621,11 @@ const renderSchemaGroup = (group) => {
   return renderSchemaGroupFallbackHtml(group);
 };
 
-const renderSchemaSummaries = (records = []) => {
-  if (!Array.isArray(records) || records.length === 0) {
-    return { html: '', promotedBaseNames: new Set() };
-  }
-
-  let groups = buildSchemaGroups(records)
-    .map((group) => {
-      const runEntries = (group.runEntries || []).filter(
-        (entry) => entry.payload?.kind === KIND_RUN_SUMMARY
-      );
-      if (runEntries.length === 0) return null;
-      return {
-        ...group,
-        runEntries,
-        pageEntries: [],
-      };
-    })
-    .filter(Boolean);
-
-  if (groups.length > 1) {
-    const isWcagGroup = (group) =>
-      group.runEntries?.some((entry) => entry.payload?.metadata?.summaryType === 'wcag');
-    const isRunScope = (group) =>
-      group.runEntries?.every((entry) => entry.payload?.metadata?.scope === 'run');
-    const isProjectScope = (group) =>
-      group.runEntries?.some((entry) => entry.payload?.metadata?.scope === 'project');
-
-    const wcagGroups = groups.filter(isWcagGroup);
-    if (wcagGroups.length > 1) {
-      const projectScoped = wcagGroups.filter(isProjectScope);
-      const runScoped = wcagGroups.filter(isRunScope);
-
-      if (projectScoped.length === 1 && runScoped.length > 0) {
-        const projectNames = new Set();
-        projectScoped.forEach((group) => {
-          group.runEntries.forEach((entry) => {
-            const meta = entry.payload?.metadata || {};
-            const name = meta.projectName || entry.projectName;
-            if (name) projectNames.add(name);
-          });
-        });
-
-        if (projectNames.size <= 1) {
-          groups = groups.filter((group) => !(isWcagGroup(group) && isRunScope(group)));
-        }
-      }
-    }
-  }
-
-  if (groups.length === 0) {
-    return { html: '', promotedBaseNames: new Set() };
-  }
-
-  const promotedBaseNames = new Set();
-  const content = groups
-    .map((group) => {
-      if ((group.runEntries || []).length > 0) {
-        promotedBaseNames.add(group.baseName);
-      }
-      return renderSchemaGroup(group);
-    })
-    .filter(Boolean)
-    .join('\n');
-
-  const html = `
-    <section class="summary-report" aria-label="Suite summaries">
-      ${content}
-    </section>
-  `;
-
-  return { html, promotedBaseNames };
+const panelStatusFromMetrics = (metrics) => {
+  if (!metrics) return 'info';
+  if ((metrics.blocking || 0) > 0) return 'fail';
+  if ((metrics.warnings || 0) + (metrics.advisories || 0) > 0) return 'warn';
+  return 'pass';
 };
 
 const summariseStatuses = (tests) =>
@@ -3837,26 +4049,265 @@ const renderTestCard = (test, options = {}) => {
 const baseStyles = `
 :root {
   color-scheme: light;
-  --bg-body: #f5f7fb;
+  --bg-page: #eef2ff;
+  --bg-body: var(--bg-page);
   --bg-card: #ffffff;
   --border-color: #d0d7de;
-  --text-primary: #1d2939;
+  --text-primary: #1f2937;
   --text-muted: #475467;
+  --accent: #2563eb;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
-  --radius-md: 12px;
+  --shadow-md: 0 18px 32px rgba(15, 23, 42, 0.12);
+  --radius-sm: 12px;
+  --radius-md: 18px;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: var(--text-primary);
-  background: var(--bg-body);
+  background: var(--bg-page);
 }
 
 a { color: inherit; }
 
+.report-app {
+  min-height: 100vh;
+  padding: 2.5rem clamp(1.25rem, 4vw, 3rem);
+  background: linear-gradient(180deg, #eef2ff 0%, #f9fafb 100%);
+}
+
+.report-shell {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: clamp(1.5rem, 3vw, 3rem);
+  align-items: flex-start;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.sidebar {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-md);
+  padding: 1.75rem 1.5rem 2rem;
+  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 2rem;
+  display: grid;
+  gap: 2rem;
+}
+
+.sidebar-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: var(--accent);
+}
+
+.sidebar-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.sidebar .metadata {
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.sidebar .metadata div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.sidebar .metadata dt {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(71, 84, 103, 0.8);
+  font-weight: 600;
+}
+
+.sidebar .metadata dd {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.sidebar-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.group-title {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(71, 84, 103, 0.75);
+  font-weight: 600;
+}
+
+.nav-item {
+  display: block;
+  padding: 0.75rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.1);
+  background: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.15);
+  transform: translateX(2px);
+}
+
+.nav-item.status-fail {
+  border-left: 4px solid rgba(220, 38, 38, 0.45);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.nav-item.status-pass {
+  border-left: 4px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.nav-item.status-info {
+  border-left: 4px solid rgba(37, 99, 235, 0.35);
+}
+
+.nav-item__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.nav-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.nav-status {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.15);
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.nav-item.status-fail .nav-status {
+  background: rgba(220, 38, 38, 0.18);
+  color: #b91c1c;
+}
+
+.nav-item.status-pass .nav-status {
+  background: rgba(16, 185, 129, 0.18);
+  color: #047857;
+}
+
+.report-content {
+  display: grid;
+  gap: 2rem;
+}
+
+.panel {
+  display: none;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 32px 60px rgba(15, 23, 42, 0.12);
+  padding: 2.25rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.75rem;
+}
+
+.panel-info {
+  max-width: 52ch;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.spec-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(37, 99, 235, 0.95);
+  font-weight: 600;
+}
+
+.panel-info h2 {
+  margin: 0;
+  font-size: 1.95rem;
+}
+
+.panel-description {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.spec-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.spec-status--fail {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.spec-status--warn {
+  background: rgba(234, 179, 8, 0.15);
+  color: #92400e;
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.spec-status--pass {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.spec-status--info {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.24);
+}
+
+.panel-body {
+  margin-top: 1.75rem;
+  display: grid;
+  gap: 1.75rem;
+}
 [data-hidden="true"] {
   display: none !important;
 }
@@ -3903,28 +4354,6 @@ a { color: inherit; }
   background: #fef3c7;
   border-color: #fde68a;
   color: #92400e;
-}
-
-header.report-header {
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 2.5rem 2rem;
-}
-
-header.report-header h1 {
-  margin: 0;
-  font-size: 2rem;
-}
-
-header.report-header p {
-  margin: 0.35rem 0 0;
-  color: #cbd5f5;
-}
-
-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
 }
 
 .summary-overview {
@@ -4262,70 +4691,6 @@ main {
   background: #0f172a;
   color: #e2e8f0;
   overflow-x: auto;
-}
-
-.report-layout {
-  display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
-  gap: 1.75rem;
-  align-items: flex-start;
-  margin-top: 2.5rem;
-}
-
-.report-layout__content {
-  min-width: 0;
-}
-
-.debug-deck {
-  margin-top: 3rem;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
-
-.debug-deck > summary {
-  list-style: none;
-  margin: 0;
-  padding: 0.9rem 1.1rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  background: #0f172a;
-  color: #e2e8f0;
-}
-
-.debug-deck > summary::-webkit-details-marker {
-  display: none;
-}
-
-.debug-deck__body {
-  padding: 1.2rem 1.3rem 1.4rem;
-  background: #f8fafc;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.debug-deck__intro {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.92rem;
-}
-
-.report-layout__sidebar {
-  position: sticky;
-  top: 2rem;
-  align-self: flex-start;
-}
-
-.report-layout__sidebar .test-navigation {
-  max-height: calc(100vh - 2.5rem);
-  overflow: auto;
-  padding-right: 1rem;
 }
 
 .test-navigation {
@@ -4833,23 +5198,17 @@ main {
 }
 
 @media (max-width: 960px) {
-  .report-layout {
+  .report-shell {
     grid-template-columns: 1fr;
   }
-  .report-layout__sidebar {
+  .sidebar {
     position: static;
-  }
-  .report-layout__sidebar .test-navigation {
-    max-height: none;
-  }
-  .debug-deck__body {
-    padding: 1.2rem 1.1rem 1.3rem;
   }
 }
 
 @media (max-width: 720px) {
-  main {
-    padding: 1.5rem;
+  .report-app {
+    padding: 1.75rem clamp(1rem, 5vw, 2rem);
   }
   .test-card__header {
     flex-direction: column;
@@ -4921,48 +5280,87 @@ const filterScript = `
 function renderReportHtml(run) {
   const groupedTests = groupTests(run.tests);
   const navigationHtml = renderTestNavigation(groupedTests);
-  const schemaRender = renderSchemaSummaries(run.schemaSummaries || []);
-  const schemaPromotedBaseNames = schemaRender.promotedBaseNames || new Set();
+  const summaryMap = collectRunSummariesByType(run.schemaSummaries || []);
+  const schemaGroups = buildSchemaGroups(run.schemaSummaries || []);
+  const { panels: suitePanels, baseNamesUsed } = buildSuitePanels(schemaGroups, summaryMap);
   const filteredRunSummaries = (run.runSummaries || []).filter((summary) =>
-    summary?.baseName ? !schemaPromotedBaseNames.has(summary.baseName) : true
+    summary?.baseName ? !baseNamesUsed.has(summary.baseName) : true
   );
-  const runSummaryPromoted = new Set(
-    filteredRunSummaries.map((summary) => summary?.baseName).filter(Boolean)
-  );
-  const promotedSummaryBaseNames = new Set([...schemaPromotedBaseNames, ...runSummaryPromoted]);
+
+  const summaryOverviewHtml = renderSummaryOverview(run, run.schemaSummaries || []);
+  const metadataHtml = renderMetadata(run);
+  const runSummariesHtml = renderRunSummaries(filteredRunSummaries);
+
   const testsHtml = groupedTests
-    .map((group) => renderTestGroup(group, { promotedSummaryBaseNames }))
+    .map((group) => renderTestGroup(group, { promotedSummaryBaseNames: baseNamesUsed }))
     .join('\n');
   const statusFilters = renderStatusFilters(run.statusCounts);
-  const layoutHtml = `
-    <details class="debug-deck">
-      <summary>Debug testing</summary>
-      <div class="debug-deck__body">
-        <p class="debug-deck__intro">Use the navigation below to inspect raw Playwright projects, attachments, and logs.</p>
-        <div class="report-layout">
-          ${navigationHtml ? `<aside class="report-layout__sidebar">${navigationHtml}</aside>` : ''}
-          <div class="report-layout__content">
-            ${statusFilters}
-            <section class="tests-list" aria-label="Test results">
-              ${testsHtml}
-            </section>
-          </div>
+
+  const debugHtml = `
+    <section class="debug-deck">
+      <header class="debug-deck__header">
+        <h2>Debug testing</h2>
+        <p>Use the navigation below to inspect raw Playwright projects, attachments, and logs.</p>
+      </header>
+      <div class="debug-deck__layout">
+        ${navigationHtml ? `<aside class="debug-deck__sidebar">${navigationHtml}</aside>` : ''}
+        <div class="debug-deck__content">
+          ${statusFilters}
+          <section class="tests-list" aria-label="Test results">
+            ${testsHtml}
+          </section>
         </div>
       </div>
-    </details>
+    </section>
   `;
-  const schemaHtml = schemaRender.html || '';
-  const metadataHtml = renderMetadata(run);
-  const summaryOverviewHtml = renderSummaryOverview(run, run.schemaSummaries || []);
-  const runSummariesHtml = renderRunSummaries(filteredRunSummaries);
-  const mainSections = [
-    summaryOverviewHtml,
-    metadataHtml,
-    schemaHtml,
-    runSummariesHtml,
-    layoutHtml,
-  ].filter((section) => Boolean(section && section.trim()));
-  const mainContent = mainSections.join('\n');
+
+  const summarySections = [summaryOverviewHtml, metadataHtml, runSummariesHtml, debugHtml]
+    .filter((section) => Boolean(section && section.trim()))
+    .join('\n');
+
+  const summaryPanel = {
+    id: 'summary',
+    navGroup: null,
+    label: 'Summary',
+    specLabel: 'Summary',
+    title: 'Test run overview',
+    description:
+      'Pulls together pass/fail counts, timing, and standout issues so you can decide where to dig in next.',
+    status: 'info',
+    statusMeta: PANEL_STATUS_META.info,
+    content: `
+      <header class="panel-header">
+        <div class="panel-info">
+          <span class="spec-label">Summary</span>
+          <h2>Test run overview</h2>
+          <p class="panel-description">Pulls together pass/fail counts, timing, and standout issues so you can decide where to dig in next.</p>
+        </div>
+        <span class="spec-status ${PANEL_STATUS_META.info.specClass}">${PANEL_STATUS_META.info.label}</span>
+      </header>
+      <div class="panel-body">
+        ${summarySections}
+      </div>
+    `,
+  };
+
+  const panels = [summaryPanel, ...suitePanels];
+  const toggleStyles = buildPanelToggleStyles(panels);
+  const radioInputs = panels
+    .map(
+      (panel, index) =>
+        `<input type="radio" name="report-view" id="view-${panel.id}" ${index === 0 ? 'checked' : ''} />`
+    )
+    .join('\n');
+  const sidebarHtml = renderSidebar(panels, run, summaryMap);
+  const panelsHtml = panels
+    .map(
+      (panel) => `
+        <section class="panel" data-view="view-${panel.id}">
+          ${panel.content}
+        </section>
+      `
+    )
+    .join('\n');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -4970,17 +5368,20 @@ function renderReportHtml(run) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(run.runId)} – Playwright Test Report</title>
-  <style>${baseStyles}</style>
+  <style>
+${baseStyles}
+${toggleStyles}
+  </style>
   ${SUMMARY_STYLES}
 </head>
-<body>
-  <header class="report-header">
-    <h1>${escapeHtml(run.title || 'Playwright Test Report')}</h1>
-    <p>${escapeHtml(run.runId)} • ${escapeHtml(run.durationFriendly || '')}</p>
-  </header>
-  <main>
-    ${mainContent}
-  </main>
+<body class="report-app">
+  ${radioInputs}
+  <div class="report-shell">
+    ${sidebarHtml}
+    <main class="report-content">
+      ${panelsHtml}
+    </main>
+  </div>
   <script>${filterScript}</script>
 </body>
 </html>`;
