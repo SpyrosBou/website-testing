@@ -121,6 +121,77 @@ const renderRuleSnapshotsTable = (snapshots) => {
   `;
 };
 
+const formatCount = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value.toLocaleString();
+  const parsed = Number(value);
+  if (Number.isFinite(parsed)) return parsed.toLocaleString();
+  return value;
+};
+
+const renderPillList = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return '';
+  const pills = items
+    .filter((item) => item && Number(item.count) > 0)
+    .map(
+      (item) => `
+        <li>
+          <span class="status-pill ${escapeHtml(item.tone || 'status-info')}">${escapeHtml(item.label)}</span>
+          <span>${escapeHtml(formatCount(item.count))} ${escapeHtml(item.suffix || '')}</span>
+        </li>
+      `
+    )
+    .join('');
+  if (!pills) return '';
+  return `<ul class="suite-pill-list">${pills}</ul>`;
+};
+
+const renderAccessibilityRuleTable = (title, rules, { headingClass } = {}) => {
+  if (!Array.isArray(rules) || rules.length === 0) return '';
+  const rows = rules
+    .map((rule) => {
+      const wcagTags =
+        Array.isArray(rule.wcagTags) && rule.wcagTags.length > 0 ? rule.wcagTags : [];
+      const helpLink = rule.helpUrl
+        ? `<a href="${escapeHtml(rule.helpUrl)}" target="_blank" rel="noopener noreferrer">rule docs</a>`
+        : '<span class="details">—</span>';
+      return `
+        <tr class="impact-${escapeHtml((rule.impact || '').toLowerCase())}">
+          <td>${escapeHtml(rule.impact || rule.category || 'info')}</td>
+          <td>${escapeHtml(rule.rule || 'Unnamed rule')}</td>
+          <td>${escapeHtml((rule.viewports || rule.viewportsTested || []).join(', ') || '—')}</td>
+          <td>${escapeHtml(formatCount(rule.pages?.length || rule.pages || 0))}</td>
+          <td>${escapeHtml(formatCount(rule.nodes ?? 0))}</td>
+          <td>
+            ${
+              wcagTags.length
+                ? wcagTags
+                    .map((tag) => `<span class="badge badge-wcag">${escapeHtml(tag)}</span>`)
+                    .join('')
+                : '<span class="details">—</span>'
+            }
+          </td>
+          <td>${helpLink}</td>
+        </tr>
+      `;
+    })
+    .join('');
+  return `
+    <section class="suite-section">
+      <header class="suite-section__header">
+        <h3 class="${headingClass || ''}">${escapeHtml(title)}</h3>
+      </header>
+      <div class="suite-table">
+        <table>
+          <thead>
+            <tr><th>Impact</th><th>Rule</th><th>Viewport(s)</th><th>Pages</th><th>Nodes</th><th>WCAG level</th><th>Help</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+};
+
 const SUITE_GROUP_DEFINITIONS = [
   {
     id: 'accessibility',
@@ -835,67 +906,69 @@ const renderAccessibilityGroupHtml = (group) => {
     const runPayload = firstRunPayload(bucket);
     const details = runPayload.details || {};
     const overview = runPayload.overview || {};
-    const pagesData = details.pages || [];
-    const metrics = [
-      { label: 'Total pages', value: overview.totalPages ?? pagesData.length },
-      {
-        label: 'Pages with gating findings',
-        value:
-          overview.gatingPages ??
-          pagesData.filter((page) => (page.gatingViolations || 0) > 0).length,
-      },
-      {
-        label: 'Pages with advisory findings',
-        value:
-          overview.advisoryPages ??
-          pagesData.filter((page) => (page.advisoryFindings || 0) > 0).length,
-      },
-      {
-        label: 'Pages with best-practice advisories',
-        value:
-          overview.bestPracticePages ??
-          pagesData.filter((page) => (page.bestPracticeFindings || 0) > 0).length,
-      },
-      {
-        label: 'Total gating findings',
-        value:
-          overview.totalGatingFindings ??
-          pagesData.reduce((sum, page) => sum + (page.gatingViolations || 0), 0),
-      },
-      {
-        label: 'Total advisory findings',
-        value:
-          overview.totalAdvisoryFindings ??
-          pagesData.reduce((sum, page) => sum + (page.advisoryFindings || 0), 0),
-      },
-      {
-        label: 'Total best-practice findings',
-        value:
-          overview.totalBestPracticeFindings ??
-          pagesData.reduce((sum, page) => sum + (page.bestPracticeFindings || 0), 0),
-      },
-      {
-        label: 'Viewports tested',
-        value:
-          overview.viewportsTested ??
-          (details.viewports
-            ? details.viewports.length
-            : (runPayload.metadata?.viewports || []).length),
-      },
-    ];
-    const overviewHtml = renderSummaryMetrics(metrics);
-    const failThreshold =
-      details.failThreshold || overview.failThreshold || runPayload.metadata?.failOn;
+    const pages = Array.isArray(details.pages) ? details.pages : [];
+    const metadata = runPayload.metadata || {};
+    const viewports =
+      (Array.isArray(details.viewports) && details.viewports.length
+        ? details.viewports
+        : metadata.viewports || []
+      ).join(', ') ||
+      metadata.projectName ||
+      'default';
+    const totalPages = overview.totalPages ?? pages.length;
+    const gatingPages =
+      overview.gatingPages ?? pages.filter((page) => (page.gatingViolations || 0) > 0).length;
+    const advisoryPages =
+      overview.advisoryPages ?? pages.filter((page) => (page.advisoryFindings || 0) > 0).length;
+    const bestPracticePages =
+      overview.bestPracticePages ??
+      pages.filter((page) => (page.bestPracticeFindings || 0) > 0).length;
+    const scanErrors = pages.filter(
+      (page) => page.status === 'scan-error' || page.status === 'http-error'
+    ).length;
 
-    const snapshots = runPayload.ruleSnapshots || [];
-    const gatingTable = renderRuleSnapshotsTable(
-      snapshots.filter((snapshot) => snapshot.category === 'gating')
-    );
-    const advisoryTable = renderRuleSnapshotsTable(
-      snapshots.filter((snapshot) => snapshot.category === 'advisory')
-    );
-    const bestPracticeTable = renderRuleSnapshotsTable(
-      snapshots.filter((snapshot) => snapshot.category === 'best-practice')
+    const pillList = renderPillList([
+      {
+        label: 'Accessibility violations',
+        tone: 'status-error',
+        count: gatingPages,
+        suffix: 'page(s)',
+      },
+      { label: 'Scan issues', tone: 'status-warning', count: scanErrors, suffix: 'page(s)' },
+      {
+        label: 'Best-practice advisories',
+        tone: 'status-info',
+        count: bestPracticePages,
+        suffix: 'page(s)',
+      },
+    ]);
+
+    const failThreshold = details.failThreshold || overview.failThreshold || metadata.failOn;
+    const totalAdvisories =
+      overview.totalAdvisoryFindings ??
+      pages.reduce((sum, page) => sum + (page.advisoryFindings || 0), 0);
+    const totalBestPractice =
+      overview.totalBestPracticeFindings ??
+      pages.reduce((sum, page) => sum + (page.bestPracticeFindings || 0), 0);
+
+    const summaryParagraph = `
+      <p>Analyzed <strong>${escapeHtml(formatCount(totalPages))}</strong> page(s) across ${escapeHtml(
+        viewports || 'configured viewports'
+      )}.</p>
+    `;
+
+    const advisoryNote =
+      totalBestPractice > 0
+        ? `<p class="suite-note">Best-practice advisories surfaced on ${escapeHtml(
+            formatCount(bestPracticePages)
+          )} page(s) (${escapeHtml(formatCount(totalBestPractice))} total entries).</p>`
+        : '';
+
+    const ruleSnapshots = Array.isArray(runPayload.ruleSnapshots) ? runPayload.ruleSnapshots : [];
+    const gatingRules = ruleSnapshots.filter((snapshot) => snapshot.category === 'gating');
+    const advisoryRules = ruleSnapshots.filter((snapshot) => snapshot.category === 'advisory');
+    const bestPracticeRules = ruleSnapshots.filter(
+      (snapshot) => snapshot.category === 'best-practice'
     );
 
     const perPageEntries = (bucket.pageEntries || []).map((entry) => {
@@ -915,21 +988,51 @@ const renderAccessibilityGroupHtml = (group) => {
     });
 
     return `
-      <section class="summary-report summary-a11y">
-        <h2>Accessibility run summary</h2>
-        ${overviewHtml}
-        ${failThreshold ? `<p class="details">Gating threshold: ${escapeHtml(String(failThreshold))}</p>` : ''}
+      <section class="suite-section suite-section--emphasis">
+        <header class="suite-section__header">
+          <h3>Accessibility run summary</h3>
+        </header>
+        ${summaryParagraph}
+        ${pillList}
+        ${
+          failThreshold
+            ? `<p class="suite-note">Gating threshold: ${escapeHtml(String(failThreshold))}</p>`
+            : ''
+        }
+        ${
+          totalAdvisories > 0
+            ? `<p class="suite-note">WCAG advisories raised on ${escapeHtml(
+                formatCount(advisoryPages)
+              )} page(s).</p>`
+            : ''
+        }
+        ${advisoryNote}
+        <p class="suite-legend">
+          <span class="badge badge-critical">Critical</span>
+          <span class="badge badge-serious">Serious</span>
+          <span class="badge badge-wcag">WCAG A/AA/AAA</span>
+        </p>
       </section>
-      ${gatingTable ? `<section class="summary-report summary-a11y"><h3>Blocking WCAG violations</h3>${gatingTable}</section>` : ''}
-      ${advisoryTable ? `<section class="summary-report summary-a11y"><h3>WCAG advisory findings</h3>${advisoryTable}</section>` : ''}
-      ${bestPracticeTable ? `<section class="summary-report summary-a11y"><h3>Best-practice advisories (no WCAG tag)</h3>${bestPracticeTable}</section>` : ''}
+      ${renderAccessibilityRuleTable(
+        `Gating WCAG violations${gatingRules.length ? ` (${gatingRules.length} unique rules)` : ''}`,
+        gatingRules
+      )}
+      ${renderAccessibilityRuleTable(
+        `WCAG advisory findings${advisoryRules.length ? ` (${advisoryRules.length} unique rules)` : ''}`,
+        advisoryRules
+      )}
+      ${renderAccessibilityRuleTable(
+        `Best-practice advisories${bestPracticeRules.length ? ` (${bestPracticeRules.length} unique rules)` : ''}`,
+        bestPracticeRules,
+        { headingClass: 'suite-heading-best-practice' }
+      )}
       ${accordionHtml}
     `;
   });
 
   const headline = escapeHtml(group.title || 'WCAG findings summary');
   return `
-    <article class="schema-group">
+    <article class="schema-group schema-group--stacked">
       <header><h2>${headline}</h2></header>
       ${sections.join('\n')}
     </article>
@@ -4008,6 +4111,86 @@ main {
   margin: 0;
   font-size: 0.95rem;
   color: #344054;
+}
+
+.suite-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.suite-section--emphasis {
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.suite-section__header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.suite-note {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #475467;
+}
+
+.suite-legend {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.suite-heading-best-practice {
+  color: #0c4a6e;
+}
+
+.suite-table {
+  overflow-x: auto;
+}
+
+.suite-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.suite-table th,
+.suite-table td {
+  border: 1px solid var(--border-color);
+  padding: 0.6rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.suite-table thead th {
+  background: #f1f5f9;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.suite-pill-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.schema-group--stacked {
+  display: grid;
+  gap: 1.5rem;
 }
 
 

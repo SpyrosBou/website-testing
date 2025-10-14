@@ -11,12 +11,16 @@ Whilst working on this repo you can assume we are concerned with the functionali
 
 ## Build, Test, and Development Commands
 
-- `npm run setup` installs dependencies and downloads Playwright browsers.
-- `node run-tests.js --site=<name>` executes the default Chrome desktop suite. Append `--responsive`, `--functionality`, `--accessibility`, or `--visual` to target specific groups.
-- `node run-tests.js --site=<name> tests/a11y.audit.wcag.spec.js` runs an individual spec (respect `A11Y_SAMPLE` for page limits).
-- `npm run clean-reports` keeps the 10 newest `reports/run-*` directories; add `-- --all` (or `-- -a`) when you need to purge everything.
-- `npm run clean-test-results` resets Playwright's `test-results/` artifacts.
-- `npm run read-reports [count]` opens the latest HTML report(s); omit `count` for a single run or leverage `REPORT_BROWSER[_ARGS]` to force a specific app.
+- `npm run setup` installs all dependencies and Playwright browsers; use `npm run install-browsers` if you only need to refresh the browser binaries.
+- `node run-tests.js --site=<name>` executes the default Chrome desktop run. Layer `--responsive`, `--functionality`, `--accessibility`, or `--visual` to target suite families, or pass one or more spec paths/Globs via `--spec` / trailing arguments (for example `node run-tests.js --site=createarts-live --spec tests/a11y.audit.wcag.spec.js`).
+- `--pages <n>` caps the resolved manifest to the first _n_ pages (e.g. `node run-tests.js --site=createarts-live --spec tests/a11y.audit.wcag.spec.js --pages 5`); `A11Y_SAMPLE=<n>` remains available as an environment override for accessibility runs.
+- `--project=<name>` (or comma-separated list) lets you choose Playwright projects; omit for the Chrome desktop default.
+- `npm run read-reports [count]` opens the latest HTML report(s); set `REPORT_BROWSER`/`REPORT_BROWSER_ARGS` to force a specific viewer.
+- `npm run clean-reports` keeps the 10 newest `reports/run-*` directories (append `-- --all` or `-- -a` to purge everything) and `npm run clean-manifests` prunes cached manifest files.
+- `npm run clean-test-results` resets Playwright's `test-results/` folder.
+- `npm run test:unit` runs the Node test suite in `tests/unit/`.
+- `npm run discover_pages` hits sitemap discovery and updates a site config; review the diff before committing.
+- `npm run update-baselines` refreshes visual regression snapshots for `example-site`.
 - Prefer `ddev exec` when interacting with containerized WordPress instances in `/home/warui/sites`.
 
 ## Coding Style & Naming Conventions
@@ -29,6 +33,7 @@ Whilst working on this repo you can assume we are concerned with the functionali
 
 - Tests rely on `@playwright/test` with custom fixtures in `utils/test-fixtures.js` and Axe accessibility helpers.
 - Use `node run-tests.js --list-sites` to discover configs; `--functionality`, `--visual`, `--responsive`, and `--accessibility` let you target specific suites.
+- The runner honours `--pages <n>` to cap page selection from the manifest when you need a quick smoke or partial audit.
 - Update visual baselines with `npx playwright test tests/visual.regression.snapshots.spec.js --update-snapshots` when UI changes are intentional.
 - Accessibility sampling honors `A11Y_SAMPLE` env vars and `a11yResponsiveSampleSize` config entries.
 - Accessibility specs now attach schema-backed run and page summaries via `attachSchemaSummary` with helpers in `utils/reporting-utils.js` / `utils/report-schema.js`; extend those utilities instead of hand-rolled HTML so run-level cards stay consistent.
