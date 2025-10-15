@@ -145,6 +145,150 @@ const renderStatusSummaryList = (items, { className = 'status-summary' } = {}) =
   return `<ul class="${escapeHtml(className)}">${entries}</ul>`;
 };
 
+const formatWcagTagLabel = (tag) => {
+  if (!tag) return null;
+  const lower = String(tag).toLowerCase();
+  if (!lower.includes('wcag')) return null;
+  if (tag.toUpperCase().includes('WCAG') && tag.includes(' ')) return tag.toUpperCase();
+  const levelMatch = lower.match(/^wcag(\d+)(a{1,3})$/);
+  if (levelMatch) {
+    const versionDigits = levelMatch[1];
+    const grade = levelMatch[2].toUpperCase();
+    let version = versionDigits;
+    if (versionDigits.length === 2) {
+      version = `${versionDigits[0]}.${versionDigits[1]}`;
+    }
+    return `WCAG ${version} ${grade}`;
+  }
+  const guidelineMatch = lower.match(/^wcag(\d)(\d)(\d)$/);
+  if (guidelineMatch) {
+    return `WCAG ${guidelineMatch[1]}.${guidelineMatch[2]}.${guidelineMatch[3]}`;
+  }
+  if (lower.startsWith('wcag')) {
+    return lower.replace('wcag', 'WCAG ').toUpperCase();
+  }
+  return String(tag);
+};
+
+const renderWcagTagBadges = (tags) => {
+  if (!Array.isArray(tags) || tags.length === 0) {
+    return '<span class="badge badge-neutral">No WCAG tag</span>';
+  }
+  const labels = Array.from(
+    new Set(
+      tags
+        .map((tag) => formatWcagTagLabel(tag))
+        .filter(Boolean)
+    )
+  );
+  if (labels.length === 0) {
+    return '<span class="badge badge-neutral">No WCAG tag</span>';
+  }
+  return labels
+    .map((label) => {
+      const isNeutral = /^no wcag/i.test(label);
+      const badgeClass = isNeutral ? 'badge badge-neutral' : 'badge badge-wcag';
+      return `<span class="${badgeClass}">${escapeHtml(label)}</span>`;
+    })
+    .join('');
+};
+
+const extractNodeTargets = (nodes, limit = 3) => {
+  if (!Array.isArray(nodes) || nodes.length === 0) return null;
+  const targets = [];
+  nodes.forEach((node) => {
+    if (Array.isArray(node.target) && node.target.length > 0) {
+      node.target.forEach((selector) => {
+        if (selector) targets.push(String(selector));
+      });
+    } else if (typeof node.html === 'string' && node.html.trim()) {
+      targets.push(node.html.trim());
+    }
+  });
+  if (!targets.length) return null;
+  const unique = Array.from(new Set(targets)).slice(0, limit);
+  return unique
+    .map((target) => `<code>${escapeHtml(target)}</code>`)
+    .join('<br />');
+};
+
+const formatMilliseconds = (value) => {
+  if (!Number.isFinite(value)) return null;
+  if (value >= 1000) {
+    const seconds = value / 1000;
+    return seconds % 1 === 0 ? `${seconds.toFixed(0)}s` : `${seconds.toFixed(1)}s`;
+  }
+  return `${Math.round(value)}ms`;
+};
+
+const formatWcagStability = (stability) => {
+  if (!stability || typeof stability !== 'object') return null;
+  const strategy = stability.successfulStrategy || stability.strategy || stability.strategyUsed;
+  const elapsed =
+    Number.isFinite(stability.totalElapsed) && stability.totalElapsed >= 0
+      ? stability.totalElapsed
+      : Number.isFinite(stability.duration) && stability.duration >= 0
+        ? stability.duration
+        : null;
+  if (!strategy && elapsed == null) {
+    return stability.ok === false ? 'Encountered stability issues.' : null;
+  }
+  const pieces = [];
+  if (strategy) {
+    pieces.push(`Reached <code>${escapeHtml(strategy)}</code>`);
+  }
+  if (elapsed != null) {
+    pieces.push(`in ${formatMilliseconds(elapsed)}`);
+  }
+  return `${pieces.join(' ')}.`;
+};
+
+const deriveWcagPageStatus = (summary) => {
+  const status = summary?.status;
+  if (status === 'scan-error' || status === 'http-error' || status === 'stability-timeout') {
+    return {
+      pillClass: 'status-warning',
+      pillLabel: 'Scan issue',
+      pageClass: 'summary-page--warn',
+    };
+  }
+  if ((summary?.gatingViolations || 0) > 0) {
+    return {
+      pillClass: 'status-error',
+      pillLabel: 'Accessibility violations',
+      pageClass: 'summary-page--fail',
+    };
+  }
+  return {
+    pillClass: 'status-success',
+    pillLabel: 'Pass',
+    pageClass: 'summary-page--pass',
+  };
+};
+
+const WCAG_PER_PAGE_TOGGLE_SCRIPT = `
+(function () {
+  const scriptEl = document.currentScript;
+  if (!scriptEl) return;
+  const container = scriptEl.previousElementSibling;
+  if (!container) return;
+  const accordions = Array.from(container.querySelectorAll('details.summary-page'));
+  if (accordions.length === 0) return;
+  const toggles = container.querySelectorAll('[data-toggle]');
+  toggles.forEach((button) => {
+    button.addEventListener('click', () => {
+      const open = button.dataset.toggle === 'expand';
+      accordions.forEach((accordion) => {
+        accordion.open = open;
+      });
+    });
+  });
+})();
+`;
+
+const formatRuleHeading = (label, count) =>
+  count ? `${label} (${formatCount(count)} unique rules)` : label;
+
 const renderAccessibilityRuleTable = (title, rules, { headingClass } = {}) => {
   if (!Array.isArray(rules) || rules.length === 0) return '';
   const rows = rules
@@ -161,40 +305,30 @@ const renderAccessibilityRuleTable = (title, rules, { headingClass } = {}) => {
       const helpLink = rule.helpUrl
         ? `<a href="${escapeHtml(rule.helpUrl)}" target="_blank" rel="noopener noreferrer">rule docs</a>`
         : '<span class="details">—</span>';
+      const wcagHtml = wcagTags.length ? renderWcagTagBadges(wcagTags) : renderWcagTagBadges([]);
       return `
-        <tr class="impact-${escapeHtml((rule.impact || '').toLowerCase())}">
+        <tr class="impact-${escapeHtml((rule.impact || rule.category || 'info').toLowerCase())}">
           <td>${escapeHtml(rule.impact || rule.category || 'info')}</td>
-          <td>${escapeHtml(rule.rule || 'Unnamed rule')}</td>
+          <td>${escapeHtml(rule.rule || rule.id || 'Unnamed rule')}</td>
           <td>${escapeHtml(viewportCell)}</td>
-          <td>${escapeHtml(formatCount(rule.pages?.length || rule.pages || 0))}</td>
+          <td>${escapeHtml(formatCount(Array.isArray(rule.pages) ? rule.pages.length : rule.pages || 0))}</td>
           <td>${escapeHtml(formatCount(rule.nodes ?? 0))}</td>
-          <td>
-            ${
-              wcagTags.length
-                ? wcagTags
-                    .map((tag) => `<span class="badge badge-wcag">${escapeHtml(tag)}</span>`)
-                    .join('')
-                : '<span class="details">—</span>'
-            }
-          </td>
+          <td>${wcagHtml}</td>
           <td>${helpLink}</td>
         </tr>
       `;
     })
     .join('');
+  const headingAttr = headingClass ? ` class="${headingClass}"` : '';
   return `
-    <section class="suite-section">
-      <header class="suite-section__header">
-        <h3 class="${headingClass || ''}">${escapeHtml(title)}</h3>
-      </header>
-      <div class="suite-table">
-        <table>
-          <thead>
-            <tr><th>Impact</th><th>Rule</th><th>Viewport(s)</th><th>Pages</th><th>Nodes</th><th>WCAG level</th><th>Help</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
+    <section class="summary-report summary-a11y">
+      <h3${headingAttr}>${escapeHtml(title)}</h3>
+      <table>
+        <thead>
+          <tr><th>Impact</th><th>Rule</th><th>Viewport(s)</th><th>Pages</th><th>Nodes</th><th>WCAG level</th><th>Help</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
     </section>
   `;
 };
@@ -995,6 +1129,165 @@ const renderAccessibilityGroupHtmlLegacy = (group) => {
   `;
 };
 
+const renderWcagPageIssueTable = (entries, heading) => {
+  if (!Array.isArray(entries) || entries.length === 0) return '';
+  const rows = entries
+    .map((entry) => {
+      const impact = entry.impact || entry.category || 'info';
+      const nodesCount = Array.isArray(entry.nodes) ? entry.nodes.length : entry.nodesCount || 0;
+      const helpUrl = entry.helpUrl || entry.help || null;
+      const targetsHtml = extractNodeTargets(entry.nodes || []);
+      const wcagHtml = renderWcagTagBadges(entry.tags || entry.wcagTags || []);
+      return `
+        <tr class="impact-${escapeHtml((impact || 'info').toLowerCase())}">
+          <td>${escapeHtml(impact || 'info')}</td>
+          <td>${escapeHtml(entry.id || entry.rule || 'Unnamed rule')}</td>
+          <td>${escapeHtml(formatCount(nodesCount))}</td>
+          <td>${helpUrl ? `<a href="${escapeHtml(helpUrl)}" target="_blank" rel="noopener noreferrer">rule docs</a>` : '<span class="details">—</span>'}</td>
+          <td>${wcagHtml}</td>
+          <td>${targetsHtml || '<span class="details">—</span>'}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+    <div class="page-card__table">
+      <h4>${escapeHtml(heading)}</h4>
+      <table>
+        <thead><tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>WCAG level</th><th>Sample targets</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+const renderWcagRunSummary = (overview, details, { viewportLabel, viewportsCount }) => {
+  const pages = Array.isArray(details?.pages) ? details.pages : [];
+  const totalPages = overview?.totalPages ?? pages.length;
+  const failThreshold = details?.failThreshold || overview?.failThreshold;
+  const gatingPages =
+    overview?.gatingPages ??
+    pages.filter((page) => (page.gatingViolations || 0) > 0).length;
+  const bestPracticePages =
+    overview?.bestPracticePages ??
+    pages.filter((page) => (page.bestPracticeFindings || 0) > 0).length;
+  const advisoryPages =
+    overview?.advisoryPages ??
+    pages.filter((page) => (page.advisoryFindings || 0) > 0).length;
+  const scanIssues = pages.filter((page) =>
+    ['scan-error', 'http-error', 'stability-timeout'].includes(page.status)
+  ).length;
+  const totalAdvisories =
+    overview?.totalAdvisoryFindings ??
+    pages.reduce((sum, page) => sum + (page.advisoryFindings || 0), 0);
+  const totalBestPractice =
+    overview?.totalBestPracticeFindings ??
+    pages.reduce((sum, page) => sum + (page.bestPracticeFindings || 0), 0);
+
+  const statusSummary = renderStatusSummaryList(
+    [
+      {
+        label: 'Accessibility violations',
+        tone: 'status-error',
+        count: gatingPages,
+        suffix: 'page(s)',
+      },
+      {
+        label: 'Scan issues',
+        tone: 'status-warning',
+        count: scanIssues,
+        suffix: 'page(s)',
+      },
+      {
+        label: 'Best-practice advisories',
+        tone: 'status-info',
+        count: bestPracticePages,
+        suffix: 'page(s)',
+      },
+    ],
+    { className: 'status-summary' }
+  );
+
+  const advisoryNote =
+    totalAdvisories > 0
+      ? `<p class="details">WCAG advisories raised on ${escapeHtml(
+          formatCount(advisoryPages)
+        )} page(s).</p>`
+      : '';
+
+  const bestPracticeNote =
+    totalBestPractice > 0
+      ? `<p class="details">Best-practice advisories surfaced on ${escapeHtml(
+          formatCount(bestPracticePages)
+        )} page(s).</p>`
+      : '';
+
+  return `
+    <section class="summary-report summary-a11y">
+      <h3>Accessibility run summary</h3>
+      <p>Analyzed <strong>${escapeHtml(
+        formatCount(totalPages)
+      )}</strong> page(s) per browser across <strong>${escapeHtml(
+        formatCount(viewportsCount || 1)
+      )}</strong> viewport(s): ${escapeHtml(viewportLabel || 'Not recorded')}.</p>
+      ${statusSummary}
+      ${
+        failThreshold
+          ? `<p class="details">Gating threshold: ${escapeHtml(String(failThreshold))}</p>`
+          : ''
+      }
+      ${advisoryNote}
+      ${bestPracticeNote}
+      <p class="legend">
+        <span class="badge badge-critical">Critical</span>
+        <span class="badge badge-serious">Serious</span>
+        <span class="badge badge-wcag">WCAG A/AA/AAA</span>
+      </p>
+    </section>
+  `;
+};
+
+const renderWcagPerPageSection = (pages, options = {}) => {
+  const entries = Array.isArray(pages) ? pages : [];
+  if (entries.length === 0) return '';
+
+  const detailsHtml = entries
+    .map((page) => {
+      const summary = page.summary || page;
+      const statusMeta = deriveWcagPageStatus(summary);
+      const cardHtml = renderWcagPageCard(summary, options);
+      if (!cardHtml) return '';
+      const label = formatPageLabel(summary.page || page.page || 'Page');
+      return `
+        <details class="summary-page summary-page--wcag ${statusMeta.pageClass}">
+          <summary>${escapeHtml(label)}</summary>
+          <div class="summary-page__body">
+            ${cardHtml}
+          </div>
+        </details>
+      `;
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  if (!detailsHtml.trim()) return '';
+
+  return `
+    <section class="summary-report summary-a11y" data-per-page="list">
+      <div class="summary-per-page-header">
+        <h3>Per-page findings</h3>
+        <div class="summary-toggle-controls">
+          <button type="button" class="summary-toggle-button" data-toggle="expand">Expand all</button>
+          <button type="button" class="summary-toggle-button" data-toggle="collapse">Collapse all</button>
+        </div>
+      </div>
+      ${detailsHtml}
+    </section>
+    <script>${WCAG_PER_PAGE_TOGGLE_SCRIPT}</script>
+  `;
+};
+
 const renderAccessibilityGroupHtml = (group) => {
   const buckets = collectSchemaProjects(group);
   if (buckets.length === 0) return '';
@@ -1007,157 +1300,90 @@ const renderAccessibilityGroupHtml = (group) => {
   if (!dataReady) {
     return renderAccessibilityGroupHtmlLegacy(group);
   }
-
   const multiBucket = buckets.length > 1;
 
-  const sections = buckets.map((bucket) => {
-    const runPayload = firstRunPayload(bucket);
-    const details = runPayload.details || {};
-    const overview = runPayload.overview || {};
-    const pages = Array.isArray(details.pages) ? details.pages : [];
-    const metadata = runPayload.metadata || {};
-    const projectLabel = metadata.projectName || bucket.projectName || 'Chrome';
-    const viewportList =
-      Array.isArray(details.viewports) && details.viewports.length
-        ? details.viewports
-        : Array.isArray(metadata.viewports) && metadata.viewports.length
-          ? metadata.viewports
-          : projectLabel
-            ? [projectLabel]
-            : [];
-    const viewportLabel = viewportList.length ? viewportList.join(', ') : projectLabel;
-    const viewportCount = viewportList.length || 1;
-    const totalPages = overview.totalPages ?? pages.length;
-    const gatingPages =
-      overview.gatingPages ?? pages.filter((page) => (page.gatingViolations || 0) > 0).length;
-    const advisoryPages =
-      overview.advisoryPages ?? pages.filter((page) => (page.advisoryFindings || 0) > 0).length;
-    const bestPracticePages =
-      overview.bestPracticePages ??
-      pages.filter((page) => (page.bestPracticeFindings || 0) > 0).length;
-    const scanIssues = pages.filter((page) =>
-      ['scan-error', 'http-error', 'stability-timeout'].includes(page.status)
-    ).length;
+  const sections = buckets
+    .map((bucket) => {
+      const runPayload = firstRunPayload(bucket);
+      if (!runPayload) return '';
 
-    const statusSummary = renderStatusSummaryList(
-      [
-        {
-          label: 'Accessibility violations',
-          tone: 'status-error',
-          count: gatingPages,
-          suffix: 'page(s)',
-        },
-        {
-          label: 'Scan issues',
-          tone: 'status-warning',
-          count: scanIssues,
-          suffix: 'page(s)',
-        },
-        {
-          label: 'Best-practice advisories',
-          tone: 'status-info',
-          count: bestPracticePages,
-          suffix: 'page(s)',
-        },
-      ],
-      { className: 'status-summary' }
-    );
+      const details = runPayload.details || {};
+      const overview = runPayload.overview || {};
+      const metadata = runPayload.metadata || {};
+      const projectLabel = metadata.projectName || bucket.projectName || 'Chrome';
+      const viewportList =
+        Array.isArray(details.viewports) && details.viewports.length
+          ? details.viewports
+          : Array.isArray(metadata.viewports) && metadata.viewports.length
+            ? metadata.viewports
+            : projectLabel
+              ? [projectLabel]
+              : [];
+      const viewportLabel = viewportList.length ? viewportList.join(', ') : projectLabel;
+      const viewportCount = viewportList.length || 1;
 
-    const failThreshold = details.failThreshold || overview.failThreshold || metadata.failOn;
-    const totalAdvisories =
-      overview.totalAdvisoryFindings ??
-      pages.reduce((sum, page) => sum + (page.advisoryFindings || 0), 0);
-    const totalBestPractice =
-      overview.totalBestPracticeFindings ??
-      pages.reduce((sum, page) => sum + (page.bestPracticeFindings || 0), 0);
+      const runSummaryHtml = renderWcagRunSummary(overview, details, {
+        viewportLabel,
+        viewportsCount: viewportCount,
+      });
 
-    const summaryParagraph = `
-      <p>Analyzed <strong>${escapeHtml(formatCount(totalPages))}</strong> page(s) per browser across <strong>${escapeHtml(formatCount(viewportCount))}</strong> viewport(s): ${escapeHtml(viewportLabel)}.</p>
-    `;
+      const ruleSnapshots = Array.isArray(runPayload.ruleSnapshots) ? runPayload.ruleSnapshots : [];
+      const gatingRules = ruleSnapshots.filter((snapshot) => (snapshot.category || '').toLowerCase() === 'gating');
+      const advisoryRules = ruleSnapshots.filter((snapshot) => (snapshot.category || '').toLowerCase() === 'advisory');
+      const bestPracticeRules = ruleSnapshots.filter((snapshot) => (snapshot.category || '').toLowerCase() === 'best-practice');
 
-    const advisoryNote =
-      totalBestPractice > 0
-        ? `<p class="suite-note">Best-practice advisories surfaced on ${escapeHtml(
-            formatCount(bestPracticePages)
-          )} page(s) (${escapeHtml(formatCount(totalBestPractice))} total entries).</p>`
-        : '';
+      const ruleSections = [
+        renderAccessibilityRuleTable(
+          formatRuleHeading('Gating WCAG violations', gatingRules.length),
+          gatingRules
+        ),
+        renderAccessibilityRuleTable(
+          formatRuleHeading('WCAG advisory findings', advisoryRules.length),
+          advisoryRules
+        ),
+        renderAccessibilityRuleTable(
+          formatRuleHeading('Best-practice advisories', bestPracticeRules.length),
+          bestPracticeRules,
+          { headingClass: 'summary-heading-best-practice' }
+        ),
+      ]
+        .filter(Boolean)
+        .join('\n');
 
-    const ruleSnapshots = Array.isArray(runPayload.ruleSnapshots) ? runPayload.ruleSnapshots : [];
-    const gatingRules = ruleSnapshots.filter((snapshot) => snapshot.category === 'gating');
-    const advisoryRules = ruleSnapshots.filter((snapshot) => snapshot.category === 'advisory');
-    const bestPracticeRules = ruleSnapshots.filter(
-      (snapshot) => snapshot.category === 'best-practice'
-    );
+      const perPageHtml = renderWcagPerPageSection(details.pages || [], {
+        viewportLabel,
+        failThreshold: details.failThreshold || overview.failThreshold || metadata.failOn,
+      });
 
-    const perPageEntries = (bucket.pageEntries || []).map((entry) => {
-      const payload = entry.payload || {};
-      const summary = payload.summary || {};
-      return {
-        ...summary,
-        page: payload.page || summary.page,
-      };
-    });
+      const content = [runSummaryHtml, ruleSections, perPageHtml]
+        .filter(Boolean)
+        .join('\n');
+      if (!content.trim()) return '';
 
-    const accordionHtml = renderPerPageAccordion(perPageEntries, {
-      heading: 'Per-page breakdown',
-      summaryClass: 'summary-page--wcag',
-      renderCard: (entrySummary) => renderWcagPageCard(entrySummary),
-      formatSummaryLabel: (entrySummary) => formatPageLabel(entrySummary?.page || 'Unknown page'),
-    });
+      if (multiBucket) {
+        return `
+          <section class="schema-group__project-block">
+            <header class="schema-group__project"><h3>${escapeHtml(projectLabel)}</h3></header>
+            ${content}
+          </section>
+        `;
+      }
 
-    const runSummaryHtml = `
-      <section class="suite-section suite-section--emphasis">
-        <header class="suite-section__header">
-          <h3>Accessibility run summary</h3>
-        </header>
-        ${summaryParagraph}
-        ${statusSummary}
-        ${
-          failThreshold
-            ? `<p class="suite-note">Gating threshold: ${escapeHtml(String(failThreshold))}</p>`
-            : ''
-        }
-        ${
-          totalAdvisories > 0
-            ? `<p class="suite-note">WCAG advisories raised on ${escapeHtml(
-                formatCount(advisoryPages)
-              )} page(s).</p>`
-            : ''
-        }
-        ${advisoryNote}
-        <p class="suite-legend">
-          <span class="badge badge-critical">Critical</span>
-          <span class="badge badge-serious">Serious</span>
-          <span class="badge badge-wcag">WCAG A/AA/AAA</span>
-        </p>
-      </section>
-    `;
+      return content;
+    })
+    .filter(Boolean)
+    .join('\n');
 
-    const projectHeading = multiBucket
-      ? `<header class="suite-project"><h3>${escapeHtml(projectLabel)}</h3></header>`
-      : '';
+  if (!sections.trim()) return '';
 
-    return `
-      ${projectHeading}
-      ${runSummaryHtml}
-      ${renderAccessibilityRuleTable(
-        `Gating WCAG violations${gatingRules.length ? ` (${gatingRules.length} unique rules)` : ''}`,
-        gatingRules
-      )}
-      ${renderAccessibilityRuleTable(
-        `WCAG advisory findings${advisoryRules.length ? ` (${advisoryRules.length} unique rules)` : ''}`,
-        advisoryRules
-      )}
-      ${renderAccessibilityRuleTable(
-        `Best-practice advisories${bestPracticeRules.length ? ` (${bestPracticeRules.length} unique rules)` : ''}`,
-        bestPracticeRules,
-        { headingClass: 'suite-heading-best-practice' }
-      )}
-      ${accordionHtml}
-    `;
-  });
-
-  return sections.join('\n');
+  const headline =
+    multiBucket && group.title ? `<header><h2>${escapeHtml(group.title)}</h2></header>` : '';
+  return `
+    <section class="schema-group schema-group--wcag">
+      ${headline}
+      ${sections}
+    </section>
+  `;
 };
 
 const firstRunPayload = (bucket) =>
@@ -2391,9 +2617,16 @@ const buildSuitePanels = (schemaGroups, summaryMap) => {
     const groups = groupsByType.get(definition.summaryType);
     if (!groups || groups.length === 0) continue;
 
+    const specNames = new Set();
     const groupHtml = groups
       .map((group) => {
         if (group?.baseName) baseNamesUsed.add(group.baseName);
+        (group.runEntries || []).forEach((entry) => {
+          const specId = entry.payload?.metadata?.spec;
+          if (specId) {
+            specNames.add(`${specId}.spec.js`);
+          }
+        });
         return renderSchemaGroup(group);
       })
       .join('\n');
@@ -2401,15 +2634,21 @@ const buildSuitePanels = (schemaGroups, summaryMap) => {
     if (!groupHtml.trim()) continue;
 
     const summaryPayload = summaryMap.get(definition.summaryType);
+    if (summaryPayload?.metadata?.spec) {
+      specNames.add(`${summaryPayload.metadata.spec}.spec.js`);
+    }
     const metrics = summaryPayload ? deriveSuiteMetrics([summaryPayload]) : null;
     const status = panelStatusFromMetrics(metrics);
     const statusMeta = PANEL_STATUS_META[status] || PANEL_STATUS_META.info;
+    const specList = Array.from(specNames).sort();
+    const specLabelSuffix = specList.length ? ` - ${specList.join(', ')}` : '';
+    const specLabel = `${definition.specLabel}${specLabelSuffix}`;
 
     panels.push({
       id: definition.id,
       navGroup: definition.navGroup,
       label: definition.navLabel,
-      specLabel: definition.specLabel,
+      specLabel,
       title: definition.title,
       description: definition.description,
       status,
@@ -2417,7 +2656,7 @@ const buildSuitePanels = (schemaGroups, summaryMap) => {
       content: `
         <header class="panel-header">
           <div class="panel-info">
-            <span class="spec-label">${escapeHtml(definition.specLabel)}</span>
+            <span class="spec-label">${escapeHtml(specLabel)}</span>
             <h2>${escapeHtml(definition.title)}</h2>
             ${
               definition.description
@@ -2439,18 +2678,37 @@ const buildSuitePanels = (schemaGroups, summaryMap) => {
 
 const buildPanelToggleStyles = (panels) =>
   panels
-    .map(
-      (panel) => `
+    .map((panel) => {
+      const highlight = (() => {
+        switch (panel.status) {
+          case 'fail':
+            return `  background: rgba(220, 38, 38, 0.28);\n  color: #101828;`;
+          case 'pass':
+            return `  background: rgba(16, 185, 129, 0.24);\n  color: #101828;`;
+          case 'warn':
+            return `  background: rgba(234, 179, 8, 0.24);\n  color: #101828;`;
+          case 'info':
+          default:
+            return '';
+        }
+      })();
+
+      const highlightBlock = highlight ? `${highlight}\n` : '';
+
+      return `
 #view-${panel.id}:checked ~ .report-shell .report-content [data-view="view-${panel.id}"] {
-  display: block;
+  display: grid;
 }
 #view-${panel.id}:checked ~ .report-shell .sidebar label[for="view-${panel.id}"] {
-  border-color: rgba(59, 130, 246, 0.45);
-  background: rgba(59, 130, 246, 0.12);
-  box-shadow: 0 14px 30px rgba(59, 130, 246, 0.18);
-}
-`
-    )
+  box-shadow:
+    0 0 0 2px rgba(37, 99, 235, 0.18),
+    0 12px 28px rgba(30, 64, 175, 0.18);
+  outline: 1px solid rgba(37, 99, 235, 0.25);
+  outline-offset: -1px;
+  transform: none;
+${highlightBlock}}
+`;
+    })
     .join('\n');
 
 const renderSidebar = (panels, run, summaryMap) => {
@@ -2460,16 +2718,6 @@ const renderSidebar = (panels, run, summaryMap) => {
     if (run?.title) return run.title;
     return 'Playwright Test Run';
   })();
-
-  let siteHost = null;
-  if (run?.site?.baseUrl) {
-    try {
-      const parsed = new URL(run.site.baseUrl);
-      siteHost = parsed.host || parsed.hostname || null;
-    } catch (_) {
-      siteHost = run.site.baseUrl;
-    }
-  }
 
   const pagesTested = resolvePagesTested(summaryMap);
 
@@ -2527,7 +2775,6 @@ const renderSidebar = (panels, run, summaryMap) => {
     <aside class="sidebar">
       <div class="sidebar-header">
         <h1>${escapeHtml(siteName)}</h1>
-        ${siteHost ? `<p class="sidebar-subtitle">${escapeHtml(siteHost)}</p>` : ''}
         ${metadataHtml ? `<dl class="metadata">${metadataHtml}</dl>` : ''}
       </div>
       <nav class="sidebar-nav">
@@ -3557,45 +3804,86 @@ const renderWcagIssueTable = (entries, heading) => {
   `;
 };
 
-const renderWcagPageCard = (summary) => {
+const renderWcagPageCard = (summary, { viewportLabel, failThreshold } = {}) => {
   if (!summary) return '';
   if (summary.cardHtml) return summary.cardHtml;
 
-  const gatingLabel = summary.gatingLabel || 'WCAG A/AA/AAA';
-  const statusClass = summary.gatingViolations > 0 ? 'error' : 'success';
-  const notes = Array.isArray(summary.notes) ? summary.notes : [];
-  const notesList = notes.length
-    ? `<details><summary>Notes (${notes.length})</summary><ul class="details">${notes
+  const statusMeta = deriveWcagPageStatus(summary);
+  const violations = Array.isArray(summary.violations) ? summary.violations : [];
+  const advisories =
+    Array.isArray(summary.advisoriesList) && summary.advisoriesList.length
+      ? summary.advisoriesList
+      : Array.isArray(summary.advisories)
+        ? summary.advisories
+        : [];
+  const bestPractices =
+    Array.isArray(summary.bestPracticesList) && summary.bestPracticesList.length
+      ? summary.bestPracticesList
+      : Array.isArray(summary.bestPractices)
+        ? summary.bestPractices
+        : [];
+  const stabilityHtml = formatWcagStability(summary.stability);
+  const advisoryCount = summary.advisoryFindings ?? advisories.length;
+  const bestPracticeCount = summary.bestPracticeFindings ?? bestPractices.length;
+
+  const metaLines = [
+    `<p class="details"><strong>Viewport:</strong> ${escapeHtml(
+      summary.projectName || viewportLabel || 'Not recorded'
+    )}</p>`,
+    stabilityHtml ? `<p class="details"><strong>Stability:</strong> ${stabilityHtml}</p>` : '',
+    `<p class="details"><strong>Gating:</strong> ${escapeHtml(
+      summary.gatingLabel || failThreshold || 'Not recorded'
+    )}</p>`,
+    `<p class="details"><strong>Advisory findings:</strong> ${escapeHtml(
+      formatCount(advisoryCount)
+    )} • <strong>Best-practice advisories:</strong> ${escapeHtml(
+      formatCount(bestPracticeCount)
+    )}</p>`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const notes = Array.isArray(summary.notes) ? summary.notes.filter(Boolean) : [];
+  const notesHtml = notes.length
+    ? `<details class="summary-note"><summary>Notes (${notes.length})</summary><ul class="details">${notes
         .map((note) => `<li>${escapeHtml(String(note))}</li>`)
         .join('')}</ul></details>`
     : '';
-  const violationsHtml = renderWcagIssueTable(
-    summary.violations || [],
-    `${summary.page || 'Page'} — ${gatingLabel}`
-  );
-  const advisoriesHtml = renderWcagIssueTable(
-    summary.advisoriesList || [],
-    `${summary.page || 'Page'} — Non-gating WCAG findings`
-  );
-  const bestPracticeHtml = renderWcagIssueTable(
-    summary.bestPracticesList || [],
-    `${summary.page || 'Page'} — Best-practice advisories (no WCAG tag)`
-  );
+
+  const gatingSection = violations.length
+    ? renderWcagPageIssueTable(
+        violations,
+        `Gating WCAG violations (${formatCount(violations.length)})`
+      )
+    : '<p class="details">No gating violations detected.</p>';
+
+  const advisorySection = advisories.length
+    ? renderWcagPageIssueTable(
+        advisories,
+        `WCAG advisory findings (${formatCount(advisories.length)})`
+      )
+    : '';
+
+  const bestPracticeSection = bestPractices.length
+    ? renderWcagPageIssueTable(
+        bestPractices,
+        `Best-practice advisories (${formatCount(bestPractices.length)})`
+      )
+    : '';
 
   return `
     <section class="summary-report summary-a11y page-card">
       <div class="page-card__header">
-        <h3>${escapeHtml(summary.page || 'unknown')}</h3>
-        <span class="status-pill ${statusClass}">
-          ${summary.gatingViolations ?? 0} gating issue(s)
-        </span>
+        <h3>${escapeHtml(summary.page || 'Unknown page')}</h3>
+        <span class="status-pill ${statusMeta.pillClass}">${escapeHtml(statusMeta.pillLabel)}</span>
       </div>
-      <p class="details">Gating threshold: ${escapeHtml(gatingLabel)}</p>
-      <p class="details">Advisory findings: ${summary.advisoryFindings ?? 0} • Best-practice advisories: ${summary.bestPracticeFindings ?? 0}</p>
-      ${notesList}
-      ${violationsHtml}
-      ${advisoriesHtml}
-      ${bestPracticeHtml}
+      <div class="page-card__meta">
+        ${metaLines}
+      </div>
+      ${notesHtml}
+      ${gatingSection}
+      ${advisorySection}
+      ${bestPracticeSection}
     </section>
   `;
 };
@@ -3987,11 +4275,11 @@ const renderTestCard = (test, options = {}) => {
 
 const baseStyles = `
 :root {
-  color-scheme: light;
   --bg-primary: #f4f6fb;
+  --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: "Work Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --bg-card: #ffffff;
   --border: #d9e2ec;
-  --border-color: rgba(148, 163, 184, 0.18);
   --text-strong: #1f2933;
   --text-muted: #475467;
   --accent: #3b82f6;
@@ -3999,12 +4287,7 @@ const baseStyles = `
   --pill-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
   --radius-lg: 16px;
   --radius-md: 10px;
-  --radius-sm: 12px;
-  --shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.08);
-  --shadow-md: 0 24px 40px rgba(15, 23, 42, 0.12);
   --grid-gap: 1.5rem;
-  --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-heading: 'Work Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 *,
@@ -4017,7 +4300,6 @@ body {
   margin: 0;
   font-family: var(--font-body);
   color: var(--text-strong);
-  background: var(--bg-primary);
 }
 
 h1,
@@ -4036,18 +4318,16 @@ h4,
   font-family: var(--font-heading);
 }
 
-a { color: inherit; }
+.report-app {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #eef2ff 0%, #f9fafb 100%);
+  padding: 3rem clamp(1rem, 4vw, 3rem);
+}
 
 input[name="report-view"] {
   position: absolute;
   opacity: 0;
   pointer-events: none;
-}
-
-.report-app {
-  min-height: 100vh;
-  background: linear-gradient(180deg, #eef2ff 0%, #f9fafb 100%);
-  padding: 3rem clamp(1rem, 4vw, 3rem);
 }
 
 .report-shell {
@@ -4072,12 +4352,6 @@ input[name="report-view"] {
   margin: 0 0 0.75rem;
   font-size: 1.8rem;
   color: var(--accent);
-}
-
-.sidebar-subtitle {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-muted);
 }
 
 .sidebar .metadata {
@@ -4202,10 +4476,6 @@ input[name="report-view"] {
   background: rgba(220, 38, 38, 0.12);
 }
 
-.nav-item.status-info {
-  border-left: 4px solid rgba(3, 105, 161, 0.35);
-}
-
 .nav-item__header {
   display: flex;
   align-items: center;
@@ -4227,17 +4497,6 @@ input[name="report-view"] {
   animation: fadeIn 0.25s ease;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -4248,23 +4507,17 @@ input[name="report-view"] {
   padding-bottom: 1.75rem;
 }
 
-.panel-info {
-  display: grid;
-  gap: 0.6rem;
-}
-
-.spec-label {
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(29, 78, 216, 0.78);
-  font-weight: 500;
-}
-
 .panel-info h2 {
   margin: 0.35rem 0 0.65rem;
   font-size: clamp(1.45rem, 2vw, 1.85rem);
-  color: var(--text-strong);
+}
+
+.panel-info .spec-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(15, 23, 42, 0.58);
+  font-weight: 500;
 }
 
 .panel-description {
@@ -4297,72 +4550,14 @@ input[name="report-view"] {
   color: #047857;
 }
 
-.spec-status--warn {
-  background: rgba(234, 179, 8, 0.2);
-  color: #92400e;
-}
-
-.spec-status--info {
-  background: rgba(14, 165, 233, 0.2);
-  color: #0369a1;
-}
-
 .panel-body {
   display: grid;
   gap: 1rem;
 }
-[data-hidden="true"] {
-  display: none !important;
-}
 
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border-radius: 999px;
-  padding: 0.25rem 0.55rem;
-  border: 1px solid var(--border-color);
-  background: #f8fafc;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.status-pill .status-count {
-  font-weight: 700;
-}
-
-.status-pill.status-failed {
-  background: #fee2e2;
-  border-color: #fecaca;
-  color: #b42318;
-}
-
-.status-pill.status-passed {
-  background: #dcfce7;
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-.status-pill.status-skipped {
-  background: #e2e8f0;
-  border-color: #cbd5f5;
-  color: #475467;
-}
-
-.status-pill.status-timedOut,
-.status-pill.status-interrupted,
-.status-pill.status-unknown,
-.status-pill.status-flaky {
-  background: #fef3c7;
-  border-color: #fde68a;
-  color: #92400e;
-}
-
-.summary-overview {
+.panel-section {
   display: grid;
-  gap: 1.75rem;
-  margin-bottom: 3rem;
+  gap: 1.2rem;
 }
 
 .summary-grid {
@@ -4375,10 +4570,10 @@ input[name="report-view"] {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
   padding: 1.5rem 1.7rem;
-  border: 1px solid rgba(15, 23, 42, 0.05);
   box-shadow: var(--pill-shadow);
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.05);
 }
 
 .summary-card::after {
@@ -4423,7 +4618,6 @@ input[name="report-view"] {
 .suite-overview h3 {
   margin: 0;
   font-size: 1.1rem;
-  color: var(--text-strong);
 }
 
 .suite-grid {
@@ -4440,7 +4634,6 @@ input[name="report-view"] {
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
   display: grid;
   gap: 0.85rem;
-  border-left: 6px solid transparent;
 }
 
 .suite-card.status-pass {
@@ -4451,48 +4644,29 @@ input[name="report-view"] {
   border-left: 6px solid rgba(220, 38, 38, 0.75);
 }
 
-.suite-card.status-info {
-  border-left: 6px solid rgba(14, 165, 233, 0.65);
-}
-
 .suite-card header {
   display: grid;
   gap: 0.4rem;
 }
 
-.suite-card .spec-label {
-  margin: 0;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #64748b;
-  font-weight: 600;
-}
-
 .suite-card h4 {
   margin: 0;
   font-size: 1.05rem;
-  color: var(--text-strong);
 }
 
 .suite-metrics {
-  list-style: none;
-  padding: 0;
   margin: 0;
+  padding: 0;
+  list-style: none;
   display: grid;
   gap: 0.35rem;
   font-size: 0.9rem;
   color: #485260;
 }
 
-.suite-metrics--summary li {
+.suite-metrics li {
   display: flex;
   gap: 0.35rem;
-}
-
-.suite-metrics strong {
-  font-weight: 600;
-  color: var(--text-strong);
 }
 
 .suite-status {
@@ -4501,80 +4675,152 @@ input[name="report-view"] {
   color: var(--text-muted);
 }
 
-.suite-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sm);
-  display: grid;
-  gap: 0.75rem;
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
-.suite-section--emphasis {
-  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
-  border-color: rgba(59, 130, 246, 0.25);
+.summary-table thead {
+  background: var(--accent);
+  color: white;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
 }
 
-.suite-section__header h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  color: var(--text-strong);
-}
-
-.suite-note {
-  margin: 0;
+.summary-table th,
+.summary-table td {
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  vertical-align: top;
   font-size: 0.95rem;
-  color: #475467;
 }
 
-.suite-legend {
+.summary-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.schema-group {
+  display: grid;
+  gap: 1rem;
+}
+
+.schema-group > header h3 {
   margin: 0;
+  font-size: 1.35rem;
+  color: #0f172a;
+}
+
+.summary-report {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 1.35rem 1.5rem;
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.12);
+}
+
+.summary-report h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  color: #0f172a;
+}
+
+.summary-report .details {
+  margin: 0.4rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.summary-report .legend {
+  margin: 0.75rem 0 0;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  align-items: center;
-}
-
-.suite-heading-best-practice {
-  color: #0c4a6e;
-}
-
-.suite-project {
-  margin: 0 0 0.75rem;
-}
-
-.suite-project h3 {
-  margin: 0;
-  font-size: 1.15rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-.suite-table {
-  overflow-x: auto;
-}
-
-.suite-table table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.suite-table th,
-.suite-table td {
-  border: 1px solid var(--border-color);
-  padding: 0.6rem 0.7rem;
-  text-align: left;
-  vertical-align: top;
-}
-
-.suite-table thead th {
-  background: #f1f5f9;
-  font-weight: 600;
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+.summary-report table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  margin-top: 0.85rem;
+}
+
+.summary-report th,
+.summary-report td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.95rem;
+}
+
+.summary-report tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.summary-report tr.impact-critical td {
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.summary-report tr.impact-serious td {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.summary-report tr.impact-moderate td {
+  background: rgba(217, 119, 6, 0.1);
+}
+
+.summary-report tr.impact-minor td {
+  background: rgba(14, 165, 233, 0.1);
+}
+
+.summary-report code {
+  background: #f1f5f9;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
+.schema-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.schema-metrics__item {
+  background: rgba(29, 78, 216, 0.05);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.schema-metrics__item dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.schema-metrics__item dd {
+  margin: 0;
+}
+
+.schema-value {
+  font-weight: 500;
+  font-size: 1.35rem;
+  color: #0f172a;
 }
 
 .status-summary {
@@ -4583,191 +4829,529 @@ input[name="report-view"] {
   margin: 0.75rem 0 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem 1.3rem;
-  align-items: center;
-  font-size: 0.95rem;
-  color: var(--text-strong);
+  gap: 0.6rem 1rem;
 }
 
 .status-summary li {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.schema-group--stacked {
-  display: grid;
-  gap: 1.5rem;
-}
-
-
-.run-summaries {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.run-summary-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sm);
-}
-
-.run-summary-card > header h2,
-.run-summary-card__title {
-  margin: 0 0 0.75rem 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.run-summary-card__meta {
-  margin: -0.5rem 0 0.75rem 0;
+  gap: 0.55rem;
   font-size: 0.9rem;
   color: var(--text-muted);
 }
 
-.run-summary-card__body {
-  display: block;
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
-.run-summary__markdown {
-  margin: 0;
-  padding: 1rem;
+.badge-critical {
+  background: rgba(220, 38, 38, 0.14);
+  color: #b42318;
+}
+
+.badge-serious {
+  background: rgba(217, 119, 6, 0.16);
+  color: #92400e;
+}
+
+.badge-wcag {
+  background: rgba(59, 130, 246, 0.18);
+  color: #3b82f6;
+}
+
+.badge-neutral {
+  background: rgba(148, 163, 184, 0.16);
+  color: #475467;
+}
+
+.summary-heading-best-practice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem;
   border-radius: 8px;
-  background: #0f172a;
-  color: #e2e8f0;
-  overflow-x: auto;
+  background: rgba(14, 165, 233, 0.16);
+  color: #0b7285;
 }
 
-.test-navigation {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  margin-bottom: 0;
-  box-shadow: var(--shadow-sm);
+.summary-toggle-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
 }
 
-.test-navigation h2 {
-  margin: 0 0 0.75rem 0;
-  font-size: 1.25rem;
-}
-
-.test-navigation ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.test-navigation > ul > li {
-  margin-bottom: 0.85rem;
-}
-
-.test-navigation > ul > li:last-child {
-  margin-bottom: 0;
-}
-
-.test-navigation__group-header {
+.summary-per-page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
 }
 
-.test-navigation__group-header a {
-  font-weight: 600;
-  text-decoration: none;
+.summary-per-page-header h3 {
+  margin: 0;
 }
 
-.test-navigation__group-tests {
-  margin: 0.5rem 0 0 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+.summary-toggle-button {
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  background: rgba(29, 78, 216, 0.1);
+  color: #3b82f6;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.test-navigation__group-tests a {
-  text-decoration: none;
+.summary-toggle-button:hover {
+  background: rgba(29, 78, 216, 0.16);
+  box-shadow: 0 12px 22px rgba(30, 64, 175, 0.15);
 }
 
-.test-navigation__group-tests li {
+.summary-toggle-button:focus-visible {
+  outline: 2px solid rgba(29, 78, 216, 0.4);
+  outline-offset: 2px;
+}
+
+.summary-page {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+}
+
+.summary-page > summary {
+  padding: 0.5rem;
+  font-weight: 400;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #0f172a;
 }
 
-.test-navigation__group-tests li .status-pill {
-  margin-left: auto;
+.summary-page > summary::-webkit-details-marker {
+  display: none;
 }
 
-.test-navigation__group-stats {
+.summary-page[open] > summary {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.summary-page__body {
+  padding: 1rem 1.25rem 1.35rem;
+  background: #f8fafc;
+}
+
+.summary-page--ok {
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  background: rgba(16, 185, 129, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.18);
+}
+
+.summary-page--ok > summary {
+  color: #065f46;
+}
+
+.summary-page--ok[open] > summary {
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.summary-page--ok .summary-page__body {
+  background: rgba(240, 253, 244, 0.92);
+}
+
+.summary-page--fail {
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  background: rgba(220, 38, 38, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.18);
+}
+
+.summary-page--fail > summary {
+  color: #7f1d1d;
+}
+
+.summary-page--fail[open] > summary {
+  border-bottom: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.summary-page--fail .summary-page__body {
+  background: rgba(254, 242, 242, 0.92);
+}
+
+.summary-page--warn {
+  border: 1px solid rgba(217, 119, 6, 0.22);
+  background: rgba(217, 119, 6, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.18);
+}
+
+.summary-page--warn > summary {
+  color: #78350f;
+}
+
+.summary-page--warn[open] > summary {
+  border-bottom: 1px solid rgba(217, 119, 6, 0.25);
+}
+
+.summary-page--warn .summary-page__body {
+  background: rgba(255, 247, 237, 0.92);
+}
+
+.page-card__header {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.page-card__header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.page-card__meta {
+  display: grid;
   gap: 0.35rem;
+  margin-bottom: 0.85rem;
 }
 
-.test-navigation .status-pill {
-  font-size: 0.7rem;
-  padding: 0.2rem 0.45rem;
+.page-card__meta .details {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
 
-.filters {
-  display: flex;
-  flex-wrap: wrap;
+.page-card__table {
+  margin: 0.85rem 0;
+}
+
+.page-card__table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.1);
+}
+
+.page-card__table th,
+.page-card__table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  font-size: 0.9rem;
+  vertical-align: top;
+}
+
+.page-card__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.delta-threshold {
+  font-weight: 500;
+}
+
+.summary-report.summary-visual .visual-previews,
+.summary-report.summary-responsive .visual-previews {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1rem;
-  align-items: center;
-  margin-bottom: 1.5rem;
+  margin-top: 0.85rem;
 }
 
-.status-filters {
-  display: flex;
-  flex-wrap: wrap;
+.visual-previews figure {
+  margin: 0;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: grid;
   gap: 0.5rem;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
 }
 
-.filter-chip {
+.visual-previews img {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+}
+
+.visual-previews figcaption {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.severity-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.75rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.9rem;
-  box-shadow: var(--shadow-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
-.filter-chip input {
-  accent-color: #2563eb;
+.severity-gating {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
 }
 
-.filter-chip .filter-count {
-  font-weight: 600;
+.severity-fail {
+  background: rgba(220, 38, 38, 0.14);
+  color: #b91c1c;
 }
 
-.search-filter input {
-  padding: 0.6rem 0.75rem;
+.severity-info {
+  background: rgba(14, 165, 233, 0.14);
+  color: #0369a1;
+}
+
+.wcag-tag {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  color: #f8fafc;
+  font-weight: 500;
+  padding: 0.25rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
-  min-width: 260px;
-  font-size: 0.95rem;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+  letter-spacing: 0.03em;
+  font-size: 0.75rem;
+  text-transform: uppercase;
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
+.browser-tag {
+  display: inline-flex;
+  align-items: center;
+  margin: 0.15rem 0.3rem 0.15rem 0;
+  padding: 0.2rem 0.6rem;
+  background: rgba(14, 165, 233, 0.15);
+  border-radius: 999px;
+  color: #0369a1;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+details.summary-accordion {
+  background: #f8fafc;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+details.summary-accordion + details.summary-accordion {
+  margin-top: 1rem;
+}
+
+details.summary-accordion summary {
+  padding: 1rem 1.25rem;
+  font-weight: 500;
+  color: #0b7285;
+  cursor: pointer;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(255, 255, 255, 0));
+  outline: none;
+}
+
+details.summary-accordion[open] summary {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.accordion-body {
+  padding: 1.25rem;
+  display: grid;
+  gap: 1.2rem;
+  background: #ffffff;
+}
+
+.page-card {
+  background: #f8fafc;
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.3rem;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+}
+
+.page-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-error {
+  background: rgba(220, 38, 38, 0.14);
+  color: #b91c1c;
+}
+
+.status-warning {
+  background: rgba(217, 119, 6, 0.2);
+  color: #92400e;
+}
+
+.status-ok {
+  background: rgba(16, 185, 129, 0.16);
+  color: #047857;
+}
+
+.checks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.checks li {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  font-size: 0.95rem;
+}
+
+.checks li:last-child {
+  border-bottom: none;
+}
+
+.checks li::before {
+  content: "\\2716";
+  color: #dc2626;
+  margin-right: 0.5rem;
+}
+
+.checks.empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.checks.empty::before {
+  content: none;
+}
+
+.descr {
+  color: var(--text-muted);
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#view-summary:checked ~ .report-shell .panel[data-view="view-summary"],
+#view-accessibility-wcag:checked ~ .report-shell .panel[data-view="view-accessibility-wcag"],
+#view-accessibility-forms:checked ~ .report-shell .panel[data-view="view-accessibility-forms"],
+#view-accessibility-keyboard:checked ~ .report-shell .panel[data-view="view-accessibility-keyboard"],
+#view-accessibility-landmarks:checked ~ .report-shell .panel[data-view="view-accessibility-landmarks"],
+#view-functionality-links:checked ~ .report-shell .panel[data-view="view-functionality-links"],
+#view-functionality-interactive:checked ~ .report-shell .panel[data-view="view-functionality-interactive"],
+#view-functionality-infrastructure:checked ~ .report-shell .panel[data-view="view-functionality-infrastructure"],
+#view-responsive-layout:checked ~ .report-shell .panel[data-view="view-responsive-layout"],
+#view-visual-regression:checked ~ .report-shell .panel[data-view="view-visual-regression"] {
+  display: grid;
+}
+
+#view-summary:checked ~ .report-shell .sidebar label[for="view-summary"],
+#view-accessibility-wcag:checked ~ .report-shell .sidebar label[for="view-accessibility-wcag"],
+#view-accessibility-forms:checked ~ .report-shell .sidebar label[for="view-accessibility-forms"],
+#view-accessibility-keyboard:checked ~ .report-shell .sidebar label[for="view-accessibility-keyboard"],
+#view-accessibility-landmarks:checked ~ .report-shell .sidebar label[for="view-accessibility-landmarks"],
+#view-functionality-links:checked ~ .report-shell .sidebar label[for="view-functionality-links"],
+#view-functionality-interactive:checked ~ .report-shell .sidebar label[for="view-functionality-interactive"],
+#view-functionality-infrastructure:checked ~ .report-shell .sidebar label[for="view-functionality-infrastructure"],
+#view-responsive-layout:checked ~ .report-shell .sidebar label[for="view-responsive-layout"],
+#view-visual-regression:checked ~ .report-shell .sidebar label[for="view-visual-regression"] {
+  box-shadow:
+    0 0 0 2px rgba(37, 99, 235, 0.18),
+    0 12px 28px rgba(30, 64, 175, 0.18);
+  outline: 1px solid rgba(37, 99, 235, 0.25);
+  outline-offset: -1px;
+  transform: none;
+}
+
+#view-accessibility-wcag:checked ~ .report-shell .sidebar label[for="view-accessibility-wcag"],
+#view-accessibility-forms:checked ~ .report-shell .sidebar label[for="view-accessibility-forms"],
+#view-accessibility-keyboard:checked ~ .report-shell .sidebar label[for="view-accessibility-keyboard"],
+#view-functionality-interactive:checked ~ .report-shell .sidebar label[for="view-functionality-interactive"],
+#view-functionality-infrastructure:checked ~ .report-shell .sidebar label[for="view-functionality-infrastructure"],
+#view-visual-regression:checked ~ .report-shell .sidebar label[for="view-visual-regression"] {
+  background: rgba(220, 38, 38, 0.28);
+  color: #101828;
+}
+
+#view-accessibility-landmarks:checked ~ .report-shell .sidebar label[for="view-accessibility-landmarks"],
+#view-functionality-links:checked ~ .report-shell .sidebar label[for="view-functionality-links"],
+#view-responsive-layout:checked ~ .report-shell .sidebar label[for="view-responsive-layout"] {
+  background: rgba(16, 185, 129, 0.24);
+  color: #101828;
+}
+
+@media (max-width: 1080px) {
+  .report-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  .report-content {
+    order: 2;
+  }
+}
+
+@media (max-width: 720px) {
+  .report-app {
+    padding: 2rem 1rem 3rem;
+  }
+
+  .panel {
+    padding: 1.8rem 1.25rem;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
+  .suite-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .tests-list {
