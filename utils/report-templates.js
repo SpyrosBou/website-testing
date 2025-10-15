@@ -2510,10 +2510,10 @@ const renderSidebar = (panels, run, summaryMap) => {
           const statusMeta =
             panel.statusMeta || PANEL_STATUS_META[panel.status] || PANEL_STATUS_META.info;
           return `
-            <label class="nav-item ${statusMeta.navClass}" for="view-${panel.id}">
+            <label class="nav-item ${escapeHtml(statusMeta.navClass || '')}" for="view-${panel.id}">
               <span class="nav-item__header">
                 <span class="nav-name">${escapeHtml(panel.label)}</span>
-                <span class="nav-status">${escapeHtml(statusMeta.label)}</span>
+                <span class="nav-status${statusMeta.navClass ? ` ${escapeHtml(statusMeta.navClass)}` : ''}">${escapeHtml(statusMeta.label)}</span>
               </span>
             </label>
           `;
@@ -4054,200 +4054,267 @@ const renderTestCard = (test, options = {}) => {
 const baseStyles = `
 :root {
   color-scheme: light;
-  --bg-page: #eef2ff;
-  --bg-body: var(--bg-page);
+  --bg-primary: #f4f6fb;
   --bg-card: #ffffff;
-  --border-color: #d0d7de;
-  --text-primary: #1f2937;
+  --border: #d9e2ec;
+  --border-color: rgba(148, 163, 184, 0.18);
+  --text-strong: #1f2933;
   --text-muted: #475467;
-  --accent: #2563eb;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
-  --shadow-md: 0 18px 32px rgba(15, 23, 42, 0.12);
+  --accent: #3b82f6;
+  --accent-soft: rgba(29, 78, 216, 0.12);
+  --pill-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+  --radius-lg: 16px;
+  --radius-md: 10px;
   --radius-sm: 12px;
-  --radius-md: 18px;
+  --shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 24px 40px rgba(15, 23, 42, 0.12);
+  --grid-gap: 1.5rem;
+  --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Work Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-* { box-sizing: border-box; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: var(--text-primary);
-  background: var(--bg-page);
+  font-family: var(--font-body);
+  color: var(--text-strong);
+  background: var(--bg-primary);
+}
+
+h1,
+h2,
+h3,
+h4,
+.summary-card__title,
+.group-title,
+.panel-info h2,
+.summary-report h3,
+.summary-per-page-header h3,
+.page-card__header h3,
+.test-group__title h2,
+.test-card__header h3,
+.sidebar-header h1 {
+  font-family: var(--font-heading);
 }
 
 a { color: inherit; }
 
+input[name="report-view"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .report-app {
   min-height: 100vh;
-  padding: 2.5rem clamp(1.25rem, 4vw, 3rem);
   background: linear-gradient(180deg, #eef2ff 0%, #f9fafb 100%);
+  padding: 3rem clamp(1rem, 4vw, 3rem);
 }
 
 .report-shell {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  grid-template-columns: 280px 1fr;
+  align-items: start;
   gap: clamp(1.5rem, 3vw, 3rem);
-  align-items: flex-start;
-  max-width: 1280px;
-  margin: 0 auto;
+  margin: 0 auto 0 0;
 }
 
 .sidebar {
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: var(--radius-md);
-  padding: 1.75rem 1.5rem 2rem;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: var(--radius-lg);
   box-shadow: 0 24px 40px rgba(15, 23, 42, 0.12);
+  padding: 1.75rem 1.5rem 2rem;
   backdrop-filter: blur(12px);
   position: sticky;
   top: 2rem;
-  display: grid;
-  gap: 2rem;
 }
 
 .sidebar-header h1 {
-  margin: 0;
+  margin: 0 0 0.75rem;
   font-size: 1.8rem;
   color: var(--accent);
 }
 
 .sidebar-subtitle {
-  margin: 0.15rem 0 0;
+  margin: 0;
   font-size: 0.9rem;
   color: var(--text-muted);
 }
 
 .sidebar .metadata {
-  margin: 1.25rem 0 0;
-  padding: 0;
+  margin: 0;
   display: grid;
   gap: 0.9rem;
+  padding: 0;
 }
 
 .sidebar .metadata div {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.25rem;
 }
 
 .sidebar .metadata dt {
   font-size: 0.7rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(71, 84, 103, 0.8);
-  font-weight: 600;
+  color: rgba(15, 23, 42, 0.5);
+  font-weight: 500;
 }
 
 .sidebar .metadata dd {
   margin: 0;
   font-size: 0.95rem;
+  color: var(--text-strong);
+  line-height: 1.4;
 }
 
 .sidebar-nav {
+  margin-top: 2.5rem;
   display: grid;
   gap: 1.5rem;
 }
 
 .sidebar-group {
   display: grid;
-  gap: 0.75rem;
 }
 
 .group-title {
-  margin: 0;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(71, 84, 103, 0.75);
-  font-weight: 600;
+  color: rgba(15, 23, 42, 0.58);
 }
 
 .nav-item {
-  display: block;
-  padding: 0.75rem 0.95rem;
-  border-radius: 12px;
-  border: 1px solid rgba(37, 99, 235, 0.1);
-  background: rgba(255, 255, 255, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0;
+  font-size: 0.95rem;
+  color: var(--text-strong);
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(29, 78, 216, 0.08);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+  gap: 0.55rem;
+  width: 100%;
 }
 
 .nav-item:hover {
-  border-color: rgba(37, 99, 235, 0.35);
-  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.15);
   transform: translateX(2px);
-}
-
-.nav-item.status-fail {
-  border-left: 4px solid rgba(220, 38, 38, 0.45);
-  background: rgba(220, 38, 38, 0.08);
-}
-
-.nav-item.status-pass {
-  border-left: 4px solid rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.08);
-}
-
-.nav-item.status-info {
-  border-left: 4px solid rgba(37, 99, 235, 0.35);
-}
-
-.nav-item__header {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  align-items: center;
+  border-color: rgba(37, 99, 235, 0.25);
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.12);
 }
 
 .nav-name {
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--text-primary);
+  flex: 1 1 auto;
+  font-weight: 500;
 }
 
 .nav-status {
   font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 0.2rem 0.65rem;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.15);
-  color: #1d4ed8;
-  font-weight: 600;
+  padding: 0.15rem 0.65rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.nav-item.status-fail .nav-status {
-  background: rgba(220, 38, 38, 0.18);
-  color: #b91c1c;
-}
-
-.nav-item.status-pass .nav-status {
+.nav-status.status-pass {
   background: rgba(16, 185, 129, 0.18);
   color: #047857;
 }
 
+.nav-status.status-fail {
+  background: rgba(220, 38, 38, 0.18);
+  color: #b91c1c;
+}
+
+.nav-status.status-info {
+  background: rgba(14, 165, 233, 0.18);
+  color: #0369a1;
+}
+
+.nav-item.status-pass {
+  background: rgba(16, 185, 129, 0.08);
+  border-left: 4px solid rgba(16, 185, 129, 0.35);
+}
+
+.nav-item.status-pass:hover {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.nav-item.status-fail {
+  background: rgba(220, 38, 38, 0.08);
+  border-left: 4px solid rgba(220, 38, 38, 0.35);
+}
+
+.nav-item.status-fail:hover {
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.nav-item.status-info {
+  border-left: 4px solid rgba(3, 105, 161, 0.35);
+}
+
+.nav-item__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
 .report-content {
   display: grid;
-  gap: 2rem;
 }
 
 .panel {
   display: none;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 24px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  box-shadow: 0 32px 60px rgba(15, 23, 42, 0.12);
-  padding: 2.25rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--pill-shadow);
+  padding: 2.4rem clamp(1.5rem, 3vw, 2.6rem);
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .panel-header {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  gap: 1.75rem;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid rgba(29, 78, 216, 0.08);
+  padding-bottom: 1.75rem;
 }
 
 .panel-info {
-  max-width: 52ch;
   display: grid;
   gap: 0.6rem;
 }
@@ -4256,62 +4323,59 @@ a { color: inherit; }
   font-size: 0.75rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(37, 99, 235, 0.95);
-  font-weight: 600;
+  color: rgba(29, 78, 216, 0.78);
+  font-weight: 500;
 }
 
 .panel-info h2 {
-  margin: 0;
-  font-size: 1.95rem;
+  margin: 0.35rem 0 0.65rem;
+  font-size: clamp(1.45rem, 2vw, 1.85rem);
+  color: var(--text-strong);
 }
 
 .panel-description {
   margin: 0;
   color: var(--text-muted);
-  font-size: 1rem;
+  max-width: 60ch;
+  font-size: 0.95rem;
 }
 
 .spec-status {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.35rem 0.9rem;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 700;
-  border: 1px solid transparent;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
 .spec-status--fail {
-  background: rgba(220, 38, 38, 0.1);
+  background: rgba(220, 38, 38, 0.18);
   color: #b91c1c;
-  border-color: rgba(220, 38, 38, 0.2);
-}
-
-.spec-status--warn {
-  background: rgba(234, 179, 8, 0.15);
-  color: #92400e;
-  border-color: rgba(234, 179, 8, 0.3);
 }
 
 .spec-status--pass {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(16, 185, 129, 0.2);
   color: #047857;
-  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.spec-status--warn {
+  background: rgba(234, 179, 8, 0.2);
+  color: #92400e;
 }
 
 .spec-status--info {
-  background: rgba(37, 99, 235, 0.12);
-  color: #1d4ed8;
-  border-color: rgba(37, 99, 235, 0.24);
+  background: rgba(14, 165, 233, 0.2);
+  color: #0369a1;
 }
 
 .panel-body {
-  margin-top: 1.75rem;
   display: grid;
-  gap: 1.75rem;
+  gap: 1rem;
 }
 [data-hidden="true"] {
   display: none !important;
@@ -4370,15 +4434,15 @@ a { color: inherit; }
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.1rem;
+  gap: var(--grid-gap);
 }
 
 .summary-card {
   background: var(--bg-card);
-  border-radius: 22px;
-  padding: 1.6rem 1.75rem;
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.7rem;
   border: 1px solid rgba(15, 23, 42, 0.05);
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--pill-shadow);
   position: relative;
   overflow: hidden;
 }
@@ -4387,19 +4451,21 @@ a { color: inherit; }
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 60%);
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.08), transparent 55%);
   pointer-events: none;
 }
 
 .summary-card__title {
-  margin: 0;
+  width: max-content;
   display: inline-flex;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: 0.45rem;
   font-size: 0.85rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #0f172a;
+  margin: 0 0 0.4rem;
+  white-space: nowrap;
 }
 
 .summary-card__count {
@@ -4410,53 +4476,49 @@ a { color: inherit; }
 }
 
 .summary-card .meta {
-  margin: 0.35rem 0 0;
+  margin-top: 0.35rem;
   font-size: 0.9rem;
   color: #475467;
 }
 
 .suite-overview {
   display: grid;
-  gap: 1.2rem;
+  gap: 1.1rem;
 }
 
 .suite-overview h3 {
   margin: 0;
-  font-size: 1.2rem;
-  color: var(--text-primary);
+  font-size: 1.1rem;
+  color: var(--text-strong);
 }
 
 .suite-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.1rem;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
 }
 
 .suite-card {
-  background: var(--bg-card);
-  border-radius: 20px;
-  padding: 1.4rem 1.6rem;
-  box-shadow: 0 20px 42px rgba(15, 23, 42, 0.08);
-  border-left: 6px solid rgba(37, 99, 235, 0.4);
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
-  border-right: 1px solid rgba(148, 163, 184, 0.18);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-height: 100%;
+  border-radius: var(--radius-lg);
+  padding: 1.35rem 1.45rem;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+  display: grid;
+  gap: 0.85rem;
+  border-left: 6px solid transparent;
 }
 
 .suite-card.status-pass {
-  border-left-color: rgba(16, 185, 129, 0.75);
+  border-left: 6px solid rgba(16, 185, 129, 0.75);
 }
 
 .suite-card.status-fail {
-  border-left-color: rgba(220, 38, 38, 0.75);
+  border-left: 6px solid rgba(220, 38, 38, 0.75);
 }
 
 .suite-card.status-info {
-  border-left-color: rgba(37, 99, 235, 0.6);
+  border-left: 6px solid rgba(14, 165, 233, 0.65);
 }
 
 .suite-card header {
@@ -4476,7 +4538,7 @@ a { color: inherit; }
 .suite-card h4 {
   margin: 0;
   font-size: 1.05rem;
-  color: var(--text-primary);
+  color: var(--text-strong);
 }
 
 .suite-metrics {
@@ -4496,7 +4558,7 @@ a { color: inherit; }
 
 .suite-metrics strong {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-strong);
 }
 
 .suite-status {
@@ -4523,7 +4585,7 @@ a { color: inherit; }
 .suite-section__header h3 {
   margin: 0;
   font-size: 1.25rem;
-  color: var(--text-primary);
+  color: var(--text-strong);
 }
 
 .suite-note {
@@ -4590,7 +4652,7 @@ a { color: inherit; }
   gap: 0.6rem 1.3rem;
   align-items: center;
   font-size: 0.95rem;
-  color: var(--text-primary);
+  color: var(--text-strong);
 }
 
 .status-summary li {
@@ -5307,7 +5369,7 @@ function renderReportHtml(run) {
     specLabel: 'Summary',
     title: 'Test run overview',
     description:
-      'Pulls together pass/fail counts, timing, and standout issues so you can decide where to dig in next.',
+      'Pulls together pass/fail counts, timing, and standout issues from every suite. Start here to understand overall health before diving into individual checks.',
     status: 'info',
     statusMeta: PANEL_STATUS_META.info,
     content: `
@@ -5315,9 +5377,8 @@ function renderReportHtml(run) {
         <div class="panel-info">
           <span class="spec-label">Summary</span>
           <h2>Test run overview</h2>
-          <p class="panel-description">Pulls together pass/fail counts, timing, and standout issues so you can decide where to dig in next.</p>
+          <p class="panel-description">Pulls together pass/fail counts, timing, and standout issues from every suite. Start here to understand overall health before diving into individual checks.</p>
         </div>
-        <span class="spec-status ${PANEL_STATUS_META.info.specClass}">${PANEL_STATUS_META.info.label}</span>
       </header>
       <div class="panel-body">
         ${summarySections}
@@ -5350,6 +5411,9 @@ function renderReportHtml(run) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(run.runId)} – Playwright Test Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Work+Sans:wght@400;500&display=swap" rel="stylesheet" />
   <style>
 ${baseStyles}
 ${toggleStyles}
