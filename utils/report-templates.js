@@ -3760,72 +3760,6 @@ const renderTestGroup = (group, options = {}) => {
   `;
 };
 
-const renderMetadata = (run) => {
-  const rows = [];
-  if (run.site?.name || run.site?.baseUrl) {
-    let domain = null;
-    if (run.site?.baseUrl) {
-      try {
-        const parsed = new URL(run.site.baseUrl);
-        domain = parsed.host || parsed.hostname || run.site.baseUrl;
-      } catch (_) {
-        domain = run.site.baseUrl;
-      }
-    }
-    const parts = [];
-    if (domain) parts.push(domain);
-    if (run.site?.name && (!domain || domain !== run.site.name)) {
-      parts.push(run.site.name);
-    }
-    const value = parts.join(' • ').trim();
-    if (value) {
-      rows.push({
-        label: 'Site',
-        value,
-      });
-    }
-  }
-  if (Array.isArray(run.projects) && run.projects.length > 0) {
-    rows.push({ label: 'Browsers', value: run.projects.join(', ') });
-  }
-  if (run.startedAt) {
-    rows.push({ label: 'Started', value: run.startedAtFriendly || run.startedAt });
-  }
-  if (run.completedAt) {
-    rows.push({ label: 'Completed', value: run.completedAtFriendly || run.completedAt });
-  }
-  if (run.durationFriendly) {
-    rows.push({ label: 'Duration', value: run.durationFriendly });
-  }
-  if (run.environment) {
-    const envParts = [];
-    if (run.environment.platform)
-      envParts.push(`${run.environment.platform} ${run.environment.release || ''}`.trim());
-    if (run.environment.arch) envParts.push(run.environment.arch);
-    if (run.environment.node) envParts.push(`Node ${run.environment.node}`);
-    rows.push({ label: 'Environment', value: envParts.join(' • ') });
-  }
-
-  if (rows.length === 0) return '';
-
-  return `
-    <section class="run-metadata" aria-label="Run metadata">
-      <dl>
-        ${rows
-          .map(
-            (row) => `
-              <div class="metadata-row">
-                <dt>${escapeHtml(row.label)}</dt>
-                <dd>${escapeHtml(row.value)}</dd>
-              </div>
-            `
-          )
-          .join('\n')}
-      </dl>
-    </section>
-  `;
-};
-
 const renderErrorBlock = () => '';
 
 const renderLogBlock = () => '';
@@ -4667,35 +4601,6 @@ input[name="report-view"] {
 }
 
 
-.run-metadata {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  margin-bottom: 2rem;
-  box-shadow: var(--shadow-sm);
-}
-
-.run-metadata dl {
-  display: grid;
-  grid-template-columns: minmax(120px, 180px) 1fr;
-  gap: 0.65rem 1.25rem;
-  margin: 0;
-}
-
-.metadata-row {
-  display: contents;
-}
-
-.run-metadata dt {
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.run-metadata dd {
-  margin: 0;
-}
-
 .run-summaries {
   display: flex;
   flex-direction: column;
@@ -4869,6 +4774,78 @@ input[name="report-view"] {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.debug-deck {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  margin: 1rem 0 0;
+}
+
+.debug-deck__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem 1.5rem;
+  cursor: pointer;
+  list-style: none;
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.debug-deck__summary::-webkit-details-marker {
+  display: none;
+}
+
+.debug-deck__summary::after {
+  content: '▸';
+  font-size: 1rem;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.debug-deck[open] > .debug-deck__summary {
+  border-bottom: 1px solid rgba(29, 78, 216, 0.08);
+}
+
+.debug-deck[open] > .debug-deck__summary::after {
+  transform: rotate(90deg);
+}
+
+.debug-deck__lede {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.debug-deck__lede h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--text-strong);
+}
+
+.debug-deck__lede p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.debug-deck__panel {
+  padding: 0 1.5rem 1.5rem;
+  border-top: 1px solid rgba(29, 78, 216, 0.08);
+}
+
+.debug-deck__layout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 960px) {
+  .debug-deck__layout {
+    grid-template-columns: minmax(220px, 280px) 1fr;
+  }
 }
 
 .test-group {
@@ -5258,9 +5235,6 @@ input[name="report-view"] {
     flex-direction: column;
     align-items: flex-start;
   }
-  .run-metadata dl {
-    grid-template-columns: 1fr;
-  }
 }
 `;
 
@@ -5272,7 +5246,9 @@ const filterScript = `
   const testGroups = Array.from(document.querySelectorAll('.test-group'));
   const navTestItems = Array.from(document.querySelectorAll('.test-navigation [data-test-anchor]'));
   const navGroupItems = Array.from(document.querySelectorAll('.test-navigation [data-group-anchor]'));
-  const collapsibleSections = Array.from(document.querySelectorAll('.test-logs, .summary-block'));
+  const collapsibleSections = Array.from(
+    document.querySelectorAll('.test-logs, .summary-block, .debug-deck')
+  );
 
   // Guarantee all accordions start collapsed, even if the browser restores prior state.
   collapsibleSections.forEach((section) => {
@@ -5332,7 +5308,6 @@ function renderReportHtml(run) {
   );
 
   const summaryOverviewHtml = renderSummaryOverview(run, run.schemaSummaries || []);
-  const metadataHtml = renderMetadata(run);
   const runSummariesHtml = renderRunSummaries(filteredRunSummaries);
 
   const testsHtml = groupedTests
@@ -5341,24 +5316,28 @@ function renderReportHtml(run) {
   const statusFilters = renderStatusFilters(run.statusCounts);
 
   const debugHtml = `
-    <section class="debug-deck">
-      <header class="debug-deck__header">
-        <h2>Debug testing</h2>
-        <p>Use the navigation below to inspect raw Playwright projects, attachments, and logs.</p>
-      </header>
-      <div class="debug-deck__layout">
-        ${navigationHtml ? `<aside class="debug-deck__sidebar">${navigationHtml}</aside>` : ''}
-        <div class="debug-deck__content">
-          ${statusFilters}
-          <section class="tests-list" aria-label="Test results">
-            ${testsHtml}
-          </section>
+    <details class="debug-deck">
+      <summary class="debug-deck__summary">
+        <div class="debug-deck__lede">
+          <h2>Debug testing</h2>
+          <p>Use the navigation below to inspect raw Playwright projects, attachments, and logs.</p>
+        </div>
+      </summary>
+      <div class="debug-deck__panel">
+        <div class="debug-deck__layout">
+          ${navigationHtml ? `<aside class="debug-deck__sidebar">${navigationHtml}</aside>` : ''}
+          <div class="debug-deck__content">
+            ${statusFilters}
+            <section class="tests-list" aria-label="Test results">
+              ${testsHtml}
+            </section>
+          </div>
         </div>
       </div>
-    </section>
+    </details>
   `;
 
-  const summarySections = [summaryOverviewHtml, metadataHtml, runSummariesHtml, debugHtml]
+  const summarySections = [summaryOverviewHtml, runSummariesHtml, debugHtml]
     .filter((section) => Boolean(section && section.trim()))
     .join('\n');
 
