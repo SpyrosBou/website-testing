@@ -128,21 +128,21 @@ const formatCount = (value) => {
   return value;
 };
 
-const renderPillList = (items) => {
+const renderStatusSummaryList = (items, { className = 'status-summary' } = {}) => {
   if (!Array.isArray(items) || items.length === 0) return '';
-  const pills = items
+  const entries = items
     .filter((item) => item && Number(item.count) > 0)
     .map(
       (item) => `
         <li>
           <span class="status-pill ${escapeHtml(item.tone || 'status-info')}">${escapeHtml(item.label)}</span>
-          <span>${escapeHtml(formatCount(item.count))} ${escapeHtml(item.suffix || '')}</span>
+          <span>${escapeHtml(formatCount(item.count))}${item.suffix ? ` ${escapeHtml(item.suffix)}` : ''}</span>
         </li>
       `
     )
     .join('');
-  if (!pills) return '';
-  return `<ul class="suite-pill-list">${pills}</ul>`;
+  if (!entries) return '';
+  return `<ul class="${escapeHtml(className)}">${entries}</ul>`;
 };
 
 const renderAccessibilityRuleTable = (title, rules, { headingClass } = {}) => {
@@ -151,6 +151,13 @@ const renderAccessibilityRuleTable = (title, rules, { headingClass } = {}) => {
     .map((rule) => {
       const wcagTags =
         Array.isArray(rule.wcagTags) && rule.wcagTags.length > 0 ? rule.wcagTags : [];
+      const viewportsRaw = rule.viewports || rule.viewportsTested || [];
+      const viewportList = Array.isArray(viewportsRaw)
+        ? viewportsRaw.filter(Boolean)
+        : viewportsRaw
+          ? [viewportsRaw]
+          : [];
+      const viewportCell = viewportList.length ? viewportList.join(', ') : '—';
       const helpLink = rule.helpUrl
         ? `<a href="${escapeHtml(rule.helpUrl)}" target="_blank" rel="noopener noreferrer">rule docs</a>`
         : '<span class="details">—</span>';
@@ -158,7 +165,7 @@ const renderAccessibilityRuleTable = (title, rules, { headingClass } = {}) => {
         <tr class="impact-${escapeHtml((rule.impact || '').toLowerCase())}">
           <td>${escapeHtml(rule.impact || rule.category || 'info')}</td>
           <td>${escapeHtml(rule.rule || 'Unnamed rule')}</td>
-          <td>${escapeHtml((rule.viewports || rule.viewportsTested || []).join(', ') || '—')}</td>
+          <td>${escapeHtml(viewportCell)}</td>
           <td>${escapeHtml(formatCount(rule.pages?.length || rule.pages || 0))}</td>
           <td>${escapeHtml(formatCount(rule.nodes ?? 0))}</td>
           <td>
@@ -518,13 +525,8 @@ const buildSuiteCards = (summaryMap) =>
     const hasBlocking = metrics.blocking > 0;
     const hasWarnings = metrics.warnings > 0 || metrics.advisories > 0;
     const statusClass = hasBlocking ? 'status-fail' : hasWarnings ? 'status-info' : 'status-pass';
-    const blockingText = hasBlocking
-      ? `${formatNumber(metrics.blocking)} blocking ${pluralise(metrics.blocking, 'finding', 'findings')}`
-      : 'None';
-    const warningsTotal = metrics.warnings + metrics.advisories;
-    const warningsText = warningsTotal
-      ? `${formatNumber(warningsTotal)} ${pluralise(warningsTotal, 'warning', 'warnings')}`
-      : 'None';
+    const blockingFindings = hasBlocking ? metrics.blocking : 0;
+    const blockingPages = metrics.affectedPages || 0;
     const summaryText = hasBlocking
       ? 'Blocking issues detected. Open this suite tab for the affected pages and fixes.'
       : hasWarnings
@@ -537,8 +539,8 @@ const buildSuiteCards = (summaryMap) =>
       heading: group.heading,
       statusClass,
       specsText,
-      blockingText,
-      warningsText,
+      blockingFindings,
+      blockingPages,
       summaryText,
     };
   }).filter(Boolean);
@@ -554,10 +556,22 @@ const renderSuiteCardsSection = (suiteCards) => {
             <p class="spec-label">${escapeHtml(card.label)}</p>
             <h4>${escapeHtml(card.heading)}</h4>
           </header>
-          <ul class="suite-metrics">
+          <ul class="suite-metrics suite-metrics--summary">
             <li><strong>Specs:</strong> ${escapeHtml(card.specsText)}</li>
-            <li><strong>Blocking findings:</strong> ${escapeHtml(card.blockingText)}</li>
-            <li><strong>Warnings:</strong> ${escapeHtml(card.warningsText)}</li>
+            <li><strong>Blocking findings:</strong> ${
+              card.blockingFindings
+                ? `${escapeHtml(
+                    formatNumber(card.blockingFindings)
+                  )} ${escapeHtml(pluralise(card.blockingFindings, 'finding', 'findings'))}`
+                : 'None recorded'
+            }</li>
+            <li><strong>Blocking pages:</strong> ${
+              card.blockingPages
+                ? `${escapeHtml(
+                    formatNumber(card.blockingPages)
+                  )} ${escapeHtml(pluralise(card.blockingPages, 'page', 'pages'))}`
+                : 'None recorded'
+            }</li>
           </ul>
           <p class="suite-status">${escapeHtml(card.summaryText)}</p>
         </article>
@@ -575,99 +589,84 @@ const renderSuiteCardsSection = (suiteCards) => {
   `;
 };
 
-const renderSummaryHeroMeta = (run) => {
-  const items = [];
-  if (run?.site?.baseUrl || run?.site?.name) {
-    items.push({
-      label: 'Site',
-      value: run.site.baseUrl || run.site.name,
+const resolveViewportsTested = (records = []) => {
+  const viewports = new Set();
+  records.forEach((record) => {
+    (record?.summaries || []).forEach((summary) => {
+      const meta = summary?.metadata || {};
+      const metaViewports = Array.isArray(meta.viewports) ? meta.viewports : null;
+      if (metaViewports && metaViewports.length > 0) {
+        metaViewports.filter(Boolean).forEach((viewport) => viewports.add(String(viewport)));
+      }
+      if (meta.viewport) {
+        viewports.add(String(meta.viewport));
+      }
     });
-  }
-  if (run?.runId) {
-    items.push({ label: 'Run ID', value: run.runId });
-  }
-  if (run?.durationFriendly) {
-    items.push({ label: 'Duration', value: run.durationFriendly });
-  }
-
-  if (items.length === 0) return '';
-
-  const rows = items
-    .map(
-      (item) => `
-        <div>
-          <dt>${escapeHtml(item.label)}</dt>
-          <dd>${escapeHtml(item.value)}</dd>
-        </div>
-      `
-    )
-    .join('\n');
-
-  return `
-    <dl class="summary-hero__meta">
-      ${rows}
-    </dl>
-  `;
+  });
+  return Array.from(viewports);
 };
 
-const renderSummaryStatCards = (run, summaryMap, suiteCards) => {
+const renderSummaryStatCards = (run, summaryMap, suiteCards, schemaRecords) => {
   const pagesTested = resolvePagesTested(summaryMap);
-  const suiteCount = Array.isArray(suiteCards) ? suiteCards.length : 0;
-  const blockingSuiteCount = Array.isArray(suiteCards)
-    ? suiteCards.filter((card) => card.statusClass === 'status-fail').length
-    : 0;
-  const projects = Array.isArray(run?.projects) ? run.projects : [];
+  const projects = Array.isArray(run?.projects) ? run.projects.filter(Boolean) : [];
   const totalTests =
     typeof run?.totalTests === 'number' && Number.isFinite(run.totalTests)
       ? run.totalTests
       : typeof run?.totalTestsPlanned === 'number' && Number.isFinite(run.totalTestsPlanned)
         ? run.totalTestsPlanned
         : null;
+  const viewportsTested = resolveViewportsTested(schemaRecords);
+  const siteLabel = run?.site?.baseUrl || run?.site?.name || null;
 
   const stats = [
     {
-      label: 'Pages scanned',
-      value:
-        pagesTested != null
-          ? `${formatNumber(pagesTested)} ${pluralise(pagesTested, 'page', 'pages')}`
-          : 'Not captured',
+      label: 'SITE TESTED',
+      count: siteLabel ? '1' : '—',
+      meta: siteLabel || 'Not captured',
     },
     {
-      label: 'Suites executed',
-      value: `${formatNumber(suiteCount)} ${pluralise(suiteCount, 'suite', 'suites')}`,
+      label: 'PAGES SCANNED',
+      count: pagesTested != null ? formatNumber(pagesTested) : '—',
+      meta: pagesTested != null ? 'Across this run' : 'Not captured',
     },
     {
-      label: 'Blocking suites',
-      value: blockingSuiteCount ? formatNumber(blockingSuiteCount) : 'None',
+      label: 'TESTS RUN',
+      count: totalTests != null ? formatNumber(totalTests) : '—',
+      meta: totalTests != null ? 'Across all suites' : 'Not captured',
     },
     {
-      label: 'Browsers included',
-      value: projects.length ? `${projects.length} (${formatList(projects)})` : 'Not captured',
+      label: 'BROWSERS INCLUDED',
+      count: projects.length ? formatNumber(projects.length) : '—',
+      meta: projects.length ? formatList(projects) : 'Not captured',
     },
     {
-      label: 'Total tests',
-      value: totalTests != null ? formatNumber(totalTests) : 'Not captured',
+      label: 'LAYOUTS COVERED',
+      count: viewportsTested.length ? formatNumber(viewportsTested.length) : '—',
+      meta: viewportsTested.length ? formatList(viewportsTested) : 'Not captured',
     },
   ];
 
   const cardsHtml = stats
     .map(
       (stat) => `
-        <article class="summary-grid__card">
-          <h2 class="summary-grid__title">
-            <span class="summary-grid__value">${escapeHtml(String(stat.value))}</span>
+        <article class="summary-card">
+          <h2 class="summary-card__title">
+            <span class="summary-card__count">${escapeHtml(String(stat.count))}</span>
             ${escapeHtml(stat.label)}
           </h2>
+          <div class="meta">${escapeHtml(stat.meta)}</div>
         </article>
       `
     )
     .join('\n');
 
-  return `
-    <section class="summary-grid" aria-label="Run snapshot">
+  return cardsHtml
+    ? `
+    <section class="summary-grid summary-grid--stats" aria-label="Run snapshot">
       ${cardsHtml}
     </section>
-  `;
+  `
+    : '';
 };
 
 const renderSummaryOverview = (run, schemaRecords) => {
@@ -675,24 +674,15 @@ const renderSummaryOverview = (run, schemaRecords) => {
   if (summaryMap.size === 0 && !run) return '';
 
   const suiteCards = buildSuiteCards(summaryMap);
-  const heroMeta = renderSummaryHeroMeta(run);
-  const statCards = renderSummaryStatCards(run, summaryMap, suiteCards);
+  const statCards = renderSummaryStatCards(run, summaryMap, suiteCards, schemaRecords);
   const suitesHtml = renderSuiteCardsSection(suiteCards);
+
+  const sections = [statCards, suitesHtml].filter(Boolean).join('\n');
+  if (!sections) return '';
 
   return `
     <section class="summary-overview">
-      <header class="summary-hero">
-        <div class="summary-hero__info">
-          <span class="summary-hero__label">Summary</span>
-          <h2>Test run overview</h2>
-          <p class="summary-hero__description">
-            Get the quick take on this run before drilling into detailed suite tabs.
-          </p>
-        </div>
-        ${heroMeta}
-      </header>
-      ${statCards}
-      ${suitesHtml}
+      ${sections}
     </section>
   `;
 };
@@ -1018,19 +1008,25 @@ const renderAccessibilityGroupHtml = (group) => {
     return renderAccessibilityGroupHtmlLegacy(group);
   }
 
+  const multiBucket = buckets.length > 1;
+
   const sections = buckets.map((bucket) => {
     const runPayload = firstRunPayload(bucket);
     const details = runPayload.details || {};
     const overview = runPayload.overview || {};
     const pages = Array.isArray(details.pages) ? details.pages : [];
     const metadata = runPayload.metadata || {};
-    const viewports =
-      (Array.isArray(details.viewports) && details.viewports.length
+    const projectLabel = metadata.projectName || bucket.projectName || 'Chrome';
+    const viewportList =
+      Array.isArray(details.viewports) && details.viewports.length
         ? details.viewports
-        : metadata.viewports || []
-      ).join(', ') ||
-      metadata.projectName ||
-      'default';
+        : Array.isArray(metadata.viewports) && metadata.viewports.length
+          ? metadata.viewports
+          : projectLabel
+            ? [projectLabel]
+            : [];
+    const viewportLabel = viewportList.length ? viewportList.join(', ') : projectLabel;
+    const viewportCount = viewportList.length || 1;
     const totalPages = overview.totalPages ?? pages.length;
     const gatingPages =
       overview.gatingPages ?? pages.filter((page) => (page.gatingViolations || 0) > 0).length;
@@ -1039,25 +1035,33 @@ const renderAccessibilityGroupHtml = (group) => {
     const bestPracticePages =
       overview.bestPracticePages ??
       pages.filter((page) => (page.bestPracticeFindings || 0) > 0).length;
-    const scanErrors = pages.filter(
-      (page) => page.status === 'scan-error' || page.status === 'http-error'
+    const scanIssues = pages.filter((page) =>
+      ['scan-error', 'http-error', 'stability-timeout'].includes(page.status)
     ).length;
 
-    const pillList = renderPillList([
-      {
-        label: 'Accessibility violations',
-        tone: 'status-error',
-        count: gatingPages,
-        suffix: 'page(s)',
-      },
-      { label: 'Scan issues', tone: 'status-warning', count: scanErrors, suffix: 'page(s)' },
-      {
-        label: 'Best-practice advisories',
-        tone: 'status-info',
-        count: bestPracticePages,
-        suffix: 'page(s)',
-      },
-    ]);
+    const statusSummary = renderStatusSummaryList(
+      [
+        {
+          label: 'Accessibility violations',
+          tone: 'status-error',
+          count: gatingPages,
+          suffix: 'page(s)',
+        },
+        {
+          label: 'Scan issues',
+          tone: 'status-warning',
+          count: scanIssues,
+          suffix: 'page(s)',
+        },
+        {
+          label: 'Best-practice advisories',
+          tone: 'status-info',
+          count: bestPracticePages,
+          suffix: 'page(s)',
+        },
+      ],
+      { className: 'status-summary' }
+    );
 
     const failThreshold = details.failThreshold || overview.failThreshold || metadata.failOn;
     const totalAdvisories =
@@ -1068,9 +1072,7 @@ const renderAccessibilityGroupHtml = (group) => {
       pages.reduce((sum, page) => sum + (page.bestPracticeFindings || 0), 0);
 
     const summaryParagraph = `
-      <p>Analyzed <strong>${escapeHtml(formatCount(totalPages))}</strong> page(s) across ${escapeHtml(
-        viewports || 'configured viewports'
-      )}.</p>
+      <p>Analyzed <strong>${escapeHtml(formatCount(totalPages))}</strong> page(s) per browser across <strong>${escapeHtml(formatCount(viewportCount))}</strong> viewport(s): ${escapeHtml(viewportLabel)}.</p>
     `;
 
     const advisoryNote =
@@ -1103,13 +1105,13 @@ const renderAccessibilityGroupHtml = (group) => {
       formatSummaryLabel: (entrySummary) => formatPageLabel(entrySummary?.page || 'Unknown page'),
     });
 
-    return `
+    const runSummaryHtml = `
       <section class="suite-section suite-section--emphasis">
         <header class="suite-section__header">
           <h3>Accessibility run summary</h3>
         </header>
         ${summaryParagraph}
-        ${pillList}
+        ${statusSummary}
         ${
           failThreshold
             ? `<p class="suite-note">Gating threshold: ${escapeHtml(String(failThreshold))}</p>`
@@ -1129,6 +1131,15 @@ const renderAccessibilityGroupHtml = (group) => {
           <span class="badge badge-wcag">WCAG A/AA/AAA</span>
         </p>
       </section>
+    `;
+
+    const projectHeading = multiBucket
+      ? `<header class="suite-project"><h3>${escapeHtml(projectLabel)}</h3></header>`
+      : '';
+
+    return `
+      ${projectHeading}
+      ${runSummaryHtml}
       ${renderAccessibilityRuleTable(
         `Gating WCAG violations${gatingRules.length ? ` (${gatingRules.length} unique rules)` : ''}`,
         gatingRules
@@ -1146,13 +1157,7 @@ const renderAccessibilityGroupHtml = (group) => {
     `;
   });
 
-  const headline = escapeHtml(group.title || 'WCAG findings summary');
-  return `
-    <article class="schema-group schema-group--stacked">
-      <header><h2>${headline}</h2></header>
-      ${sections.join('\n')}
-    </article>
-  `;
+  return sections.join('\n');
 };
 
 const firstRunPayload = (bucket) =>
@@ -4358,132 +4363,100 @@ a { color: inherit; }
 
 .summary-overview {
   display: grid;
-  gap: 2rem;
+  gap: 1.75rem;
   margin-bottom: 3rem;
-}
-
-.summary-hero {
-  background: #eef2ff;
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  border-radius: 18px;
-  padding: 1.75rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  align-items: flex-start;
-  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.12);
-}
-
-.summary-hero__info {
-  flex: 1 1 280px;
-}
-
-.summary-hero__label {
-  display: inline-block;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #2563eb;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.summary-hero__info h2 {
-  margin: 0;
-  font-size: 1.9rem;
-  color: #1f2937;
-}
-
-.summary-hero__description {
-  margin: 0.75rem 0 0;
-  color: #475467;
-  max-width: 38ch;
-  font-size: 1rem;
-}
-
-.summary-hero__meta {
-  margin: 0;
-  display: grid;
-  gap: 0.75rem;
-  min-width: 220px;
-  flex: 0 1 240px;
-}
-
-.summary-hero__meta div {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.summary-hero__meta dt {
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #64748b;
-  font-weight: 600;
-}
-
-.summary-hero__meta dd {
-  margin: 0;
-  font-size: 0.95rem;
-  color: #1f2937;
 }
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.1rem;
 }
 
-.summary-grid__card {
+.summary-card {
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  box-shadow: var(--shadow-sm);
+  border-radius: 22px;
+  padding: 1.6rem 1.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+  position: relative;
+  overflow: hidden;
 }
 
-.summary-grid__title {
+.summary-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 60%);
+  pointer-events: none;
+}
+
+.summary-card__title {
   margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f172a;
 }
 
-.summary-grid__value {
-  font-size: 1.9rem;
-  font-weight: 700;
-  color: var(--text-primary);
+.summary-card__count {
+  font-size: 2.6rem;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.summary-card .meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: #475467;
 }
 
 .suite-overview {
   display: grid;
-  gap: 1.5rem;
+  gap: 1.2rem;
 }
 
 .suite-overview h3 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   color: var(--text-primary);
 }
 
 .suite-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.25rem;
+  gap: 1.1rem;
 }
 
 .suite-card {
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 1.25rem;
-  box-shadow: var(--shadow-sm);
+  border-radius: 20px;
+  padding: 1.4rem 1.6rem;
+  box-shadow: 0 20px 42px rgba(15, 23, 42, 0.08);
+  border-left: 6px solid rgba(37, 99, 235, 0.4);
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  border-right: 1px solid rgba(148, 163, 184, 0.18);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   min-height: 100%;
+}
+
+.suite-card.status-pass {
+  border-left-color: rgba(16, 185, 129, 0.75);
+}
+
+.suite-card.status-fail {
+  border-left-color: rgba(220, 38, 38, 0.75);
+}
+
+.suite-card.status-info {
+  border-left-color: rgba(37, 99, 235, 0.6);
 }
 
 .suite-card header {
@@ -4502,23 +4475,8 @@ a { color: inherit; }
 
 .suite-card h4 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   color: var(--text-primary);
-}
-
-.suite-card.status-fail {
-  border-color: #f3b5b3;
-  box-shadow: 0 18px 32px rgba(220, 38, 38, 0.18);
-}
-
-.suite-card.status-pass {
-  border-color: #cce4cc;
-  box-shadow: 0 18px 32px rgba(16, 185, 129, 0.15);
-}
-
-.suite-card.status-info {
-  border-color: #f7d070;
-  box-shadow: 0 18px 32px rgba(249, 115, 22, 0.15);
 }
 
 .suite-metrics {
@@ -4528,7 +4486,12 @@ a { color: inherit; }
   display: grid;
   gap: 0.35rem;
   font-size: 0.9rem;
-  color: var(--text-muted);
+  color: #485260;
+}
+
+.suite-metrics--summary li {
+  display: flex;
+  gap: 0.35rem;
 }
 
 .suite-metrics strong {
@@ -4538,8 +4501,8 @@ a { color: inherit; }
 
 .suite-status {
   margin: 0;
-  font-size: 0.95rem;
-  color: #344054;
+  font-size: 0.9rem;
+  color: var(--text-muted);
 }
 
 .suite-section {
@@ -4581,6 +4544,19 @@ a { color: inherit; }
   color: #0c4a6e;
 }
 
+.suite-project {
+  margin: 0 0 0.75rem;
+}
+
+.suite-project h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 .suite-table {
   overflow-x: auto;
 }
@@ -4605,16 +4581,22 @@ a { color: inherit; }
   color: var(--text-muted);
 }
 
-.suite-pill-list {
+.status-summary {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 0.75rem 0 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
+  gap: 0.6rem 1.3rem;
   align-items: center;
-  font-size: 0.9rem;
-  color: var(--text-muted);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.status-summary li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .schema-group--stacked {
