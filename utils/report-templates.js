@@ -289,7 +289,7 @@ const WCAG_PER_PAGE_TOGGLE_SCRIPT = `
 const formatRuleHeading = (label, count) =>
   count ? `${label} (${formatCount(count)} unique rules)` : label;
 
-const renderAccessibilityRuleTable = (title, rules, { headingClass } = {}) => {
+const renderAccessibilityRuleTable = (title, rules, { headingClass, sectionClass } = {}) => {
   if (!Array.isArray(rules) || rules.length === 0) return '';
   const rows = rules
     .map((rule) => {
@@ -320,8 +320,9 @@ const renderAccessibilityRuleTable = (title, rules, { headingClass } = {}) => {
     })
     .join('');
   const headingAttr = headingClass ? ` class="${headingClass}"` : '';
+  const sectionModifier = sectionClass ? ` ${sectionClass}` : '';
   return `
-    <section class="summary-report summary-a11y">
+    <section class="summary-report summary-a11y${sectionModifier}">
       <h3${headingAttr}>${escapeHtml(title)}</h3>
       <table>
         <thead>
@@ -1064,7 +1065,7 @@ const renderAccessibilityGroupHtmlLegacy = (group) => {
           const statusLabel = status.replace(/[-_/]+/g, ' ');
           const notesHtml = formatAccessibilityNotesHtml(summary);
           return `
-      <section class="summary-report summary-a11y">
+      <section class="summary-report summary-a11y summary-a11y--page-summary">
         <h3>${escapeHtml(payload.page || 'unknown')}</h3>
         <table>
           <thead><tr><th>Status</th><th>Gating</th><th>Advisory</th><th>Best practice</th><th>HTTP</th><th>Notes</th></tr></thead>
@@ -1102,7 +1103,7 @@ const renderAccessibilityGroupHtmlLegacy = (group) => {
 
       return `
       <section class="schema-group__project-block">
-        <section class="summary-report summary-a11y">
+        <section class="summary-report summary-a11y summary-a11y--project-summary">
           <h3>${escapeHtml(headingLabel)}</h3>
           ${defaultOverviewHtml}
           ${pagesHtml}
@@ -1216,7 +1217,7 @@ const renderWcagRunSummary = (overview, details, { viewportLabel, viewportsCount
       : '';
 
   return `
-    <section class="summary-report summary-a11y">
+    <section class="summary-report summary-a11y summary-a11y--run-summary">
       <h3>Accessibility run summary</h3>
       <p>Analyzed <strong>${escapeHtml(
         formatCount(totalPages)
@@ -1266,7 +1267,7 @@ const renderWcagPerPageSection = (pages, options = {}) => {
   if (!detailsHtml.trim()) return '';
 
   return `
-    <section class="summary-report summary-a11y" data-per-page="list">
+    <section class="summary-report summary-a11y summary-a11y--per-page" data-per-page="list">
       <div class="summary-per-page-header">
         <h3>Per-page findings</h3>
         <div class="summary-toggle-controls">
@@ -1327,16 +1328,21 @@ const renderAccessibilityGroupHtml = (group) => {
       const ruleSections = [
         renderAccessibilityRuleTable(
           formatRuleHeading('Gating WCAG violations', gatingRules.length),
-          gatingRules
+          gatingRules,
+          { sectionClass: 'summary-a11y--rule-table summary-a11y--rule-table-gating' }
         ),
         renderAccessibilityRuleTable(
           formatRuleHeading('WCAG advisory findings', advisoryRules.length),
-          advisoryRules
+          advisoryRules,
+          { sectionClass: 'summary-a11y--rule-table summary-a11y--rule-table-advisory' }
         ),
         renderAccessibilityRuleTable(
           formatRuleHeading('Best-practice advisories', bestPracticeRules.length),
           bestPracticeRules,
-          { headingClass: 'summary-heading-best-practice' }
+          {
+            headingClass: 'summary-heading-best-practice',
+            sectionClass: 'summary-a11y--rule-table summary-a11y--rule-table-best-practice',
+          }
         ),
       ]
         .filter(Boolean)
@@ -2819,7 +2825,7 @@ const renderFormsPageCard = (summary) => {
   const statusClass = gating.length ? 'error' : 'success';
 
   return `
-    <section class="summary-report summary-a11y page-card">
+    <section class="summary-report summary-a11y summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(formName)} — ${escapeHtml(summary.page || 'n/a')}</h3>
         <span class="status-pill ${statusClass}">
@@ -2864,7 +2870,7 @@ const renderKeyboardPageCard = (summary) => {
     : 'not detected';
 
   return `
-    <section class="summary-report summary-a11y page-card">
+    <section class="summary-report summary-a11y summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
@@ -2958,7 +2964,7 @@ const renderKeyboardGroupHtml = (group) => {
     });
 
     return `
-      <section class="summary-report summary-a11y">
+      <section class="summary-report summary-a11y summary-a11y--keyboard-summary">
         <h2>Keyboard-only navigation summary</h2>
         <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
         ${overviewHtml}
@@ -3004,7 +3010,7 @@ const renderReducedMotionPageCard = (summary) => {
   const respectsPreference = summary.matchesPreference ? 'Respected' : 'Violated';
 
   return `
-    <section class="summary-report summary-a11y page-card">
+    <section class="summary-report summary-a11y summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
@@ -3093,7 +3099,7 @@ const renderReducedMotionGroupHtml = (group) => {
     });
 
     return `
-      <section class="summary-report summary-a11y">
+      <section class="summary-report summary-a11y summary-a11y--reduced-motion-summary">
         <h2>Reduced motion preference summary</h2>
         <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
         ${overviewHtml}
@@ -3138,7 +3144,7 @@ const renderReflowPageCard = (summary) => {
     .join('');
 
   return `
-    <section class="summary-report summary-a11y page-card">
+    <section class="summary-report summary-a11y summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
@@ -3221,7 +3227,7 @@ const renderReflowGroupHtml = (group) => {
     });
 
     return `
-      <section class="summary-report summary-a11y">
+      <section class="summary-report summary-a11y summary-a11y--reflow-summary">
         <h2>320px reflow summary</h2>
         <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
         ${overviewHtml}
@@ -3265,7 +3271,7 @@ const renderIframePageCard = (summary) => {
     .join('');
 
   return `
-    <section class="summary-report summary-a11y page-card">
+    <section class="summary-report summary-a11y summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
@@ -3345,7 +3351,7 @@ const renderIframeGroupHtml = (group) => {
     });
 
     return `
-      <section class="summary-report summary-a11y">
+      <section class="summary-report summary-a11y summary-a11y--iframe-summary">
         <h2>Iframe accessibility summary</h2>
         <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
         ${overviewHtml}
@@ -3391,7 +3397,7 @@ const renderStructurePageCard = (summary) => {
     .join('');
 
   return `
-    <section class="summary-report summary-a11y page-card">
+    <section class="summary-report summary-a11y summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
@@ -3632,7 +3638,7 @@ const renderStructureGroupHtml = (group) => {
     });
 
     return `
-      <section class="summary-report summary-a11y">
+      <section class="summary-report summary-a11y summary-a11y--structure-summary">
         <h2>Landmark & heading structure summary</h2>
         <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
         ${overviewHtml}
@@ -3735,7 +3741,7 @@ const renderFormsGroupHtml = (group) => {
     });
 
     return `
-      <section class="summary-report summary-a11y">
+      <section class="summary-report summary-a11y summary-a11y--forms-summary">
         <h2>Forms accessibility summary</h2>
         <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
         ${overviewHtml}
@@ -3796,7 +3802,7 @@ const renderWcagIssueTable = (entries, heading) => {
     .join('');
 
   return `
-    <section class="summary-report summary-a11y">
+    <section class="summary-report summary-a11y summary-a11y--issues-table">
       <h3>${escapeHtml(heading)}</h3>
       <table>
         <thead><tr><th>Impact</th><th>Rule</th><th>WCAG tags</th><th>Sample targets</th><th>Help</th></tr></thead>
@@ -3869,7 +3875,7 @@ const renderWcagPageCard = (summary, { viewportLabel, failThreshold } = {}) => {
     : '';
 
   return `
-    <section class="summary-report summary-a11y page-card">
+    <section class="summary-report summary-a11y summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'Unknown page')}</h3>
         <span class="status-pill ${statusMeta.pillClass}">${escapeHtml(statusMeta.pillLabel)}</span>
