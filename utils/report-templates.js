@@ -1204,13 +1204,6 @@ const renderWcagRunSummary = (overview, details, { viewportLabel, viewportsCount
 
   const statusSummary = renderStatusSummaryList(summaryItems, { className: 'status-summary' });
 
-  const advisoryNote =
-    totalAdvisories > 0
-      ? `<p class="details">WCAG advisories raised on ${escapeHtml(
-          formatCount(advisoryPages)
-        )} page(s).</p>`
-      : '';
-
   const bestPracticeNote =
     totalBestPractice > 0
       ? `<p class="details">Best-practice advisories surfaced on ${escapeHtml(
@@ -1223,16 +1216,15 @@ const renderWcagRunSummary = (overview, details, { viewportLabel, viewportsCount
       <h3>Accessibility run summary</h3>
       <p>Analyzed <strong>${escapeHtml(
         formatCount(totalPages)
-      )}</strong> page(s) per browser across <strong>${escapeHtml(
+      )}</strong> page(s) per browser across ${escapeHtml(
         formatCount(viewportsCount || 1)
-      )}</strong> viewport(s): ${escapeHtml(viewportLabel || 'Not recorded')}.</p>
+      )} viewport(s): ${escapeHtml(viewportLabel || 'Not recorded')}.</p>
       ${statusSummary}
       ${
         failThreshold
           ? `<p class="details">Gating threshold: ${escapeHtml(String(failThreshold))}</p>`
           : ''
       }
-      ${advisoryNote}
       ${bestPracticeNote}
       <p class="legend">
         <span class="badge badge-critical">Critical</span>
@@ -2827,7 +2819,7 @@ const renderFormsPageCard = (summary) => {
   const statusClass = gating.length ? 'error' : 'success';
 
   return `
-    <section class="summary-report summary-a11y summary-a11y--page-card">
+    <section class="summary-report summary-a11y page-card summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(formName)} — ${escapeHtml(summary.page || 'n/a')}</h3>
         <span class="status-pill ${statusClass}">
@@ -2872,7 +2864,7 @@ const renderKeyboardPageCard = (summary) => {
     : 'not detected';
 
   return `
-    <section class="summary-report summary-a11y summary-a11y--page-card">
+    <section class="summary-report summary-a11y page-card summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
@@ -3012,7 +3004,7 @@ const renderReducedMotionPageCard = (summary) => {
   const respectsPreference = summary.matchesPreference ? 'Respected' : 'Violated';
 
   return `
-    <section class="summary-report summary-a11y summary-a11y--page-card">
+    <section class="summary-report summary-a11y page-card summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
@@ -3146,7 +3138,7 @@ const renderReflowPageCard = (summary) => {
     .join('');
 
   return `
-    <section class="summary-report summary-a11y summary-a11y--page-card">
+    <section class="summary-report summary-a11y page-card summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
@@ -3273,7 +3265,7 @@ const renderIframePageCard = (summary) => {
     .join('');
 
   return `
-    <section class="summary-report summary-a11y summary-a11y--page-card">
+    <section class="summary-report summary-a11y page-card summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
@@ -3399,7 +3391,7 @@ const renderStructurePageCard = (summary) => {
     .join('');
 
   return `
-    <section class="summary-report summary-a11y summary-a11y--page-card">
+    <section class="summary-report summary-a11y page-card summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
         <span class="status-pill ${statusClass}">
