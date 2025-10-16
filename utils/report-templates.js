@@ -2610,7 +2610,17 @@ const buildSuitePanels = (schemaGroups, summaryMap) => {
     if (!groups || groups.length === 0) continue;
 
     const specNames = new Set();
-    const groupHtml = groups
+    const filteredGroups = definition.summaryType === 'wcag'
+      ? groups.filter((group) => {
+          const runEntries = group.runEntries || [];
+          if (runEntries.length === 0) return false;
+          return runEntries.some((entry) => (entry.payload?.metadata?.scope || '') !== 'run');
+        })
+      : groups;
+
+    if (filteredGroups.length === 0) continue;
+
+    const groupHtml = filteredGroups
       .map((group) => {
         if (group?.baseName) baseNamesUsed.add(group.baseName);
         (group.runEntries || []).forEach((entry) => {
