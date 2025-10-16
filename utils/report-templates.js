@@ -1240,6 +1240,64 @@ const renderWcagRunSummary = (overview, details, { viewportLabel, viewportsCount
   `;
 };
 
+
+const renderKeyboardRunSummary = (overview = {}, pages = [], references = []) => {
+  const totalPages = overview.totalPagesAudited ?? pages.length;
+  const gatingPages = overview.pagesWithGatingIssues ?? pages.filter((page) => (page.gating || []).length > 0).length;
+  const advisoryPages = overview.pagesWithAdvisories ?? pages.filter((page) => (page.advisories || []).length > 0).length;
+  const skipLinksDetected = overview.skipLinksDetected ?? pages.filter((page) => Boolean(page.skipLink)).length;
+  const pagesMissingSkip = Math.max(totalPages - skipLinksDetected, 0);
+  const totalFocusable = pages.reduce((sum, page) => sum + (page.focusableCount || 0), 0);
+  const totalVisited = pages.reduce((sum, page) => sum + (page.visitedCount || 0), 0);
+  const coveragePercent = totalFocusable > 0 ? Math.round((totalVisited / totalFocusable) * 100) : null;
+
+  const wcagBadges = Array.isArray(references)
+    ? references
+        .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
+        .join(' ')
+    : '';
+
+  const statusItems = [];
+  if (gatingPages > 0) {
+    statusItems.push(`<li><span class="status-pill status-error">Gating issues</span><span>${formatNumber(gatingPages)} page(s)</span></li>`);
+  } else {
+    statusItems.push('<li><span class="status-pill status-ok">No gating issues</span><span>All pages</span></li>');
+  }
+  if (advisoryPages > 0) {
+    statusItems.push(`<li><span class="status-pill status-info">Advisories</span><span>${formatNumber(advisoryPages)} page(s)</span></li>`);
+  }
+  if (pagesMissingSkip > 0) {
+    statusItems.push(`<li><span class="status-pill status-warning">Skip link missing</span><span>${formatNumber(pagesMissingSkip)} page(s)</span></li>`);
+  } else if (totalPages > 0) {
+    statusItems.push(`<li><span class="status-pill status-ok">Skip links detected</span><span>${formatNumber(skipLinksDetected)} page(s)</span></li>`);
+  }
+
+  const statusSummary = statusItems.length
+    ? `<ul class="status-summary">${statusItems.join('')}</ul>`
+    : '';
+
+  const coverageNote = totalFocusable > 0
+    ? `<p class="details">Visited ${formatNumber(totalVisited)} of ${formatNumber(totalFocusable)} focusable elements${coveragePercent != null ? ` (~${coveragePercent}% coverage)` : ''}.</p>`
+    : '';
+
+  const skipNote = pagesMissingSkip > 0
+    ? `<p class="details">Skip links missing on ${formatNumber(pagesMissingSkip)} page(s).</p>`
+    : skipLinksDetected > 0
+      ? `<p class="details">Skip links detected on ${formatNumber(skipLinksDetected)} page(s).</p>`
+      : '';
+
+  return `
+    <section class="summary-report summary-a11y summary-a11y--keyboard-summary">
+      <h3>Keyboard run summary</h3>
+      <p>Audited <strong>${formatNumber(totalPages)}</strong> page(s) with keyboard navigation.</p>
+      ${coverageNote}
+      ${statusSummary}
+      ${skipNote}
+      ${wcagBadges ? `<p class="legend">${wcagBadges}</p>` : ''}
+    </section>
+  `;
+};
+
 const renderWcagPerPageSection = (pages, options = {}) => {
   const entries = Array.isArray(pages) ? pages : [];
   if (entries.length === 0) return '';
@@ -2839,22 +2897,36 @@ const renderFormsPageCard = (summary) => {
   `;
 };
 
+
 const renderKeyboardPageCard = (summary) => {
   if (!summary) return '';
-  const gating = summary.gatingIssues || [];
-  const advisories = summary.advisories || [];
-  const focusSequence = summary.focusSequence || [];
-  const statusClass = gating.length ? 'error' : 'success';
+  const gating = Array.isArray(summary.gatingIssues)
+    ? summary.gatingIssues
+    : Array.isArray(summary.gating)
+      ? summary.gating
+      : [];
+  const warnings = Array.isArray(summary.warnings) ? summary.warnings : [];
+  const advisories = Array.isArray(summary.advisories) ? summary.advisories : [];
+  const focusSequence = Array.isArray(summary.focusSequence) ? summary.focusSequence : [];
+  const statusClass = gating.length
+    ? 'status-error'
+    : warnings.length || advisories.length
+      ? 'status-warning'
+      : 'status-ok';
   const gatingList = gating
     .map((item) => `<li class="check-fail">${escapeHtml(String(item))}</li>`)
     .join('');
-  const advisoryList = advisories.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
+  const warningList = warnings
+    .map((item) => `<li>${escapeHtml(String(item))}</li>`)
+    .join('');
+  const advisoryList = advisories
+    .map((item) => `<li>${escapeHtml(String(item))}</li>`)
+    .join('');
   const sequenceItems = focusSequence
+    .slice(0, 25)
     .map((entry, index) => {
       const summaryText = entry.summary || `Stop ${index + 1}`;
-      const indicatorLabel = entry.hasIndicator
-        ? 'Focus indicator detected'
-        : 'No focus indicator found';
+      const indicatorLabel = entry.hasIndicator ? 'Focus indicator detected' : 'No focus indicator found';
       return `
         <li>
           <strong>Step ${index + 1}</strong>: ${escapeHtml(summaryText)} — ${indicatorLabel}
@@ -2868,124 +2940,168 @@ const renderKeyboardPageCard = (summary) => {
     ? `present (${escapeHtml(skipLink.text || skipLink.href || 'skip link')})`
     : 'not detected';
 
+  const warningsHtml = warningList
+    ? `<details><summary>Warnings (${warnings.length})</summary><ul class="details">${warningList}</ul></details>`
+    : '';
+  const advisoriesHtml = advisoryList
+    ? `<details><summary>Advisories (${advisories.length})</summary><ul class="details">${advisoryList}</ul></details>`
+    : '';
+
+  const sequenceHtml = sequenceItems
+    ? `<details><summary>Focus sequence (${focusSequence.length} stops)</summary><ul class="details">${sequenceItems}</ul></details>`
+    : '';
+
+  const statusLabel = gating.length
+    ? `${gating.length} gating issue(s)`
+    : warnings.length || advisories.length
+      ? 'Needs attention'
+      : 'Pass';
+
   return `
     <section class="summary-report summary-a11y page-card summary-a11y--page-card">
       <div class="page-card__header">
         <h3>${escapeHtml(summary.page || 'unknown')}</h3>
-        <span class="status-pill ${statusClass}">
-          ${gating.length ? `${gating.length} gating issue(s)` : 'Pass'}
-        </span>
+        <span class="status-pill ${statusClass}">${statusLabel}</span>
       </div>
       <p class="details">Focusable elements detected: ${summary.focusableCount ?? 'n/a'}</p>
       <p class="details">Visited via keyboard: ${summary.visitedCount ?? 'n/a'}</p>
       <p class="details">Skip link ${skipStatus}.</p>
-      ${gating.length ? `<ul class="details">${gatingList}</ul>` : ''}
-      ${advisories.length ? `<details><summary>Advisories (${advisories.length})</summary><ul class="details">${advisoryList}</ul></details>` : ''}
-      ${
-        sequenceItems
-          ? `<details><summary>Focus sequence (${focusSequence.length} stops)</summary><ul class="details">${sequenceItems}</ul></details>`
-          : ''
-      }
+      ${gatingList ? `<ul class="details">${gatingList}</ul>` : ''}
+      ${warningsHtml}
+      ${advisoriesHtml}
+      ${sequenceHtml}
     </section>
   `;
 };
+
+
 
 const renderKeyboardGroupHtml = (group) => {
   const buckets = collectSchemaProjects(group);
   if (buckets.length === 0) return '';
 
-  const sections = buckets.map((bucket) => {
+  const dataReady = buckets.every((bucket) => {
     const runPayload = firstRunPayload(bucket);
-    const pagesData = runPayload?.details?.pages || [];
-    const overview = runPayload?.overview || {};
-    const metrics = [
-      { label: 'Pages audited', value: overview.totalPagesAudited ?? pagesData.length },
-      {
-        label: 'Pages with gating issues',
-        value:
-          overview.pagesWithGatingIssues ??
-          pagesData.filter((page) => (page.gating || []).length > 0).length,
-      },
-      {
-        label: 'Pages with advisories',
-        value:
-          overview.pagesWithAdvisories ??
-          pagesData.filter((page) => (page.advisories || []).length > 0).length,
-      },
-      {
-        label: 'Skip links detected',
-        value:
-          overview.skipLinksDetected ?? pagesData.filter((page) => Boolean(page.skipLink)).length,
-      },
-      {
-        label: 'Total focus stops sampled',
-        value: pagesData.reduce((sum, page) => sum + (page.visitedCount || 0), 0),
-      },
-    ];
-    const overviewHtml = renderSummaryMetrics(metrics);
-    const wcagRefs = runPayload?.details?.wcagReferences || [];
-    const wcagBadges = wcagRefs
-      .map((ref) => `<span class="badge badge-wcag">${escapeHtml(`${ref.id} ${ref.name}`)}</span>`)
-      .join(' ');
-
-    const tableRows = pagesData
-      .map((page) => {
-        const skipStatus = page.skipLink
-          ? `Present (${escapeHtml(page.skipLink.text || page.skipLink.href || 'skip link')})`
-          : 'Missing';
-        return `
-          <tr class="${(page.gating || []).length ? 'impact-critical' : ''}">
-            <td><code>${escapeHtml(page.page || 'unknown')}</code></td>
-            <td>${page.focusableCount ?? 'n/a'}</td>
-            <td>${page.visitedCount ?? 'n/a'}</td>
-            <td>${skipStatus}</td>
-            <td>${(page.gating || []).length}</td>
-            <td>${(page.advisories || []).length}</td>
-          </tr>
-        `;
-      })
-      .join('');
-
-    const perPageEntries = (bucket.pageEntries || []).map((entry) => {
-      const payload = entry.payload || {};
-      const summary = payload.summary || {};
-      return {
-        ...summary,
-        page: payload.page || summary.page,
-      };
-    });
-
-    const accordionHtml = renderPerPageAccordion(perPageEntries, {
-      heading: 'Per-page breakdown',
-      summaryClass: 'summary-page--keyboard',
-      renderCard: (entrySummary) => renderKeyboardPageCard(entrySummary),
-      formatSummaryLabel: (entrySummary) => entrySummary?.page || 'Unknown page',
-    });
-
-    return `
-      <section class="summary-report summary-a11y summary-a11y--keyboard-summary">
-        <h2>Keyboard-only navigation summary</h2>
-        <p class="details"><strong>WCAG coverage:</strong> ${wcagBadges || '—'}</p>
-        ${overviewHtml}
-        <table>
-          <thead>
-            <tr><th>Page</th><th>Focusable elements sampled</th><th>Unique focus stops</th><th>Skip link</th><th>Gating issues</th><th>Advisories</th></tr>
-          </thead>
-          <tbody>${tableRows}</tbody>
-        </table>
-      </section>
-      ${accordionHtml}
-    `;
+    return runPayload?.details && Array.isArray(runPayload.details.pages);
   });
+
+  if (!dataReady) {
+    return '';
+  }
+  const multiProject = buckets.length > 1;
+
+  const sections = buckets
+    .map((bucket) => {
+      const runPayload = firstRunPayload(bucket);
+      if (!runPayload) return '';
+
+      const details = runPayload.details || {};
+      const overview = runPayload.overview || {};
+      const metadata = runPayload.metadata || {};
+      const projectLabel = metadata.projectName || bucket.projectName || 'Keyboard audit';
+      const pagesData = Array.isArray(details.pages) ? details.pages : [];
+      const wcagRefs = Array.isArray(details.wcagReferences) ? details.wcagReferences : [];
+
+      const runSummaryHtml = renderKeyboardRunSummary(overview, pagesData, wcagRefs);
+
+      const totalVisited = pagesData.reduce((sum, page) => sum + (page.visitedCount || 0), 0);
+      const totalFocusable = pagesData.reduce((sum, page) => sum + (page.focusableCount || 0), 0);
+      const skipLinksDetected = overview.skipLinksDetected ?? pagesData.filter((page) => Boolean(page.skipLink)).length;
+
+      const metrics = renderSummaryMetrics([
+        { label: 'Tab stops visited', value: totalVisited },
+        { label: 'Focusable elements logged', value: totalFocusable },
+        { label: 'Skip links detected', value: skipLinksDetected },
+      ]);
+
+      const tableRows = pagesData
+        .map((page) => {
+          const skipStatus = page.skipLink
+            ? `Present — ${escapeHtml(page.skipLink.text || page.skipLink.href || 'skip link')}`
+            : 'Missing';
+          return `
+            <tr class="${(page.gating || []).length ? 'impact-critical' : ''}">
+              <td><code>${escapeHtml(page.page || 'unknown')}</code></td>
+              <td>${page.focusableCount ?? 'n/a'}</td>
+              <td>${page.visitedCount ?? 'n/a'}</td>
+              <td>${skipStatus}</td>
+              <td>${(page.gating || []).length}</td>
+              <td>${(page.advisories || []).length}</td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      const coverageTableHtml = pagesData.length
+        ? `
+          <section class="summary-report summary-a11y summary-a11y--project-summary">
+            <h3>Focus coverage by page</h3>
+            <table>
+              <thead>
+                <tr><th>Page</th><th>Focusable elements</th><th>Visited stops</th><th>Skip link</th><th>Gating issues</th><th>Advisories</th></tr>
+              </thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </section>
+        `
+        : '';
+
+      const perPageEntries = (bucket.pageEntries || []).map((entry) => {
+        const payload = entry.payload || {};
+        const summary = payload.summary || {};
+        const gating = Array.isArray(summary.gating) ? summary.gating : [];
+        const warnings = Array.isArray(summary.warnings) ? summary.warnings : [];
+        const advisories = Array.isArray(summary.advisories) ? summary.advisories : [];
+        const tone = gating.length
+          ? 'summary-page--fail'
+          : warnings.length || advisories.length
+            ? 'summary-page--warn'
+            : 'summary-page--ok';
+        return {
+          ...summary,
+          page: payload.page || summary.page,
+          _summaryClass: tone,
+        };
+      });
+
+      const accordionHtml = renderPerPageAccordion(perPageEntries, {
+        heading: 'Per-page keyboard findings',
+        summaryClass: 'summary-page--keyboard',
+        containerClass: 'summary-report summary-a11y summary-a11y--per-page',
+        renderCard: (entrySummary) => renderKeyboardPageCard(entrySummary),
+        formatSummaryLabel: (entrySummary) => entrySummary?.page || 'Unknown page',
+      });
+
+      const contentParts = [runSummaryHtml, metrics ? `<section class="summary-report summary-a11y summary-a11y--keyboard-metrics"><h3>Focus metrics</h3>${metrics}</section>` : '', coverageTableHtml, accordionHtml]
+        .filter(Boolean)
+        .join('\n');
+      if (!contentParts) return '';
+
+      if (multiProject) {
+        return `
+          <section class="schema-group__project-block">
+            <header class="schema-group__project"><h3>${escapeHtml(projectLabel)}</h3></header>
+            ${contentParts}
+          </section>
+        `;
+      }
+
+      return contentParts;
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  if (!sections.trim()) return '';
 
   const headline = escapeHtml(group.title || 'Keyboard navigation summary');
   return `
-    <article class="schema-group">
+    <section class="schema-group">
       <header><h2>${headline}</h2></header>
-      ${sections.join('\n')}
-    </article>
+      ${sections}
+    </section>
   `;
 };
+
 
 const renderReducedMotionPageCard = (summary) => {
   if (!summary) return '';
