@@ -155,7 +155,9 @@ const formatWcagTagLabel = (tag) => {
     const versionDigits = levelMatch[1];
     const grade = levelMatch[2].toUpperCase();
     let version = versionDigits;
-    if (versionDigits.length === 2) {
+    if (versionDigits.length === 1) {
+      version = `${versionDigits}.0`;
+    } else if (versionDigits.length === 2) {
       version = `${versionDigits[0]}.${versionDigits[1]}`;
     }
     return `WCAG ${version} ${grade}`;
