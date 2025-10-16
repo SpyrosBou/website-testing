@@ -4355,31 +4355,7 @@ function renderReportHtml(run) {
   const testsHtml = groupedTests
     .map((group) => renderTestGroup(group, { promotedSummaryBaseNames: baseNamesUsed }))
     .join('\n');
-  const statusFilters = renderStatusFilters(run.statusCounts);
-
-  const debugHtml = `
-    <details class="debug-deck">
-      <summary class="debug-deck__summary">
-        <div class="debug-deck__lede">
-          <h2>Debug testing</h2>
-          <p>Use the navigation below to inspect raw Playwright projects, attachments, and logs.</p>
-        </div>
-      </summary>
-      <div class="debug-deck__panel">
-        <div class="debug-deck__layout">
-          ${navigationHtml ? `<aside class="debug-deck__sidebar">${navigationHtml}</aside>` : ''}
-          <div class="debug-deck__content">
-            ${statusFilters}
-            <section class="tests-list" aria-label="Test results">
-              ${testsHtml}
-            </section>
-          </div>
-        </div>
-      </div>
-    </details>
-  `;
-
-  const summarySections = [summaryOverviewHtml, runSummariesHtml, debugHtml].filter((section) => Boolean(section && section.trim()))
+  const summarySections = [summaryOverviewHtml, runSummariesHtml].filter((section) => Boolean(section && section.trim()))
     .join('\n');
 
   const summaryPanel = {
