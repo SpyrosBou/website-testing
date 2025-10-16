@@ -21,7 +21,9 @@ The mock HTML report is now approved and locked. All future work happens on the 
 - ⏳ Surface visual regression deltas, previews, and notes inside the new visual panel once the panel migration lands.
 
 ## Phase 3 · Styling Integration
+- ✅ Reporter now sources `docs/mocks/mock-styling.css` directly; legacy inline styles (`SUMMARY_STYLES`) are gone, so every panel inherits the mock tokens without spec-specific CSS.
 - Continue folding mock styling into `utils/report-templates.js` until all panels match the mock (Inter typography, pills, card shadows). Remaining work is tied to the outstanding suite panels above.
+- Specs should emit structured data only—no inline HTML styling—so the shared renderer controls layout, spacing, and color.
 
 ## Phase 4 · Interaction & Accessibility Pass
 - Re-check keyboard focus, tab order, and ARIA labelling for the new stacked layout and accordions.
