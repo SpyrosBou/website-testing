@@ -697,14 +697,14 @@ const renderSuiteCardsSection = (suiteCards) => {
                 ? `${escapeHtml(
                     formatNumber(card.blockingFindings)
                   )} ${escapeHtml(pluralise(card.blockingFindings, 'finding', 'findings'))}`
-                : 'None recorded'
+                : '0 findings'
             }</li>
             <li><strong>Blocking pages:</strong> ${
               card.blockingPages
                 ? `${escapeHtml(
                     formatNumber(card.blockingPages)
                   )} ${escapeHtml(pluralise(card.blockingPages, 'page', 'pages'))}`
-                : 'None recorded'
+                : '0 pages'
             }</li>
           </ul>
           <p class="suite-status">${escapeHtml(card.summaryText)}</p>
@@ -714,7 +714,7 @@ const renderSuiteCardsSection = (suiteCards) => {
     .join('\n');
 
   return `
-    <section class="suite-overview" aria-label="Suites at a glance">
+    <section class="suite-overview">
       <h3>Suites at a glance</h3>
       <div class="suite-grid">
         ${cardsHtml}
@@ -761,12 +761,12 @@ const renderSummaryStatCards = (run, summaryMap, suiteCards, schemaRecords) => {
     {
       label: 'PAGES SCANNED',
       count: pagesTested != null ? formatNumber(pagesTested) : '—',
-      meta: pagesTested != null ? 'Across this run' : 'Not captured',
+      meta: pagesTested != null ? 'per test' : 'Not captured',
     },
     {
-      label: 'TESTS RUN',
+      label: 'TESTS ON EACH PAGE',
       count: totalTests != null ? formatNumber(totalTests) : '—',
-      meta: totalTests != null ? 'Across all suites' : 'Not captured',
+      meta: totalTests != null ? 'Listed in sidebar' : 'Not captured',
     },
     {
       label: 'BROWSERS INCLUDED',
@@ -784,10 +784,9 @@ const renderSummaryStatCards = (run, summaryMap, suiteCards, schemaRecords) => {
     .map(
       (stat) => `
         <article class="summary-card">
-          <h2 class="summary-card__title">
-            <span class="summary-card__count">${escapeHtml(String(stat.count))}</span>
-            ${escapeHtml(stat.label)}
-          </h2>
+          <h2 class="summary-card__title"><span class="summary-card__count">${escapeHtml(
+            String(stat.count)
+          )}</span> ${escapeHtml(stat.label)}</h2>
           <div class="meta">${escapeHtml(stat.meta)}</div>
         </article>
       `
@@ -796,7 +795,7 @@ const renderSummaryStatCards = (run, summaryMap, suiteCards, schemaRecords) => {
 
   return cardsHtml
     ? `
-    <section class="summary-grid summary-grid--stats" aria-label="Run snapshot">
+    <section class="summary-grid summary-grid--stats">
       ${cardsHtml}
     </section>
   `
@@ -811,14 +810,7 @@ const renderSummaryOverview = (run, schemaRecords) => {
   const statCards = renderSummaryStatCards(run, summaryMap, suiteCards, schemaRecords);
   const suitesHtml = renderSuiteCardsSection(suiteCards);
 
-  const sections = [statCards, suitesHtml].filter(Boolean).join('\n');
-  if (!sections) return '';
-
-  return `
-    <section class="summary-overview">
-      ${sections}
-    </section>
-  `;
+  return [statCards, suitesHtml].filter(Boolean).join('\n');
 };
 
 const buildSchemaGroups = (records = []) => {
@@ -1152,8 +1144,8 @@ const renderWcagPageIssueTable = (entries, heading) => {
     .join('');
 
   return `
+    <h4>${escapeHtml(heading)}</h4>
     <div class="page-card__table">
-      <h4>${escapeHtml(heading)}</h4>
       <table>
         <thead><tr><th>Impact</th><th>Rule</th><th>Nodes</th><th>Help</th><th>WCAG level</th><th>Sample targets</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -1379,7 +1371,7 @@ const renderAccessibilityGroupHtml = (group) => {
   const headline =
     multiBucket && group.title ? `<header><h2>${escapeHtml(group.title)}</h2></header>` : '';
   return `
-    <section class="schema-group schema-group--wcag">
+    <section class="schema-group">
       ${headline}
       ${sections}
     </section>
@@ -3833,11 +3825,6 @@ const renderWcagPageCard = (summary, { viewportLabel, failThreshold } = {}) => {
     stabilityHtml ? `<p class="details"><strong>Stability:</strong> ${stabilityHtml}</p>` : '',
     `<p class="details"><strong>Gating:</strong> ${escapeHtml(
       summary.gatingLabel || failThreshold || 'Not recorded'
-    )}</p>`,
-    `<p class="details"><strong>Advisory findings:</strong> ${escapeHtml(
-      formatCount(advisoryCount)
-    )} • <strong>Best-practice advisories:</strong> ${escapeHtml(
-      formatCount(bestPracticeCount)
     )}</p>`,
   ]
     .filter(Boolean)
