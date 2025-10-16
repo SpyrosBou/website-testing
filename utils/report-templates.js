@@ -1178,29 +1178,31 @@ const renderWcagRunSummary = (overview, details, { viewportLabel, viewportsCount
     overview?.totalBestPracticeFindings ??
     pages.reduce((sum, page) => sum + (page.bestPracticeFindings || 0), 0);
 
-  const statusSummary = renderStatusSummaryList(
-    [
-      {
-        label: 'Accessibility violations',
-        tone: 'status-error',
-        count: gatingPages,
-        suffix: 'page(s)',
-      },
-      {
-        label: 'Scan issues',
-        tone: 'status-warning',
-        count: scanIssues,
-        suffix: 'page(s)',
-      },
-      {
-        label: 'Best-practice advisories',
-        tone: 'status-info',
-        count: bestPracticePages,
-        suffix: 'page(s)',
-      },
-    ],
-    { className: 'status-summary' }
-  );
+  const summaryItems = [
+    {
+      label: 'Accessibility violations',
+      tone: 'status-error',
+      count: gatingPages,
+      suffix: 'page(s)',
+    },
+    {
+      label: 'Best-practice advisories',
+      tone: 'status-info',
+      count: bestPracticePages,
+      suffix: 'page(s)',
+    },
+  ];
+
+  if (scanIssues > 0) {
+    summaryItems.push({
+      label: 'Scan issues',
+      tone: 'status-warning',
+      count: scanIssues,
+      suffix: 'page(s)',
+    });
+  }
+
+  const statusSummary = renderStatusSummaryList(summaryItems, { className: 'status-summary' });
 
   const advisoryNote =
     totalAdvisories > 0
@@ -5217,6 +5219,11 @@ details.summary-accordion[open] summary {
 .status-warning {
   background: rgba(217, 119, 6, 0.2);
   color: #92400e;
+}
+
+.status-info {
+  background: rgba(14, 165, 233, 0.18);
+  color: #0369a1;
 }
 
 .status-ok {
