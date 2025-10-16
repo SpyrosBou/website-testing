@@ -1290,7 +1290,7 @@ const renderAccessibilityGroupHtml = (group) => {
   });
 
   if (!dataReady) {
-    return renderAccessibilityGroupHtmlLegacy(group);
+    return '';
   }
   const multiBucket = buckets.length > 1;
 
@@ -5908,8 +5908,7 @@ function renderReportHtml(run) {
     </details>
   `;
 
-  const summarySections = [summaryOverviewHtml, runSummariesHtml, debugHtml]
-    .filter((section) => Boolean(section && section.trim()))
+  const summarySections = [summaryOverviewHtml, runSummariesHtml, debugHtml].filter((section) => Boolean(section && section.trim()))
     .join('\n');
 
   const summaryPanel = {
